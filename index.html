@@ -51,8 +51,15 @@
           <button class="ctl" data-size="m" aria-pressed="true" title="Medium video">M</button>
           <button class="ctl" data-size="l" aria-pressed="false" title="Large video, usually the best quality">L</button>
         </div>
-        <a id="openSrc" class="ctl" target="_blank" rel="noopener">Open</a>
-        <button id="closeBtn" class="ctl" aria-label="Close player">Close</button>
+        <span id="volWrap" class="vol-wrap">
+          <button id="volBtn" class="ctl" aria-expanded="false" aria-controls="volPop">Volume</button>
+          <span id="volPop" class="vol-pop" hidden>
+            <input id="vol" class="seek" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+            <span id="volVal" class="time">100</span>
+          </span>
+        </span>
+        <button id="copyBtn" class="ctl" title="Copy the link of the playing track">Copy track</button>
+        <a id="openSrc" class="ctl" target="_blank" rel="noopener">Open link</a>
       </div>
     </div>
   </div>

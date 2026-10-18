@@ -17,7 +17,7 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 
 let threads = [], meta = {}, shown = [], rendered = 0, query = "";
-let openId = null, playing = null; // playing = {thread, index}
+let playing = null; // playing = {thread, index}
 
 /* ---------- data helpers ---------- */
 const fold = (s) => (s || "").toLowerCase()
@@ -79,73 +79,42 @@ function runSearch() {
   renderMore();
 }
 
-/* ---------- rendering ---------- */
+/* ---------- rendering: every thread is shown open ---------- */
+const img = (src, cls) => src
+  ? el("img", { class: cls, src, alt: "", loading: "lazy", decoding: "async", onerror: (e) => e.target.classList.add("broken") })
+  : el("span", { class: cls + " empty" });
+
+function trackRow(t, tr, i, hits) {
+  const x = info(tr);
+  return el("li", { class: ["track", x.dead && "dead", hits && hits.has(i) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:${i}` },
+    img(x.thumb, "chip"),
+    el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
+      el("span", { class: "tr-title" }, x.title),
+      el("span", { class: "tr-sub" }, [x.author, tr.date ? fmtDate(tr.date) : null, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
+    x.archive
+      ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
+      : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
+}
+
 function threadNode({ t, hits }) {
-  const firstHit = hits ? [...hits][0] : 0;
-  const head = t.tracks[firstHit];
-  const hi = info(head);
-  const others = t.tracks.filter((_, i) => i !== firstHit);
-  const strip = el("span", { class: "strip" },
-    others.slice(0, 12).map((tr) => {
-      const idx = t.tracks.indexOf(tr);
-      return el("span", { class: "chip" + (hits && hits.has(idx) ? " hit" : ""), style: `background-image:url(${info(tr).thumb})`, title: info(tr).title });
-    }),
-    others.length > 12 ? el("span", { class: "count" }, `+${others.length - 12}`) : null,
-    others.length ? null : el("span", { class: "count" }, "No similar tracks yet"));
+  const head = t.tracks[0], hi = info(head);
   const sub = [t.kind === "replies" ? "Replies to a friend's post" : null, hi.author, fmtDate(t.date), `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`].filter(Boolean).join(", ");
   const li = el("li", { class: "thread" + (t.kind === "replies" ? " loose" : ""), id: "th-" + t.id },
-    el("button", { class: "thread-head", "aria-expanded": "false", onclick: () => toggle(t.id) },
-      el("span", { class: "thumb", style: hi.thumb ? `background-image:url(${hi.thumb})` : "" }, hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
+    el("button", { class: ["thread-head", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0`, onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
+      el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
       el("span", { class: "thread-main" },
         el("span", { class: "t-title" }, hi.title),
-        el("span", { class: "t-sub" }, sub),
-        strip)));
-  li._data = { t, hits };
-  if (openId === t.id) expand(li);
+        el("span", { class: "t-sub" }, sub))),
+    t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
+    el("div", { class: "thread-foot" },
+      el("button", { class: "linkbtn", onclick: () => openAdd(t) }, "Add a track here"),
+      el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
   return li;
 }
 
-function expand(li) {
-  const { t, hits } = li._data;
-  li.querySelector(".thread-head").setAttribute("aria-expanded", "true");
-  const list = el("ol", { class: "tracks" }, t.tracks.map((tr, i) => {
-    const x = info(tr);
-    const isPlaying = playing && playing.thread === t && playing.index === i;
-    return el("li", { class: ["track", x.dead && "dead", hits && hits.has(i) && "hit", isPlaying && "playing"].filter(Boolean).join(" ") },
-      el("span", { class: "chip", style: x.thumb ? `background-image:url(${x.thumb})` : "" }),
-      el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
-        el("span", { class: "tr-title" }, x.title),
-        el("span", { class: "tr-sub" }, [x.author, tr.date ? fmtDate(tr.date) : null, i === 0 ? "Main track" : null, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
-      x.archive
-        ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
-        : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
-  }));
-  const foot = el("div", { class: "thread-foot" },
-    el("button", { class: "linkbtn", onclick: () => play(t, 0) }, "Play from the top"),
-    el("button", { class: "linkbtn", onclick: () => openAdd(t) }, "Add a track here"),
-    el("button", { class: "linkbtn", onclick: () => copyLink(t) }, "Copy link"));
-  li.append(list, foot);
-}
-
-function collapse(li) {
-  li.querySelector(".thread-head").setAttribute("aria-expanded", "false");
-  li.querySelector(".tracks")?.remove();
-  li.querySelector(".thread-foot")?.remove();
-}
-
-function toggle(id) {
-  const prev = openId && document.getElementById("th-" + openId);
-  if (prev) collapse(prev);
-  if (openId === id) { openId = null; history.replaceState(null, "", location.pathname); return; }
-  openId = id;
-  history.replaceState(null, "", "#t/" + id);
-  const li = document.getElementById("th-" + id);
-  if (li) expand(li);
-}
-
-function refreshOpen() {
-  const li = openId && document.getElementById("th-" + openId);
-  if (li) { collapse(li); expand(li); }
+function markPlaying() {
+  document.querySelectorAll(".playing").forEach((n) => n.classList.remove("playing"));
+  if (playing) document.querySelectorAll(`[data-k="${playing.thread.id}:${playing.index}"]`).forEach((n) => n.classList.add("playing"));
 }
 
 function renderMore() {
@@ -153,9 +122,10 @@ function renderMore() {
   const end = Math.min(shown.length, rendered + PAGE);
   for (; rendered < end; rendered++) frag.append(threadNode(shown[rendered]));
   $("#threads").append(frag);
+  markPlaying();
 }
 
-new IntersectionObserver((e) => { if (e[0].isIntersecting && rendered < shown.length) renderMore(); }, { rootMargin: "800px" }).observe($("#more"));
+new IntersectionObserver((e) => { if (e[0].isIntersecting && rendered < shown.length) renderMore(); }, { rootMargin: "1200px" }).observe($("#more"));
 
 /* ---------- player dock ---------- */
 const scripts = {};
@@ -179,6 +149,8 @@ function loadYT() {
 }
 
 let adapter = null, loadToken = 0, autoplay = false, seeking = false;
+let volume = 100;
+try { const v = parseInt(localStorage.getItem("nrgfm-volume"), 10); if (v >= 0 && v <= 100) volume = v; } catch {}
 const fmtTime = (s) => {
   if (!isFinite(s) || s < 0) return "0:00";
   s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = String(s % 60).padStart(2, "0");
@@ -216,7 +188,7 @@ function makeYouTube(box, tr, token) {
         videoId: tr.yt, host: "https://www.youtube-nocookie.com", width: "100%", height: "100%",
         playerVars: { autoplay: 1, rel: 0, playsinline: 1, vq: "hd1080" },
         events: {
-          onReady: () => { res(); timer = setInterval(() => p && p.getCurrentTime && events.time(p.getCurrentTime(), p.getDuration()), 250); },
+          onReady: () => { res(); timer = setInterval(() => p && p.getCurrentTime && events.time(p.getCurrentTime(), p.getDuration()), 250); try { p.setVolume(volume); } catch {} },
           onStateChange: (e) => {
             if (e.data === YT.PlayerState.PLAYING) events.state(true);
             else if (e.data === YT.PlayerState.PAUSED) events.state(false);
@@ -227,6 +199,7 @@ function makeYouTube(box, tr, token) {
     })),
     play: () => p && p.playVideo(), pause: () => p && p.pauseVideo(),
     seek: (s) => p && p.seekTo(s, true),
+    setVolume: (v) => { if (p && p.setVolume) { p.setVolume(v); if (v > 0) p.unMute(); } },
     destroy: () => { clearInterval(timer); try { p && p.destroy(); } catch {} },
   };
   return a;
@@ -238,7 +211,7 @@ function makeSoundCloud(box, tr, src) {
     controllable: true,
     ready: loadScript("https://w.soundcloud.com/player/api.js", () => window.SC && SC.Widget).then(() => {
       w = SC.Widget(f); const E = SC.Widget.Events;
-      w.bind(E.READY, () => w.getDuration((d) => { dur = d / 1000; events.time(0, dur); }));
+      w.bind(E.READY, () => { w.setVolume(volume); w.getDuration((d) => { dur = d / 1000; events.time(0, dur); }); });
       w.bind(E.PLAY, () => { events.state(true); w.getDuration((d) => (dur = d / 1000)); });
       w.bind(E.PAUSE, () => events.state(false));
       w.bind(E.FINISH, () => events.ended());
@@ -246,6 +219,7 @@ function makeSoundCloud(box, tr, src) {
     }),
     play: () => w && w.play(), pause: () => w && w.pause(),
     seek: (s) => w && w.seekTo(s * 1000),
+    setVolume: (v) => w && w.setVolume(v),
     destroy: () => {},
   };
 }
@@ -255,19 +229,20 @@ function makeVimeo(box, tr) {
   return {
     controllable: true,
     ready: loadScript("https://player.vimeo.com/api/player.js", () => window.Vimeo).then(() => {
-      p = new Vimeo.Player(f);
+      p = new Vimeo.Player(f); p.setVolume(volume / 100).catch(() => {});
       p.on("play", () => events.state(true)); p.on("pause", () => events.state(false));
       p.on("ended", () => events.ended());
       p.on("timeupdate", (d) => events.time(d.seconds, d.duration));
     }),
     play: () => p && p.play(), pause: () => p && p.pause(),
     seek: (s) => p && p.setCurrentTime(s),
+    setVolume: (v) => p && p.setVolume(v / 100).catch(() => {}),
     destroy: () => { try { p && p.destroy(); } catch {} },
   };
 }
 function makePlain(box, src, title) {
   box.append(el("iframe", { src, allow: "autoplay; encrypted-media; fullscreen", allowfullscreen: true, title }));
-  return { controllable: false, ready: Promise.resolve(), play() {}, pause() {}, seek() {}, destroy() {} };
+  return { controllable: false, ready: Promise.resolve(), play() {}, pause() {}, seek() {}, setVolume() {}, destroy() {} };
 }
 
 function play(t, i) {
@@ -282,7 +257,7 @@ function play(t, i) {
   $("#nowTitle").textContent = x.title;
   $("#nowSub").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
   $("#openSrc").href = x.dead && x.archive ? x.archive : tr.url;
-  $("#openSrc").title = `Open on ${x.dead && x.archive ? "the Internet Archive" : PLATFORM[tr.platform] || "the original site"}`;
+  $("#openSrc").title = `Open the link on ${x.dead && x.archive ? "the Internet Archive" : PLATFORM[tr.platform] || "the original site"}`;
   $("#prevBtn").disabled = i === 0;
   $("#nextBtn").disabled = i === t.tracks.length - 1;
   setPlayState(false); setTime(0, 0);
@@ -313,27 +288,19 @@ function play(t, i) {
   box.dataset.kind = kind;
   const controllable = !!(adapter && adapter.controllable);
   $("#dock").classList.toggle("no-transport", !controllable);
-  $("#playBtn").disabled = !controllable; $("#seek").disabled = !controllable;
+  $("#playBtn").disabled = !controllable; $("#seek").disabled = !controllable; $("#volBtn").disabled = !controllable;
+  if (!controllable) closeVol();
   if (adapter) adapter.ready.catch(() => {
     if (token !== loadToken) return;
     box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load. Use “Open” to play it on the original site."));
   });
-  if (openId === t.id) refreshOpen();
+  markPlaying();
   syncDockSpace();
-}
-
-function stop() {
-  loadToken++;
-  if (adapter) adapter.destroy();
-  adapter = null; playing = null;
-  $("#media").replaceChildren(); $("#dock").hidden = true;
-  refreshOpen(); syncDockSpace();
 }
 
 $("#prevBtn").onclick = () => playing && play(playing.thread, playing.index - 1);
 $("#nextBtn").onclick = () => playing && play(playing.thread, playing.index + 1);
 $("#playBtn").onclick = () => { if (!adapter) return; $("#playBtn").textContent === "Pause" ? adapter.pause() : adapter.play(); };
-$("#closeBtn").onclick = stop;
 
 const seekEl = $("#seek");
 seekEl.addEventListener("input", () => {
@@ -342,6 +309,31 @@ seekEl.addEventListener("input", () => {
   seekEl.style.setProperty("--p", (seekEl.value / seekEl.max) * 100 + "%");
 });
 seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); });
+
+/* copy the playing track's original link */
+$("#copyBtn").onclick = (e) => { if (playing) copyText(playing.thread.tracks[playing.index].url, e.currentTarget, "Copied"); };
+
+/* volume popup; the level is remembered and applied to every track that loads */
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (IOS) $("#volWrap").hidden = true; // iOS only allows the hardware volume buttons
+function closeVol() { $("#volPop").hidden = true; $("#volBtn").setAttribute("aria-expanded", "false"); }
+function showVolume() {
+  $("#vol").value = volume; $("#volVal").textContent = volume;
+  $("#vol").style.setProperty("--p", volume + "%");
+}
+showVolume();
+$("#volBtn").onclick = (e) => {
+  e.stopPropagation();
+  const open = $("#volPop").hidden;
+  $("#volPop").hidden = !open; $("#volBtn").setAttribute("aria-expanded", open ? "true" : "false");
+};
+$("#volPop").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", closeVol);
+$("#vol").addEventListener("input", () => {
+  volume = +$("#vol").value; showVolume();
+  adapter && adapter.setVolume(volume);
+  try { localStorage.setItem("nrgfm-volume", String(volume)); } catch {}
+});
 
 $("#autoBtn").onclick = () => {
   autoplay = !autoplay;
@@ -370,7 +362,7 @@ new ResizeObserver(syncDockSpace).observe($("#dock"));
 /* ---------- add track (via GitHub's web editor, no token needed) ---------- */
 let addTarget = null, lastAdded = null;
 function openAdd(t) {
-  addTarget = t || (openId && threads.find((x) => x.id === openId)) || null;
+  addTarget = t || (playing && playing.thread) || null;
   $("#addForm").hidden = false; $("#shareStep").hidden = true; $("#copied").hidden = true;
   $("#addForm").reset();
   $("#replyOpt").hidden = !addTarget;
@@ -411,15 +403,20 @@ $("#fbCopy").onclick = async () => {
   catch { prompt("Copy this:", text); }
 };
 
-async function copyLink(t) {
-  const link = `${location.origin}${location.pathname}#t/${t.id}`;
-  try { await navigator.clipboard.writeText(link); } catch { prompt("Copy this link:", link); }
+async function copyText(text, btn, done) {
+  try { await navigator.clipboard.writeText(text); } catch { prompt("Copy this:", text); return; }
+  if (!btn) return;
+  const old = btn.textContent; btn.textContent = done;
+  setTimeout(() => (btn.textContent = old), 1500);
+}
+function copyLink(t, btn) {
+  copyText(`${location.origin}${location.pathname}#t/${t.id}`, btn, "Copied");
 }
 
 /* ---------- boot ---------- */
 let timer;
 $("#q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(runSearch, 150); });
-$("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; openId = null; history.replaceState(null, "", location.pathname); runSearch(); scrollTo(0, 0); };
+$("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; history.replaceState(null, "", location.pathname); runSearch(); scrollTo(0, 0); };
 
 (async function boot() {
   try {
@@ -436,7 +433,7 @@ $("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; openId = n
   const deep = location.hash.match(/^#t\/(.+)$/);
   if (deep) {
     const i = threads.findIndex((t) => t.id === deep[1]);
-    if (i > -1) { openId = deep[1]; threads.unshift(threads.splice(i, 1)[0]); }
+    if (i > -1) threads.unshift(threads.splice(i, 1)[0]);
   }
   runSearch();
 })();
