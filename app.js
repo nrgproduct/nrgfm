@@ -33,7 +33,8 @@ function info(t) {
   const author = m.author_name && t.platform !== "bandcamp" ? m.author_name : "";
   let thumb = m.thumbnail_url || "";
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
-  return { title, author, thumb, dead: !!m.dead, untitled: !t.title && !m.title };
+  const noEmbed = m.status === 401; // video exists but its owner blocks playing it on other sites
+  return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, untitled: !t.title && !m.title };
 }
 
 function haystack(t) {
@@ -158,7 +159,7 @@ function embedFor(tr) {
   const m = meta[tr.url] || {};
   const enc = encodeURIComponent;
   switch (tr.platform) {
-    case "youtube": return tr.yt ? { src: `https://www.youtube-nocookie.com/embed/${tr.yt}?autoplay=1&rel=0`, video: true } : null;
+    case "youtube": return tr.yt && m.status !== 401 ? { src: `https://www.youtube-nocookie.com/embed/${tr.yt}?autoplay=1&rel=0`, video: true } : null;
     case "vimeo": return tr.vimeo ? { src: `https://player.vimeo.com/video/${tr.vimeo}?autoplay=1`, video: true } : null;
     case "soundcloud": return { src: (m.sc_src || `https://w.soundcloud.com/player/?url=${enc(tr.url)}`) + "&auto_play=true&visual=false" };
     case "bandcamp": return m.bandcamp_embed ? { src: `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=182c24/linkcol=6fcb9f/artwork=small/tracklist=false/transparent=true/` } : null;
