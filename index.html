@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>nrgfm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1><a href="#" id="home">nrgfm</a></h1>
+    <p id="stats" class="stats">Loading the archive…</p>
+  </div>
+  <div class="tools">
+    <label class="search">
+      <span class="sr">Search tracks</span>
+      <input id="q" type="search" placeholder="Search artist or title" autocomplete="off" spellcheck="false">
+    </label>
+    <button id="addBtn" class="btn">Add track</button>
+  </div>
+</header>
+
+<main>
+  <p id="resultInfo" class="result-info" hidden></p>
+  <ol id="threads" class="threads"></ol>
+  <div id="more" class="more"></div>
+</main>
+
+<aside id="player" class="player" hidden aria-label="Player">
+  <div class="player-bar">
+    <div class="now">
+      <strong id="nowTitle"></strong>
+      <span id="nowSub"></span>
+    </div>
+    <div class="player-actions">
+      <button id="prevBtn" class="icon" aria-label="Previous track in thread">‹</button>
+      <button id="nextBtn" class="icon" aria-label="Next track in thread">›</button>
+      <a id="openSrc" class="icon text" target="_blank" rel="noopener">Open</a>
+      <button id="closeBtn" class="icon" aria-label="Close player">×</button>
+    </div>
+  </div>
+  <div id="frameWrap" class="frame"></div>
+</aside>
+
+<dialog id="addDlg" class="dlg">
+  <form id="addForm" method="dialog">
+    <h2>Add a track</h2>
+    <label>Link
+      <input id="aUrl" type="url" required placeholder="YouTube, SoundCloud, Bandcamp or Vimeo link">
+    </label>
+    <label>Title <span class="hint">optional, filled in automatically if empty</span>
+      <input id="aTitle" type="text" placeholder="Artist – Track">
+    </label>
+    <fieldset>
+      <legend>Where</legend>
+      <label class="radio"><input type="radio" name="where" value="new" checked> Start a new thread</label>
+      <label class="radio" id="replyOpt"><input type="radio" name="where" value="reply"> <span id="replyLabel">Add to the open thread</span></label>
+    </fieldset>
+    <p class="hint">Saving opens GitHub in a new tab. Press “Commit changes” there; the site updates a minute or two later.</p>
+    <div class="row">
+      <button type="button" class="btn ghost" id="aCancel">Cancel</button>
+      <button type="submit" class="btn">Save on GitHub</button>
+    </div>
+  </form>
+  <div id="shareStep" hidden>
+    <h2>Saved? Share it</h2>
+    <p class="hint">Post it to the Facebook group too, if you like.</p>
+    <div class="row col">
+      <a id="fbShare" class="btn" target="_blank" rel="noopener">Share to Facebook</a>
+      <button id="fbCopy" type="button" class="btn ghost">Copy for Facebook</button>
+      <button id="shareDone" type="button" class="btn ghost">Done</button>
+    </div>
+    <p id="copied" class="hint" hidden>Copied. Paste it into the group.</p>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
