@@ -140,14 +140,18 @@ function threadNode({ t, hits }) {
   const head = t.tracks[0], hi = info(head);
   const sub = [t.kind === "replies" ? "Replies to a friend's post" : null, hi.author, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`].filter(Boolean).join(", ");
   const li = el("li", { class: "thread" + (t.kind === "replies" ? " loose" : ""), id: "th-" + t.id },
-    el("button", { class: ["thread-head", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0`, onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
-      el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
-      el("span", { class: "thread-main" },
-        el("span", { class: "t-title" }, hi.title),
-        el("span", { class: "t-sub" }, sub))),
+    el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
+      el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
+        el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
+        el("span", { class: "thread-main" },
+          el("span", { class: "t-title" }, hi.title),
+          el("span", { class: "t-sub" }, sub))),
+      hi.archive
+        ? el("a", { class: "src", href: hi.archive, target: "_blank", rel: "noopener" }, "Archive")
+        : el("a", { class: "src", href: head.url, target: "_blank", rel: "noopener" }, PLATFORM[head.platform] || "Open")),
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
-      el("button", { class: "linkbtn add-here", onclick: () => openAdd(t) }, "Add a track here"),
+      el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
       el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
   return li;
 }
@@ -505,40 +509,65 @@ $("#setupClose").onclick = () => { $("#setupDlg").close(); history.replaceState(
 function checkSetupHash() { if (location.hash === "#setup") openSetup(); }
 window.addEventListener("hashchange", checkSetupHash);
 
-let addTarget = null, lastAdded = null;
-function openAdd(t) {
-  if (!getToken()) { openSetup(); return; }
-  addTarget = t || (playing && playing.thread) || null;
-  $("#addForm").hidden = false; $("#shareStep").hidden = true; $("#copied").hidden = true;
-  $("#addForm").reset();
-  $("#addMsg").textContent = "";
-  $("#addSave").disabled = false;
-  $("#replyOpt").hidden = !addTarget;
-  if (addTarget) {
-    $("#replyLabel").textContent = `Add to “${info(addTarget.tracks[0]).title}”`;
-    if (t) $("#addForm").where.value = "reply";
-  }
-  $("#addDlg").showModal();
-}
-$("#addBtn").onclick = () => openAdd(null);
-$("#aCancel").onclick = () => $("#addDlg").close();
-$("#shareDone").onclick = () => $("#addDlg").close();
-
+/* Inline add form: under the header for a new thread, under a thread's footer for a reply.
+   Title first, then link. Saving writes inbox/<time>.json straight to the repository. */
 const toBase64 = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+const LINK_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com|[\w-]+\.bandcamp\.com|bandcamp\.com|vimeo\.com|mixcloud\.com|open\.spotify\.com)\//i;
 
-$("#addForm").addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  const url = $("#aUrl").value.trim();
-  if (!/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com|[\w-]+\.bandcamp\.com|bandcamp\.com|vimeo\.com|mixcloud\.com|open\.spotify\.com)\//i.test(url)) {
-    $("#aUrl").setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
-    $("#aUrl").reportValidity();
+function addForm(thread) {
+  const form = el("form", { class: "add-form", autocomplete: "off" },
+    el("label", { class: "af-field" }, el("span", {}, "Title"),
+      el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
+    el("label", { class: "af-field" }, el("span", {}, "Link"),
+      el("input", { name: "url", type: "url", required: true, placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
+    el("div", { class: "af-actions" },
+      el("span", { class: "af-msg hint", role: "status" }),
+      el("button", { type: "button", class: "btn ghost", onclick: () => closeAddForm(form) }, "Cancel"),
+      el("button", { type: "submit", class: "btn" }, "Save")));
+  form.url.addEventListener("input", () => form.url.setCustomValidity(""));
+  form.addEventListener("submit", (ev) => { ev.preventDefault(); saveTrack(form, thread); });
+  return form;
+}
+function closeAddForm(form) {
+  if (!form) return;
+  if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
+  form.remove();
+}
+function openAdd(thread) {
+  if (!getToken()) { openSetup(); return; }
+  if (thread) toggleAddForm(thread, document.getElementById("th-" + thread.id));
+  else toggleHeaderForm();
+}
+function toggleHeaderForm() {
+  if (!getToken()) { openSetup(); return; }
+  const panel = $("#addPanel");
+  if (!panel.hidden) { closeAddForm(panel.querySelector("form")); return; }
+  panel.replaceChildren(addForm(null));
+  panel.hidden = false; $("#addBtn").setAttribute("aria-expanded", "true");
+  panel.querySelector("input").focus();
+}
+function toggleAddForm(thread, li) {
+  if (!getToken()) { openSetup(); return; }
+  if (!li) return;
+  const open = li.querySelector(".add-form");
+  if (open) { closeAddForm(open); return; }
+  const form = addForm(thread);
+  li.querySelector(".thread-foot").after(form);
+  form.querySelector("input").focus();
+}
+$("#addBtn").onclick = toggleHeaderForm;
+
+async function saveTrack(form, thread) {
+  const url = form.url.value.trim();
+  if (!LINK_RE.test(url)) {
+    form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
+    form.url.reportValidity();
     return;
   }
   const ts = Math.floor(Date.now() / 1000);
-  const reply = $("#addForm").where.value === "reply" && addTarget;
-  const item = { url, title: $("#aTitle").value.trim(), thread: reply ? addTarget.id : "", ts };
-  $("#addSave").disabled = true;
-  $("#addMsg").textContent = "Saving…";
+  const item = { url, title: form.title.value.trim(), thread: thread ? thread.id : "", ts };
+  const msg = form.querySelector(".af-msg"), btn = form.querySelector("button[type=submit]");
+  btn.disabled = true; msg.textContent = "Saving…";
   try {
     const r = await gh(`/contents/inbox/${ts}.json`, {
       method: "PUT",
@@ -549,15 +578,13 @@ $("#addForm").addEventListener("submit", async (ev) => {
       throw new Error(`GitHub answered ${r.status}. Nothing was saved; try again.`);
     }
   } catch (e) {
-    $("#addMsg").textContent = e.message === "Failed to fetch" ? "No connection to GitHub. Nothing was saved; try again." : e.message;
-    $("#addSave").disabled = false;
+    msg.textContent = e.message === "Failed to fetch" ? "No connection to GitHub. Nothing was saved; try again." : e.message;
+    btn.disabled = false;
     return;
   }
+  closeAddForm(form);
   showLocally(item);
-  lastAdded = item;
-  $("#fbShare").href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-  $("#addForm").hidden = true; $("#shareStep").hidden = false;
-});
+}
 
 /* show the new track right away; the full title and thumbnail arrive with the next site update */
 function showLocally(item) {
@@ -567,19 +594,24 @@ function showLocally(item) {
   const tr = { id: `t${item.ts}_0`, date: new Date(item.ts * 1000).toISOString().slice(0, 10), ts: item.ts, platform, url: item.url };
   if (yt) tr.yt = yt;
   if (item.title) tr.title = item.title;
-  const th = item.thread && threads.find((x) => x.id === item.thread);
+  let th = item.thread && threads.find((x) => x.id === item.thread);
   if (th) th.tracks.push(tr);
-  else { tr.main = true; threads.unshift({ id: `p${item.ts}`, date: tr.date, ts: item.ts, kind: "thread", tracks: [tr] }); }
-  runSearch();
+  else { tr.main = true; th = { id: `p${item.ts}`, date: tr.date, ts: item.ts, kind: "thread", tracks: [tr] }; threads.unshift(th); }
+  // update only what changed, so the page doesn't jump
+  const old = document.getElementById("th-" + th.id);
+  const node = threadNode({ t: th, hits: null });
+  if (old) old.replaceWith(node);
+  else if (!$("#q").value.trim()) { $("#threads").prepend(node); rendered++; shown.unshift({ t: th, hits: null }); }
+  markPlaying();
+  const row = node.querySelector(`[data-k="${th.id}:${th.tracks.length - 1}"]`);
+  if (row) {
+    row.classList.add("just-saved");
+    row.querySelector(".tr-sub, .t-sub")?.prepend(el("span", { class: "saved-tag" }, "Saved"));
+    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(() => row.classList.remove("just-saved"), 4000);
+  }
 }
-$("#aUrl").addEventListener("input", () => $("#aUrl").setCustomValidity(""));
 
-$("#fbCopy").onclick = async () => {
-  if (!lastAdded) return;
-  const text = lastAdded.title ? `${lastAdded.title}\n${lastAdded.url}` : lastAdded.url;
-  try { await navigator.clipboard.writeText(text); $("#copied").hidden = false; }
-  catch { prompt("Copy this:", text); }
-};
 
 async function copyText(text, btn, done) {
   try { await navigator.clipboard.writeText(text); } catch { prompt("Copy this:", text); return; }

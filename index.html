@@ -24,7 +24,8 @@
     <span class="sr">Search tracks</span>
     <input id="q" type="search" placeholder="Search artist or title" autocomplete="off" spellcheck="false">
   </label>
-  <button id="addBtn" class="btn">Add track</button>
+  <button id="addBtn" class="btn" aria-expanded="false" aria-controls="addPanel">Add track</button>
+  <div id="addPanel" class="add-panel" hidden></div>
 </header>
 
 <main>
@@ -70,37 +71,6 @@
   </div>
 </section>
 
-<dialog id="addDlg" class="dlg">
-  <form id="addForm" method="dialog">
-    <h2>Add a track</h2>
-    <label>Link
-      <input id="aUrl" type="url" required placeholder="YouTube, SoundCloud, Bandcamp or Vimeo link">
-    </label>
-    <label>Title <span class="hint">optional, filled in automatically if empty</span>
-      <input id="aTitle" type="text" placeholder="Artist – Track">
-    </label>
-    <fieldset>
-      <legend>Where</legend>
-      <label class="radio"><input type="radio" name="where" value="new" checked> Start a new thread</label>
-      <label class="radio" id="replyOpt"><input type="radio" name="where" value="reply"> <span id="replyLabel">Add to the open thread</span></label>
-    </fieldset>
-    <p id="addMsg" class="hint" role="status"></p>
-    <div class="row">
-      <button type="button" class="btn ghost" id="aCancel">Cancel</button>
-      <button type="submit" class="btn" id="addSave">Save</button>
-    </div>
-  </form>
-  <div id="shareStep" hidden>
-    <h2>Saved</h2>
-    <p class="hint">Title and thumbnail fill in on the site in about a minute. Post it to the Facebook group too, if you like.</p>
-    <div class="row col">
-      <a id="fbShare" class="btn" target="_blank" rel="noopener">Share to Facebook</a>
-      <button id="fbCopy" type="button" class="btn ghost">Copy for Facebook</button>
-      <button id="shareDone" type="button" class="btn ghost">Done</button>
-    </div>
-    <p id="copied" class="hint" hidden>Copied. Paste it into the group.</p>
-  </div>
-</dialog>
 
 <dialog id="setupDlg" class="dlg">
   <form id="setupForm">
