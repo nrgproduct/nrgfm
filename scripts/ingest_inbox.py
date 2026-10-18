@@ -102,6 +102,27 @@ def sort_threads(data):
     data["threads"].sort(key=lambda t: (0, 0) if t.get("pinned") else (1, -t.get("last", t["ts"])))
 
 
+def apply_move(data, by_id, item):
+    """{"action": "move", "id": track id, "to": thread id} -> move a track into another thread."""
+    th, i = find(data, item.get("thread"), item.get("id"))
+    dest = by_id.get(item.get("to") or "")
+    if th is None or dest is None:
+        return "move: track or thread not found"
+    tr = th["tracks"].pop(i)
+    tr.pop("main", None)
+    dest["tracks"].append(tr)
+    dest["tracks"].sort(key=lambda x: x["ts"])
+    for t in (th, dest):
+        for k, x in enumerate(t["tracks"]):
+            x.pop("main", None)
+            if k == 0:
+                x["main"] = True
+    if not th["tracks"]:
+        data["threads"].remove(th)
+        by_id.pop(th["id"], None)
+    return "moved"
+
+
 def main():
     files = sorted(glob.glob(os.path.join(ROOT, "inbox", "*.json")))
     if not files:
@@ -120,10 +141,12 @@ def main():
             res = apply_edit(data, item)
         elif action == "delete":
             res = apply_delete(data, by_id, item)
+        elif action == "move":
+            res = apply_move(data, by_id, item)
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted"):
+        if res in ("added", "edited", "deleted", "moved"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")

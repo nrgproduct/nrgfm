@@ -24,7 +24,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      # always start from the newest version (not the commit that triggered the run),
+      # so quick clicks on the site can't make runs trip over each other
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -39,8 +43,18 @@ jobs:
           git add -A data inbox
           if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
           git commit -m "Update tracks and titles"
-          git pull --rebase origin main
-          git push
+          # if something else was saved meanwhile: start over from the newest version (up to 3 times)
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push; then exit 0; fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main && git reset --hard origin/main
+            python3 scripts/ingest_inbox.py
+            python3 scripts/fetch_meta.py
+            git add -A data inbox
+            git diff --cached --quiet && exit 0
+            git commit -m "Update tracks and titles"
+          done
+          exit 1
       - name: Prepare site
         run: |
           mkdir -p _site

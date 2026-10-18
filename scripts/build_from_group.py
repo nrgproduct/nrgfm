@@ -265,10 +265,12 @@ def replay(data, path):
             res = ingest_inbox.apply_edit(data, item)
         elif action == "delete":
             res = ingest_inbox.apply_delete(data, by_id, item)
+        elif action == "move":
+            res = ingest_inbox.apply_move(data, by_id, item)
         else:
             res = ingest_inbox.apply_add(data, by_id, item)
         n += 1
-        if res not in ("added", "edited", "deleted"):
+        if res not in ("added", "edited", "deleted", "moved"):
             print("change not applied:", res, item)
     return n
 
