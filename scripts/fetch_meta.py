@@ -33,6 +33,8 @@ def og(url):
         x = re.search(r'<meta[^>]+(?:property|name)="%s"[^>]+content="([^"]*)"' % re.escape(prop), body)
         return html.unescape(x.group(1)) if x else None
     out = {"title": m("og:title"), "thumbnail_url": m("og:image"), "author_name": m("og:site_name")}
+    if (out["title"] or "").strip().lower() in BAD_TITLES or "client challenge" in body[:3000].lower():
+        return {"blocked": True}  # bot protection page; scripts/wayback_titles.py tries the archive instead
     vid = m("og:video") or m("og:video:secure_url") or ""
     a = re.search(r"(album|track)=(\d+)", vid)
     if a: out["bandcamp_embed"] = f"{a.group(1)}={a.group(2)}"
@@ -58,7 +60,8 @@ def lookup(t):
         return og(u)
     return {}
 
-KEEP = ("title", "author_name", "thumbnail_url", "sc_src", "bandcamp_embed", "dead", "status")
+BAD_TITLES = {"client challenge", "just a moment...", "attention required!", ""}
+KEEP = ("blocked", "title", "author_name", "thumbnail_url", "sc_src", "bandcamp_embed", "dead", "status")
 
 def main():
     tracks = json.load(open(TRACKS, encoding="utf-8"))

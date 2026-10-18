@@ -47,9 +47,16 @@ def extract(body):
     if a: author = html.unescape(a.group(1)).strip()
     return title, author
 
+BAD_TITLES = {"client challenge", "just a moment...", "attention required!"}
+
+def needs_bandcamp(u, v):
+    t = (v.get("title") or "").strip().lower()
+    return "bandcamp.com" in u and (v.get("blocked") or not t or t in BAD_TITLES) and not v.get("wb_checked")
+
 def main():
     meta = json.load(open(META, encoding="utf-8"))
-    todo = [u for u, v in meta.items() if v.get("dead") and not v.get("title") and not v.get("wb_checked")]
+    bandcamp = [u for u, v in meta.items() if needs_bandcamp(u, v)]
+    todo = bandcamp + [u for u, v in meta.items() if v.get("dead") and not v.get("title") and not v.get("wb_checked") and u not in bandcamp]
     print(f"{len(todo)} dead links not yet checked; doing up to {MAX}")
     found = n = 0
     for u in todo[:MAX]:
@@ -64,7 +71,19 @@ def main():
                 ts, snap_url = hit
                 body = get(f"https://web.archive.org/web/{ts}id_/{snap_url.split('/', 5)[-1]}")
                 title, author = extract(body)
-                if title:
+                if title and title.strip().lower() in BAD_TITLES: title = None
+                if title and "bandcamp.com" in u and not rec.get("dead"):
+                    # live Bandcamp page: use the archived copy for title, artist, artwork and the embed id
+                    m = re.match(r"(.+?),\s+by\s+(.+)$", title)
+                    rec["title"] = m.group(1) if m else title
+                    rec["author_name"] = m.group(2) if m else (meta_tag(body, "og:site_name") or "")
+                    img = meta_tag(body, "og:image")
+                    if img: rec["thumbnail_url"] = img
+                    vid = meta_tag(body, "og:video") or meta_tag(body, "og:video:secure_url") or ""
+                    a = re.search(r"(album|track)=(\d+)", vid) or re.search(r'data-tralbum="[^"]*?&quot;id&quot;:(\d+)', body)
+                    if a and a.lastindex == 2: rec["bandcamp_embed"] = f"{a.group(1)}={a.group(2)}"
+                    rec.pop("blocked", None); found += 1
+                elif title:
                     rec["wb_title"] = title; rec["wb_url"] = snap_url; found += 1
                     if author: rec["wb_author"] = author
                 time.sleep(1.5)
@@ -80,7 +99,7 @@ def main():
             print(n, "checked,", found, "titles found")
             json.dump(meta, open(META, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(meta, open(META, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
-    left = sum(1 for v in meta.values() if v.get("dead") and not v.get("title") and not v.get("wb_checked"))
+    left = sum(1 for u, v in meta.items() if (v.get("dead") and not v.get("title") and not v.get("wb_checked")) or needs_bandcamp(u, v))
     print(f"checked {n}, recovered {found} titles, {left} left")
 
 if __name__ == "__main__":

@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10201a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="nrgfm">
 <meta name="robots" content="noindex, nofollow">
 <title>nrgfm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +33,7 @@
   <div id="more" class="more"></div>
 </main>
 
-<section id="dock" class="dock" hidden aria-label="Player" data-size="m">
+<section id="dock" class="dock" hidden aria-label="Player">
   <div class="media-row"><div id="media" class="media"></div></div>
   <div class="bar">
     <div class="seekrow">
@@ -46,11 +53,6 @@
       </div>
       <div class="opts">
         <button id="autoBtn" class="ctl toggle" aria-pressed="false" title="Play through the rest of the thread">Autoplay off</button>
-        <div id="sizes" class="sizes" role="group" aria-label="Video size">
-          <button class="ctl" data-size="s" aria-pressed="false" title="Small video">S</button>
-          <button class="ctl" data-size="m" aria-pressed="true" title="Medium video">M</button>
-          <button class="ctl" data-size="l" aria-pressed="false" title="Large video, usually the best quality">L</button>
-        </div>
         <span id="volWrap" class="vol-wrap">
           <button id="volBtn" class="ctl" aria-expanded="false" aria-controls="volPop">Volume</button>
           <span id="volPop" class="vol-pop" hidden>

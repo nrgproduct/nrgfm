@@ -27,10 +27,23 @@ const fold = (s) => (s || "").toLowerCase()
 
 const PLATFORM = { youtube: "YouTube", soundcloud: "SoundCloud", bandcamp: "Bandcamp", vimeo: "Vimeo", mixcloud: "Mixcloud", spotify: "Spotify" };
 
+const BAD_TITLES = new Set(["client challenge", "just a moment...", "attention required!"]);
+// Readable fallback from a Bandcamp link: artist.bandcamp.com/album/some-title -> "Some Title – artist"
+function slugTitle(t) {
+  if (t.platform !== "bandcamp") return "";
+  try {
+    const u = new URL(t.url), artist = u.hostname.split(".")[0];
+    const slug = u.pathname.split("/").filter(Boolean).pop() || "";
+    const name = decodeURIComponent(slug).replace(/-\d+$/, "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return name ? `${name} – ${artist}` : artist;
+  } catch { return ""; }
+}
+
 function info(t) {
   const m = meta[t.url] || {};
   const recovered = !!(m.dead && m.wb_title);
-  const title = t.title || m.title || m.wb_title || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
+  const fetched = BAD_TITLES.has((m.title || "").toLowerCase()) ? "" : m.title;
+  const title = t.title || fetched || m.wb_title || slugTitle(t) || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
   const author = (m.author_name && t.platform !== "bandcamp" ? m.author_name : "") || m.wb_author || "";
   let thumb = m.thumbnail_url || "";
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
@@ -41,7 +54,7 @@ function info(t) {
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {};
-    t._hay = fold([t.title, m.title, m.author_name, m.wb_title, m.wb_author].filter(Boolean).join(" "));
+    t._hay = fold([t.title, m.title, m.author_name, m.wb_title, m.wb_author, slugTitle(t)].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -341,16 +354,7 @@ $("#autoBtn").onclick = () => {
   $("#autoBtn").textContent = autoplay ? "Autoplay on" : "Autoplay off";
 };
 
-function setSize(size) {
-  $("#dock").dataset.size = size;
-  document.querySelectorAll("#sizes button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.size === size ? "true" : "false"));
-  try { localStorage.setItem("nrgfm-size", size); } catch {}
-  syncDockSpace();
-}
-document.querySelectorAll("#sizes button").forEach((b) => (b.onclick = () => setSize(b.dataset.size)));
-let savedSize = "m";
-try { savedSize = localStorage.getItem("nrgfm-size") || "m"; } catch {}
-setSize(savedSize);
+
 
 /* keep the end of the list reachable above the dock */
 function syncDockSpace() {
