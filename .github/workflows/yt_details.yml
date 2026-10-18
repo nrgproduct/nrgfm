@@ -1,13 +1,10 @@
 name: Read YouTube video details
 
-# Reads length, category and age restriction of each YouTube link into data/ytinfo.json.
-# Started by hand (Actions tab -> Run workflow); "max" limits how many videos per run.
+# Reads length, category and age restriction of each YouTube link into data/ytinfo.json
+# with the official YouTube Data API. Needs the repository secret YT_API_KEY.
+# Started by hand: Actions tab -> "Read YouTube video details" -> Run workflow.
 on:
   workflow_dispatch:
-    inputs:
-      max:
-        description: "How many videos to look up"
-        default: "100000"
 
 permissions:
   contents: write
@@ -26,7 +23,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Read video details
-        run: python3 scripts/yt_details.py ${{ inputs.max }}
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: python3 scripts/yt_details.py
       - name: Commit
         run: |
           git config user.name "nrgproduct"

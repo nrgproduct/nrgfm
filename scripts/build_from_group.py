@@ -147,6 +147,108 @@ def build(posts):
     return allt
 
 
+# ---------- review step: needs data/meta.json (titles) and data/ytinfo.json (YouTube details) ----------
+STOP = {"the", "and", "official", "video", "feat", "remix", "music", "live", "with", "you", "for", "der", "det", "og"}
+NOT_MUSIC_CATS = {"Comedy", "Gaming", "News & Politics", "Sports", "Howto & Style", "Education", "Pets & Animals",
+                  "Autos & Vehicles", "Science & Technology", "Travel & Events", "Nonprofits & Activism"}
+NOT_MUSIC_WORDS = re.compile(r"\b(trailer|teaser|parody|prank|compilation|interview|documentary|episode|gameplay|"
+                             r"let'?s play|vlog|news|commercial|tutorial|reaction|stand.?up|comedy|movie clip|scene)\b", re.I)
+MUSIC_WORDS = re.compile(r"official (music )?video|official audio|lyrics|\bremix\b|\bmix\)", re.I)
+SEP = re.compile(r"\s[-–—]\s|\S[-–—]\s|\s[-–—]\S| · ")
+
+
+def words(s):
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s or "").lower()
+    return set(re.findall(r"[a-z0-9]{3,}", s)) - STOP
+
+
+def channel_artist(ch):
+    """Artist name from an upload channel when it is obvious: "X - Topic", "XVEVO", or a plain name."""
+    if not ch:
+        return ""
+    if re.search(r"\s-\sTopic$", ch, re.I):
+        return re.sub(r"\s-\sTopic$", "", ch, flags=re.I).strip()
+    if ch.endswith("VEVO"):
+        a = re.sub(r"VEVO$", "", ch)
+        return re.sub(r"([A-Z])([A-Z][a-z])", r"\1 \2", re.sub(r"([a-z])([A-Z])", r"\1 \2", a)).strip()
+    return ""
+
+
+def fetched(x, meta, yt):
+    m = meta.get(x["url"], {})
+    y = yt.get(x.get("yt") or "", {})
+    title = m.get("title") or y.get("title") or m.get("wb_title") or ""
+    if title.strip().lower() in ("client challenge", "youtube"):
+        title = ""
+    author = m.get("author_name") or y.get("author") or m.get("wb_author") or ""
+    return title, author
+
+
+def unavailable(x, meta):
+    """What the site shows as a crossed-out "Unavailable": dead, already looked up in the archive, no title anywhere."""
+    m = meta.get(x["url"], {})
+    return (m.get("dead") and m.get("status") != 401 and m.get("wb_checked") and not x.get("title")
+            and not m.get("wb_title") and x["platform"] != "bandcamp")
+
+
+def maybe_not_music(x, meta, yt):
+    y = yt.get(x.get("yt") or "") or {}
+    title, author = fetched(x, meta, yt)
+    if channel_artist(author):
+        return None  # artist's own Topic/VEVO channel
+    if y.get("len") and y["len"] < 60:
+        return "under a minute"
+    if y.get("cat") in NOT_MUSIC_CATS or y.get("cat") in ("Trailers", "Movies", "Shows"):
+        return y["cat"]
+    hit = NOT_MUSIC_WORDS.search(title) if x["platform"] == "youtube" else None
+    if hit and (hit.group(1).lower() == "parody" or not MUSIC_WORDS.search(title)):
+        return "title"
+    return None
+
+
+def review(threads, meta, yt):
+    """Remove 'Unavailable' tracks; move likely non-music videos and tracks whose Facebook text
+    doesn't match the video into two named threads for Rasmus to look through."""
+    removed, notmusic, mismatch = [], [], []
+    for th in threads:
+        if th["kind"] == "collection" and th["id"] in ("notmusic", "mismatch"):
+            continue
+        keep = []
+        for x in th["tracks"]:
+            if unavailable(x, meta):
+                removed.append(x)
+                continue
+            if maybe_not_music(x, meta, yt):
+                notmusic.append(x)
+                continue
+            title, author = fetched(x, meta, yt)
+            if x.get("title") and title and not (words(x["title"]) & words(title + " " + author)):
+                x["fb_text"] = x.pop("title")  # kept in the data, not shown
+                artist = channel_artist(author) or (author if (yt.get(x.get("yt") or "", {}).get("cat") == "Music"
+                                                               and not re.search(r"records|music|tv|channel|official|\d", author, re.I)) else "")
+                if artist and not SEP.search(title) and artist.lower() not in title.lower():
+                    title = f"{artist} – {title}"
+                x["title"] = title
+                mismatch.append(x)
+                continue
+            keep.append(x)
+        th["tracks"] = keep
+    threads[:] = [t for t in threads if t["tracks"]]
+    named = []
+    for cid, name, tr in (("mismatch", "Text didn't match the video", mismatch), ("notmusic", "Maybe not music", notmusic)):
+        tr.sort(key=lambda x: x["ts"])
+        if tr:
+            named.append({"id": cid, "name": name, "date": tr[0]["date"], "ts": tr[-1]["ts"], "kind": "collection", "pinned": True, "tracks": tr})
+    threads[:] = [t for t in threads if t.get("pinned")] + named + [t for t in threads if not t.get("pinned")]
+    for th in threads:
+        for k, x in enumerate(th["tracks"]):
+            x.pop("main", None)
+            if k == 0:
+                x["main"] = True
+    return removed
+
+
 def replay(data, path):
     """Apply every change made on the site since the build."""
     if not os.path.exists(path):
@@ -175,6 +277,12 @@ def main():
     src, out = sys.argv[1], sys.argv[2]
     export = json.load(open(src, encoding="utf-8"))
     data = {"generated": datetime.date.today().isoformat(), "threads": build(export["posts"])}
+    here = os.path.dirname(os.path.abspath(out))
+    meta = json.load(open(os.path.join(here, "meta.json"), encoding="utf-8"))
+    ytp = os.path.join(here, "ytinfo.json")
+    yt = json.load(open(ytp, encoding="utf-8")) if os.path.exists(ytp) else {}
+    removed = review(data["threads"], meta, yt)
+    print("removed as Unavailable:", len(removed))
     changes = replay(data, os.path.join(os.path.dirname(os.path.abspath(out)), "changes.jsonl"))
     ingest_inbox.sort_threads(data)
     json.dump(data, open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
