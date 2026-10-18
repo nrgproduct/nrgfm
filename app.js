@@ -131,6 +131,14 @@ function trackRow(t, tr, i, hits) {
     el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
       el("span", { class: "tr-title" }, x.title),
       el("span", { class: "tr-sub" }, [x.author, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
+    rowLinks(t, i, x));
+}
+
+/* right side of a row: "Edit" (only on a device with a key) and the platform link */
+function rowLinks(t, i, x) {
+  const tr = t.tracks[i];
+  return el("span", { class: "row-links" },
+    el("button", { class: "linkbtn edit-btn", onclick: (e) => toggleEditForm(t, i, e.currentTarget.closest("[data-k]")) }, "Edit"),
     x.archive
       ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
       : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
@@ -146,9 +154,7 @@ function threadNode({ t, hits }) {
         el("span", { class: "thread-main" },
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub" }, sub))),
-      hi.archive
-        ? el("a", { class: "src", href: hi.archive, target: "_blank", rel: "noopener" }, "Archive")
-        : el("a", { class: "src", href: head.url, target: "_blank", rel: "noopener" }, PLATFORM[head.platform] || "Open")),
+      rowLinks(t, 0, hi)),
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
@@ -514,22 +520,27 @@ window.addEventListener("hashchange", checkSetupHash);
 const toBase64 = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
 const LINK_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com|[\w-]+\.bandcamp\.com|bandcamp\.com|vimeo\.com|mixcloud\.com|open\.spotify\.com)\//i;
 
-function addForm(thread) {
-  const form = el("form", { class: "add-form", autocomplete: "off" },
+function addForm(thread, edit) {
+  // edit = { t, i } when editing an existing track
+  const tr = edit ? edit.t.tracks[edit.i] : null;
+  const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
       el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
     el("label", { class: "af-field" }, el("span", {}, "Link"),
       el("input", { name: "url", type: "url", required: true, placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
     el("div", { class: "af-actions" },
       el("span", { class: "af-msg hint", role: "status" }),
-      el("button", { type: "button", class: "btn ghost", onclick: () => closeAddForm(form) }, "Cancel"),
+      edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
       el("button", { type: "submit", class: "btn" }, "Save")));
+  if (tr) { form.title.value = tr.title || info(tr).title; form.url.value = tr.url; }
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
-  form.addEventListener("submit", (ev) => { ev.preventDefault(); saveTrack(form, thread); });
+  form.addEventListener("submit", (ev) => { ev.preventDefault(); edit ? saveEdit(form, edit) : saveTrack(form, thread); });
+  form.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeAddForm(form); });
   return form;
 }
 function closeAddForm(form) {
   if (!form) return;
+  if (form.parentElement && form.parentElement.classList.contains("edit-li")) { form.parentElement.remove(); return; }
   if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
   form.remove();
 }
@@ -557,6 +568,83 @@ function toggleAddForm(thread, li) {
 }
 $("#addBtn").onclick = toggleHeaderForm;
 
+function toggleEditForm(t, i, row) {
+  if (!getToken()) { openSetup(); return; }
+  const next = row.nextElementSibling;
+  if (next && next.classList.contains("edit-wrap")) { next.remove(); return; }
+  const form = addForm(null, { t, i });
+  const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
+  row.after(wrap);
+  form.title.focus(); form.title.select();
+}
+
+async function writeInbox(item, kind) {
+  const name = `${Date.now()}${kind ? "-" + kind : ""}.json`;
+  const r = await gh(`/contents/inbox/${name}`, {
+    method: "PUT",
+    body: JSON.stringify({ message: kind ? `${kind[0].toUpperCase() + kind.slice(1)} track` : "Add track", content: toBase64(JSON.stringify(item, null, 2) + "\n") }),
+  });
+  if (!r.ok) {
+    if (r.status === 401) throw new Error("The saved key no longer works (expired or deleted). Open the site with #setup and paste a new one.");
+    throw new Error(`GitHub answered ${r.status}. Nothing was saved; try again.`);
+  }
+}
+const netMsg = (e) => (e.message === "Failed to fetch" ? "No connection to GitHub. Nothing was saved; try again." : e.message);
+
+function parseLocal(url) {
+  const yt = (url.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || [])[1];
+  const host = new URL(url).hostname;
+  const platform = yt ? "youtube" : /soundcloud/.test(host) ? "soundcloud" : /bandcamp/.test(host) ? "bandcamp" : /vimeo/.test(host) ? "vimeo" : /mixcloud/.test(host) ? "mixcloud" : "link";
+  const vimeo = (url.match(/vimeo\.com\/(\d+)/) || [])[1];
+  return { platform, url: yt ? `https://www.youtube.com/watch?v=${yt}` : url, yt, vimeo };
+}
+function rerenderThread(t, flashIndex) {
+  const old = document.getElementById("th-" + t.id);
+  if (!old) return;
+  if (!t.tracks.length) { old.remove(); return; }
+  const node = threadNode({ t, hits: null });
+  old.replaceWith(node);
+  markPlaying();
+  if (flashIndex != null) {
+    const row = node.querySelector(`[data-k="${t.id}:${flashIndex}"]`);
+    if (row) { row.classList.add("just-saved"); setTimeout(() => row.classList.remove("just-saved"), 3000); }
+  }
+}
+
+async function saveEdit(form, { t, i }) {
+  const tr = t.tracks[i];
+  const url = form.url.value.trim(), title = form.title.value.trim();
+  if (!LINK_RE.test(url)) {
+    form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
+    form.url.reportValidity();
+    return;
+  }
+  const item = { action: "edit", thread: t.id, id: tr.id, title, url, ts: Math.floor(Date.now() / 1000) };
+  const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
+  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Saving…";
+  try { await writeInbox(item, "edit"); }
+  catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  // apply on screen right away
+  if (url !== tr.url) { const p = parseLocal(url); delete tr.yt; delete tr.vimeo; Object.assign(tr, p); if (!p.yt) delete tr.yt; if (!p.vimeo) delete tr.vimeo; }
+  if (title) tr.title = title; else delete tr.title;
+  tr._hay = null;
+  rerenderThread(t, i);
+}
+
+async function deleteTrack(form, { t, i }, btn) {
+  if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Click again to delete"; return; }
+  const tr = t.tracks[i];
+  const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
+  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Deleting…";
+  try { await writeInbox({ action: "delete", thread: t.id, id: tr.id, ts: Math.floor(Date.now() / 1000) }, "delete"); }
+  catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  if (playing && playing.thread === t && playing.index === i) playing = null;
+  t.tracks.splice(i, 1);
+  if (t.tracks[0]) t.tracks[0].main = true;
+  if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
+  rerenderThread(t, null);
+}
+
 async function saveTrack(form, thread) {
   const url = form.url.value.trim();
   if (!LINK_RE.test(url)) {
@@ -568,20 +656,8 @@ async function saveTrack(form, thread) {
   const item = { url, title: form.title.value.trim(), thread: thread ? thread.id : "", ts };
   const msg = form.querySelector(".af-msg"), btn = form.querySelector("button[type=submit]");
   btn.disabled = true; msg.textContent = "Saving…";
-  try {
-    const r = await gh(`/contents/inbox/${ts}.json`, {
-      method: "PUT",
-      body: JSON.stringify({ message: "Add track", content: toBase64(JSON.stringify(item, null, 2) + "\n") }),
-    });
-    if (!r.ok) {
-      if (r.status === 401) throw new Error("The saved key no longer works (expired or deleted). Open the site with #setup and paste a new one.");
-      throw new Error(`GitHub answered ${r.status}. Nothing was saved; try again.`);
-    }
-  } catch (e) {
-    msg.textContent = e.message === "Failed to fetch" ? "No connection to GitHub. Nothing was saved; try again." : e.message;
-    btn.disabled = false;
-    return;
-  }
+  try { await writeInbox(item, ""); }
+  catch (e) { msg.textContent = netMsg(e); btn.disabled = false; return; }
   closeAddForm(form);
   showLocally(item);
 }

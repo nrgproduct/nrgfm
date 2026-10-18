@@ -29,20 +29,27 @@ button, input { font: inherit; color: inherit; }
 .add-panel { flex: 1 1 100%; }
 .add-panel[hidden] { display: none; }
 .add-form {
-  display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px 12px; align-items: end;
-  padding: 14px 0 4px;
+  display: grid; grid-template-columns: 1fr; gap: 10px;
+  padding: 14px; background: var(--surface); border-radius: var(--radius-lg);
 }
-.thread .add-form { margin: 0 0 18px 176px; padding: 14px; background: var(--surface); border-radius: var(--radius-lg); grid-template-columns: 1fr; }
+.add-panel .add-form { margin: 4px 0 2px; }
+.thread .add-form { margin: 0 0 18px 176px; }
+.thread .edit-wrap { list-style: none; }
+.thread .edit-wrap .add-form { margin: 4px 0 10px 56px; }
+.thread > .edit-wrap .add-form { margin: -4px 0 12px 176px; }
 .af-field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
 .af-field input {
   height: 40px; padding: 0 12px; color: var(--text);
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
 }
-.add-panel .af-field input { background: var(--surface); }
 .af-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
 .af-msg:empty { display: none; }
 .just-saved { outline: 2px solid var(--jade); outline-offset: -2px; }
 .saved-tag { color: var(--jade); font-weight: 700; margin-right: 8px; }
+.row-links { display: inline-flex; align-items: center; gap: 4px; }
+.linkbtn.edit-btn { font-size: 13px; line-height: normal; text-decoration: none; padding: 4px; }
+body:not(.can-add) .edit-btn { display: none; }
+.btn.danger { color: var(--rust); border-color: var(--rust); }
 
 /* adding is only shown on a device with a saved key */
 body:not(.can-add) #addBtn, body:not(.can-add) .add-here { display: none; }
@@ -53,6 +60,7 @@ body:not(.can-add) #addBtn, body:not(.can-add) .add-here { display: none; }
   position: sticky; top: 0; z-index: 5;
   display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
   padding: 12px 24px;
+  padding-right: max(24px, calc(100% - 836px)); /* same width as the list (860px incl. padding) */
   padding-top: max(12px, env(safe-area-inset-top));
   background: var(--bg);
   border-bottom: 1px solid var(--line);
@@ -63,7 +71,7 @@ body:not(.can-add) #addBtn, body:not(.can-add) .add-here { display: none; }
   color: var(--jade);
 }
 .brand a { text-decoration: none; }
-.search { flex: 1; max-width: 640px; }
+.search { flex: 1; min-width: 0; }
 .search input {
   width: 100%; height: 40px; padding: 0 14px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
@@ -113,14 +121,13 @@ img.broken { visibility: hidden; }
 }
 .thread-main { min-width: 0; }
 .t-title {
-  display: block; font-size: 19px; font-weight: 700; line-height: 1.25;
+  display: block; font-size: 19px; font-weight: 500; line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .t-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; }
-.thread.loose .t-title { font-weight: 500; }
 
 /* expanded */
-.tracks { list-style: none; margin: 0 0 6px; padding: 0 0 0 168px; }
+.tracks { list-style: none; margin: 0 -8px 6px 0; padding: 0 0 0 168px; }
 .track {
   display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center;
   padding: 6px 8px; border-radius: var(--radius-sm);
@@ -269,9 +276,8 @@ img.broken { visibility: hidden; }
   main { padding: 0 16px calc(var(--dock-h, 0px) + 24px); }
   .thread-head { grid-template-columns: 112px 1fr; gap: 12px; }
   .head-row { grid-template-columns: 1fr; margin: 10px 0; padding: 6px 0; }
-  .head-row a.src { display: none; }
-  .thread .add-form { margin-left: 0; }
-  .add-form { grid-template-columns: 1fr; }
+  .head-row a.src, .row-links { display: none; }
+  .thread .add-form, .thread .edit-wrap .add-form, .thread > .edit-wrap .add-form { margin-left: 0; }
   .t-title { font-size: 17px; }
   .tracks, .thread-foot { padding-left: 0; }
   /* phone: transport bar on top, full-width video underneath */
@@ -283,7 +289,7 @@ img.broken { visibility: hidden; }
   /* track rows: no platform label, bigger 16:9 thumbnail, title gets the room */
   .track { grid-template-columns: 80px 1fr; gap: 10px; padding: 6px 0; }
   .track .chip { width: 80px; height: 45px; }
-  .track a.src { display: none; }
+  .track a.src, .track .row-links { display: none; }
   .tr-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   /* player: title / transport + thread / options */
   .ctrlrow { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "title title" "transport thread" "opts opts"; gap: 6px 10px; align-items: center; }

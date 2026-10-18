@@ -1,6 +1,8 @@
-"""Merge new tracks from inbox/*.json into data/tracks.json, then delete the inbox files.
-An inbox file is created by the site's "Add track" button via GitHub's web editor:
-{"url": "...", "title": "optional", "thread": "existing thread id or empty for a new thread"}"""
+"""Apply files from inbox/*.json to data/tracks.json, then delete them. Files are written by the site:
+  add:    {"url": "...", "title": "optional", "thread": "thread id or empty for a new thread", "ts": 123}
+  edit:   {"action": "edit", "thread": "thread id", "id": "track id", "title": "...", "url": "...", "ts": 123}
+  delete: {"action": "delete", "thread": "thread id", "id": "track id", "ts": 123}
+Everything is in git history, so any change can be undone."""
 import json, os, glob, time, datetime, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -9,38 +11,109 @@ TRACKS = os.path.join(ROOT, "data", "tracks.json")
 
 from build_url import parse  # noqa: E402
 
+
+def day(ts):
+    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")
+
+
+def find(data, thread_id, track_id):
+    for th in data["threads"]:
+        if th["id"] == thread_id:
+            for i, tr in enumerate(th["tracks"]):
+                if tr["id"] == track_id:
+                    return th, i
+    # thread id may be stale (e.g. track moved); fall back to searching all threads
+    for th in data["threads"]:
+        for i, tr in enumerate(th["tracks"]):
+            if tr["id"] == track_id:
+                return th, i
+    return None, None
+
+
+def apply_add(data, by_id, item):
+    t = parse(item.get("url", "").strip())
+    if not t:
+        return "not a music link"
+    ts = int(item.get("ts") or time.time())
+    tr = {"id": f"t{ts}_0", "date": day(ts), "ts": ts, **t}
+    if item.get("title"):
+        tr["title"] = item["title"].strip()[:200]
+    th = by_id.get(item.get("thread") or "")
+    if th:
+        th["tracks"].append(tr)
+    else:
+        tr["main"] = True
+        th = {"id": f"p{ts}", "date": tr["date"], "ts": ts, "kind": "thread", "tracks": [tr]}
+        data["threads"].append(th)
+        by_id[th["id"]] = th
+    th["last"] = ts
+    return "added"
+
+
+def apply_edit(data, item):
+    th, i = find(data, item.get("thread"), item.get("id"))
+    if th is None:
+        return "edit: track not found"
+    tr = th["tracks"][i]
+    if "url" in item and item["url"].strip() and item["url"].strip() != tr["url"]:
+        t = parse(item["url"].strip())
+        if not t:
+            return "edit: not a music link"
+        for k in ("platform", "url", "yt", "vimeo"):
+            tr.pop(k, None)
+        tr.update(t)
+    if "title" in item:
+        title = (item["title"] or "").strip()[:200]
+        if title:
+            tr["title"] = title
+        else:
+            tr.pop("title", None)  # empty title: fall back to the fetched one
+    return "edited"
+
+
+def apply_delete(data, by_id, item):
+    th, i = find(data, item.get("thread"), item.get("id"))
+    if th is None:
+        return "delete: track not found"
+    th["tracks"].pop(i)
+    if not th["tracks"]:
+        data["threads"].remove(th)
+        by_id.pop(th["id"], None)
+    else:
+        for k, tr in enumerate(th["tracks"]):
+            if k == 0:
+                tr["main"] = True
+            else:
+                tr.pop("main", None)
+    return "deleted"
+
+
 def main():
     files = sorted(glob.glob(os.path.join(ROOT, "inbox", "*.json")))
     if not files:
-        print("inbox empty"); return
+        print("inbox empty")
+        return
     data = json.load(open(TRACKS, encoding="utf-8"))
     by_id = {t["id"]: t for t in data["threads"]}
-    added = 0
     for f in files:
         try:
             item = json.load(open(f, encoding="utf-8"))
         except Exception as e:
-            print("bad file", f, e); continue
-        t = parse(item.get("url", "").strip())
-        if not t:
-            print("not a music link", f); os.remove(f); continue
-        ts = int(item.get("ts") or time.time())
-        tr = {"id": f"t{ts}_0", "date": datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d"), "ts": ts, **t}
-        if item.get("title"): tr["title"] = item["title"].strip()[:200]
-        th = by_id.get(item.get("thread") or "")
-        if th:
-            th["tracks"].append(tr)
+            print("bad file", f, e)
+            continue
+        action = item.get("action", "add")
+        if action == "edit":
+            res = apply_edit(data, item)
+        elif action == "delete":
+            res = apply_delete(data, by_id, item)
         else:
-            tr["main"] = True
-            th = {"id": f"p{ts}", "date": tr["date"], "ts": ts, "kind": "thread", "tracks": [tr]}
-            data["threads"].append(th); by_id[th["id"]] = th
-        th["last"] = ts
-        added += 1
+            res = apply_add(data, by_id, item)
+        print(os.path.basename(f), res)
         os.remove(f)
     data["threads"].sort(key=lambda t: -t.get("last", t["ts"]))
     data["generated"] = datetime.date.today().isoformat()
     json.dump(data, open(TRACKS, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
-    print("added", added)
+
 
 if __name__ == "__main__":
     main()
