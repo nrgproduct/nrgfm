@@ -2,14 +2,22 @@
   add:    {"url": "...", "title": "optional", "thread": "thread id or empty for a new thread", "ts": 123}
   edit:   {"action": "edit", "thread": "thread id", "id": "track id", "title": "...", "url": "...", "ts": 123}
   delete: {"action": "delete", "thread": "thread id", "id": "track id", "ts": 123}
+Every applied change is also appended to data/changes.jsonl (with the time it was made), so a
+rebuild from the Facebook export (scripts/build_from_group.py) can replay it.
 Everything is in git history, so any change can be undone."""
 import json, os, glob, time, datetime, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 TRACKS = os.path.join(ROOT, "data", "tracks.json")
+CHANGES = os.path.join(ROOT, "data", "changes.jsonl")
 
 from build_url import parse  # noqa: E402
+
+
+def stamp(ts):
+    """Time of the change, kept in the data but not shown on the site."""
+    return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def day(ts):
@@ -35,7 +43,7 @@ def apply_add(data, by_id, item):
     if not t:
         return "not a music link"
     ts = int(item.get("ts") or time.time())
-    tr = {"id": f"t{ts}_0", "date": day(ts), "ts": ts, **t}
+    tr = {"id": f"t{ts}_0", "date": day(ts), "ts": ts, "added": stamp(ts), **t}
     if item.get("title"):
         tr["title"] = item["title"].strip()[:200]
     th = by_id.get(item.get("thread") or "")
@@ -68,6 +76,7 @@ def apply_edit(data, item):
             tr["title"] = title
         else:
             tr.pop("title", None)  # empty title: fall back to the fetched one
+    tr["edited"] = stamp(int(item.get("ts") or time.time()))
     return "edited"
 
 
@@ -86,6 +95,11 @@ def apply_delete(data, by_id, item):
             else:
                 tr.pop("main", None)
     return "deleted"
+
+
+def sort_threads(data):
+    """Pinned collections first, then newest activity first."""
+    data["threads"].sort(key=lambda t: (0, 0) if t.get("pinned") else (1, -t.get("last", t["ts"])))
 
 
 def main():
@@ -109,8 +123,12 @@ def main():
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
+        if res in ("added", "edited", "deleted"):
+            item.setdefault("ts", int(time.time()))
+            with open(CHANGES, "a", encoding="utf-8") as log:
+                log.write(json.dumps(item, ensure_ascii=False) + "\n")
         os.remove(f)
-    data["threads"].sort(key=lambda t: -t.get("last", t["ts"]))
+    sort_threads(data)
     data["generated"] = datetime.date.today().isoformat()
     json.dump(data, open(TRACKS, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 

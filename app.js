@@ -147,7 +147,8 @@ function rowLinks(t, i, x) {
 function threadNode({ t, hits }) {
   const head = t.tracks[0], hi = info(head);
   const sub = [t.kind === "replies" ? "Replies to a friend's post" : null, hi.author, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`].filter(Boolean).join(", ");
-  const li = el("li", { class: "thread" + (t.kind === "replies" ? " loose" : ""), id: "th-" + t.id },
+  const li = el("li", { class: "thread" + (t.kind === "replies" ? " loose" : "") + (t.name ? " named" : ""), id: "th-" + t.id },
+    t.name ? el("h2", { class: "thread-name" }, t.name) : null,
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),

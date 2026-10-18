@@ -145,6 +145,7 @@ img.broken { visibility: hidden; }
 .tr-title { display: block; font-weight: 500; overflow-wrap: anywhere; }
 .tr-sub { display: block; color: var(--muted); font-size: 13px; }
 .track.dead .tr-title { color: var(--rust); text-decoration: line-through; }
+.thread-name { margin: 14px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--jade); }
 .thread-foot { padding: 4px 0 18px 176px; display: flex; gap: 16px; }
 .linkbtn { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 .linkbtn:hover { color: var(--text); }
