@@ -82,13 +82,15 @@ button, input { font: inherit; color: inherit; }
 .tag-drop li { padding: 6px 10px; border-radius: 4px; cursor: pointer; }
 .tag-drop li.on, .tag-drop li:hover { background: var(--line); }
 .tag-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.tag {
-  display: inline-block; padding: 0 6px; margin: 2px 4px 0 0; border-radius: var(--radius-sm);
+/* tags under a title: just a quiet note that the track is tagged */
+.tag { margin-right: 8px; color: rgba(228, 238, 232, .5); text-decoration: underline; text-underline-offset: 2px; font-size: 13px; }
+/* tags in the add/edit card: small boxes like buttons; clicking removes them */
+button.tag-chip {
+  display: inline-block; padding: 0 8px; border-radius: var(--radius-sm); cursor: pointer;
   background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-line);
-  font-size: 12px; font-weight: 500; line-height: 18px;
+  font: inherit; font-size: 13px; font-weight: 500; line-height: 26px;
 }
-button.tag.chip-x { font: inherit; font-size: 13px; font-weight: 500; line-height: 26px; padding: 0 8px; margin: 0; cursor: pointer; }
-button.tag.chip-x:hover { border-color: var(--blue); color: var(--text); }
+button.tag-chip:hover { border-color: var(--blue); color: var(--text); }
 .sub-note { color: var(--muted); }
 .t-sub:empty { display: none; }
 .thread.tag-thread .edit-btn { display: none; }
@@ -96,8 +98,9 @@ button.tag.chip-x:hover { border-color: var(--blue); color: var(--text); }
 .thumb.tag-thumb { display: grid; place-items: center; background: var(--blue-bg); border: 1px solid var(--blue-line); }
 .tag-thumb span { color: var(--blue); font-size: 22px; font-weight: 700; letter-spacing: .04em; }
 .tag-title { color: var(--blue); }
-.tag-head:hover .tag-title { color: #a6c9ee; }
-.tag-head:hover .tag-thumb { border-color: var(--blue); }
+.head-row.tag-head:hover { background: var(--blue-bg); }
+.head-row.tag-head.playing { background: #233a52; }
+.tag-head.playing .tag-thumb { border-color: var(--blue); }
 .tag-head { align-items: center; }
 .head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .btn.expand-btn { background: #4f9e7a; height: 34px; padding: 0 12px; font-size: 14px; }
@@ -105,7 +108,9 @@ button.tag.chip-x:hover { border-color: var(--blue); color: var(--text); }
 .btn.tag-btn { background: var(--blue); color: var(--blue-ink); }
 .btn.tag-btn:hover { background: #9cc3ec; }
 .tracks.tag-tracks { padding-left: 168px; }
-.tag-thread .track:hover .tr-title { color: var(--blue); }
+.tag-thread .track:hover { background: var(--blue-bg); }
+.tag-thread .track.playing { background: #233a52; }
+.linkbtn.collapse-link { align-self: flex-end; font-size: 14px; padding: 6px 0; }
 /* search clear button: square, only while searching */
 .btn.square {
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
@@ -219,7 +224,6 @@ img.broken { visibility: hidden; }
 .tr-title { display: block; font-weight: 500; overflow-wrap: anywhere; }
 .tr-sub { display: block; color: var(--muted); font-size: 13px; }
 .track.dead .tr-title { color: var(--rust); text-decoration: line-through; }
-.thread-name { margin: 14px 0 0; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--jade); }
 .thread-foot { padding: 4px 0 18px 176px; display: flex; gap: 16px; }
 .linkbtn { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 .linkbtn:hover { color: var(--text); }

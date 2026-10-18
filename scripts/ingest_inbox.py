@@ -128,8 +128,8 @@ def activity(t):
 
 
 def sort_threads(data):
-    """Pinned collections first, then the thread with the latest activity first."""
-    data["threads"].sort(key=lambda t: (0, 0) if t.get("pinned") else (1, -activity(t)))
+    """The thread with the latest activity first."""
+    data["threads"].sort(key=lambda t: -activity(t))
 
 
 def apply_tag(data, item):

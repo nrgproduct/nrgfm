@@ -10,10 +10,10 @@ Rules
   links in the post, and every music link in the comments under it, follow in posting order.
 - "Anders posts" (off, see SHOW_ANDERS): every music link Anders shared in his own posts and in comments under his own
   posts (and under posts without music), so they can be looked through.
-- "Unsorted": music links whose place is unclear: Rasmus's comments under posts without a
+- One extra thread (id "unsorted", main post Hyetal - Ritual) for music links whose place is unclear: Rasmus's comments under posts without a
   music link, comments under Anders' or other people's posts, and posts by other people.
 - data/not_in_export.json: links from the older Facebook download that are missing from this
-  export; they go into "Unsorted".
+  export; they go into the "unsorted" thread.
 - Posts without any music link (and their non-music comments) are left out.
 - Afterwards data/changes.jsonl (everything added, edited or deleted on the site) is replayed,
   so those changes survive a rebuild.
@@ -123,14 +123,14 @@ def build(posts):
     out = threads
     for th in out:
         th["tracks"].sort(key=lambda x: x["ts"])
-    collections = []
-    named = [("unsorted", "Unsorted", unsorted)]
+    collections = []  # extra threads without a Facebook post of their own (no headline, ordinary threads)
+    groups = [("unsorted", unsorted)]
     if SHOW_ANDERS:
-        named.insert(0, ("anders", "Anders posts", anders))
-    for cid, name, tr in named:
+        groups.insert(0, ("anders", anders))
+    for cid, tr in groups:
         tr.sort(key=lambda x: x["ts"])
         if tr:
-            collections.append({"id": cid, "name": name, "date": tr[0]["date"], "ts": tr[-1]["ts"], "kind": "collection", "pinned": True, "tracks": tr})
+            collections.append({"id": cid, "date": tr[0]["date"], "ts": tr[0]["ts"], "kind": "thread", "tracks": tr})
     extra = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "not_in_export.json")
     if os.path.exists(extra):
         have = {norm(x["url"]) for th in out + collections for x in th["tracks"]}
@@ -178,10 +178,11 @@ def channel_artist(ch):
 def fetched(x, meta, yt):
     m = meta.get(x["url"], {})
     y = yt.get(x.get("yt") or "", {})
-    title = m.get("title") or y.get("title") or m.get("wb_title") or ""
+    import html
+    title = html.unescape(m.get("title") or y.get("title") or m.get("wb_title") or "")
     if title.strip().lower() in ("client challenge", "youtube"):
         title = ""
-    author = m.get("author_name") or y.get("author") or m.get("wb_author") or ""
+    author = html.unescape(m.get("author_name") or y.get("author") or m.get("wb_author") or "")
     return title, author
 
 
@@ -209,10 +210,10 @@ def maybe_not_music(x, meta, yt):
 
 def review(threads, meta, yt):
     """Remove 'Unavailable' tracks; move likely non-music videos and tracks whose Facebook text
-    doesn't match the video into two named threads for Rasmus to look through."""
+    doesn't match the video into two extra threads (ids "notmusic" and "mismatch") to look through."""
     removed, notmusic, mismatch = [], [], []
     for th in threads:
-        if th["kind"] == "collection" and th["id"] in ("notmusic", "mismatch"):
+        if th["id"] in ("notmusic", "mismatch"):
             continue
         keep = []
         for x in th["tracks"]:
@@ -235,29 +236,18 @@ def review(threads, meta, yt):
             keep.append(x)
         th["tracks"] = keep
     threads[:] = [t for t in threads if t["tracks"]]
-    named = []
-    for cid, name, tr in (("mismatch", "Text didn't match the video", mismatch), ("notmusic", "Maybe not music", notmusic)):
+    extra = []
+    for cid, tr in (("mismatch", mismatch), ("notmusic", notmusic)):
         tr.sort(key=lambda x: x["ts"])
         if tr:
-            named.append({"id": cid, "name": name, "date": tr[0]["date"], "ts": tr[-1]["ts"], "kind": "collection", "pinned": True, "tracks": tr})
-    threads[:] = [t for t in threads if t.get("pinned")] + named + [t for t in threads if not t.get("pinned")]
+            extra.append({"id": cid, "date": tr[0]["date"], "ts": tr[0]["ts"], "kind": "thread", "tracks": tr})
+    threads[:] = extra + threads
     for th in threads:
         for k, x in enumerate(th["tracks"]):
             x.pop("main", None)
             if k == 0:
                 x["main"] = True
     return removed
-
-
-def as_threads(data):
-    """The review groups ("Unsorted", "Text didn't match the video", ...) end as ordinary threads:
-    no headline, the first track is the main post. Their tracks carry the tag "unsorted"."""
-    for th in data["threads"]:
-        if th.get("kind") == "collection":
-            th["kind"] = "thread"
-            th.pop("name", None)
-            th.pop("pinned", None)
-            th["ts"], th["date"] = th["tracks"][0]["ts"], th["tracks"][0]["date"]
 
 
 def replay(data, path):
@@ -299,15 +289,14 @@ def main():
     removed = review(data["threads"], meta, yt)
     print("removed as Unavailable:", len(removed))
     changes = replay(data, os.path.join(os.path.dirname(os.path.abspath(out)), "changes.jsonl"))
-    as_threads(data)
     ingest_inbox.sort_threads(data)
     json.dump(data, open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     T = data["threads"]
     print("threads", sum(1 for t in T if t["kind"] == "thread"), "tracks", sum(len(t["tracks"]) for t in T),
           "site changes replayed", changes)
     for t in T:
-        if t["kind"] == "collection":
-            print(t["name"], len(t["tracks"]))
+        if t["id"] in ("unsorted", "mismatch", "notmusic"):
+            print(t["id"], len(t["tracks"]))
     print(Counter(x["platform"] for t in T for x in t["tracks"]))
 
 

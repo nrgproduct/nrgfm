@@ -81,7 +81,7 @@ function info(t) {
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {};
-    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t), ...Object.keys(t.tags || {})].filter(Boolean).join(" "));
+    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t)].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -120,7 +120,7 @@ function allTags() {
   return [...n].sort((a, b) => b[1] - a[1]).map(([g]) => g);
 }
 function sortThreads() {
-  threads.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || activity(b) - activity(a));
+  threads.sort((a, b) => activity(b) - activity(a));
 }
 /* after a change: rebuild the tag threads and update the ones on screen without moving the page */
 function refreshTags() {
@@ -135,15 +135,13 @@ function refreshTags() {
     shown.forEach((x) => { if (x.t === t) x.t = nt; });
     if (node) node.replaceWith(threadNode({ t: nt, hits: null }));
   }
-  const firstBase = threads.findIndex((t) => !t.pinned);
   for (const t of fresh) {
     if (old.some((o) => o.id === t.id)) { threads.push(t); continue; }
-    threads.splice(firstBase < 0 ? threads.length : firstBase, 0, t); // a new tag shows up near the top
+    threads.unshift(t); // a new tag shows up at the top
     if (!$("#q").value.trim()) {
       const node = threadNode({ t, hits: null });
-      const firstNode = [...$("#threads").children].find((n) => !n.classList.contains("named") || n.classList.contains("tag-thread"));
-      $("#threads").insertBefore(node, firstNode || null);
-      shown.splice(shown.findIndex((x) => !x.t.pinned) + 0, 0, { t, hits: null }); rendered++;
+      $("#threads").prepend(node);
+      shown.unshift({ t, hits: null }); rendered++;
     }
   }
   markPlaying();
@@ -159,6 +157,10 @@ function runSearch() {
   } else {
     shown = [];
     for (const t of threads) {
+      if (t.kind === "tag") { // a tag shows up when its name matches; its tracks are found in their own threads
+        if (terms.every((w) => fold(t.name).includes(w))) shown.push({ t, hits: null, tag: true });
+        continue;
+      }
       const hits = new Set();
       t.tracks.forEach((tr, i) => {
         const h = haystack(tr);
@@ -167,12 +169,14 @@ function runSearch() {
       if (hits.size) shown.push({ t, hits });
     }
     // searching a tag's name: its playlist comes first
-    const exact = shown.findIndex((x) => x.t.kind === "tag" && fold(x.t.name) === query);
-    if (exact > 0) shown.unshift(...shown.splice(exact, 1));
-    const n = shown.reduce((a, s) => a + s.hits.size, 0);
+    shown.sort((x, y) => (y.tag ? 1 : 0) - (x.tag ? 1 : 0)); // matching tags first
+    const tagHits = shown.filter((s) => s.tag).length, trackThreads = shown.length - tagHits;
+    const n = shown.reduce((a, s) => a + (s.hits ? s.hits.size : 0), 0);
+    const parts = [];
+    if (tagHits) parts.push(`${tagHits} ${tagHits === 1 ? "tag" : "tags"}`);
+    if (n) parts.push(`${n} ${n === 1 ? "track" : "tracks"} in ${trackThreads} ${trackThreads === 1 ? "thread" : "threads"}`);
     $("#resultInfo").hidden = false;
-    $("#resultInfo").textContent = n
-      ? `${n} ${n === 1 ? "track" : "tracks"} in ${shown.length} ${shown.length === 1 ? "thread" : "threads"}`
+    $("#resultInfo").textContent = parts.length ? parts.join(", ")
       : `Nothing matches “${$("#q").value.trim()}”. Many old links have no title yet; try fewer words.`;
   }
   rendered = 0;
@@ -232,7 +236,9 @@ function tagThreadNode({ t, hits }) {
           el("span", { class: "t-title tag-title" }, t.name),
           el("span", { class: "t-sub" }, `${n} ${n === 1 ? "track" : "tracks"}`))),
       n > TAG_PREVIEW
-        ? el("button", { class: "btn tag-btn", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : `Expand (${n})`)
+        ? (open
+          ? el("button", { class: "linkbtn collapse-link", "aria-expanded": "true", onclick: () => toggleExpand(t, hits) }, "Collapse")
+          : el("button", { class: "btn tag-btn", "aria-expanded": "false", onclick: () => toggleExpand(t, hits) }, `Expand (${n})`))
         : null),
     el("ol", { class: "tracks tag-tracks" }, rows),
     el("div", { class: "thread-foot" },
@@ -255,8 +261,7 @@ function threadNode({ t, hits }) {
   const long = t.tracks.length > THREAD_PREVIEW, open = expandedTags.has(t.id);
   const head = t.tracks[0], hi = info(head);
   const isTag = t.kind === "tag";
-  const li = el("li", { class: "thread" + (t.name ? " named" : "") + (isTag ? " tag-thread" : ""), id: "th-" + t.id },
-    t.name ? el("h2", { class: "thread-name" }, isTag ? `Tag: ${t.name}` : t.name) : null,
+  const li = el("li", { class: "thread", id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
@@ -266,8 +271,9 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" },
         rowLinks(t, 0, hi),
-        long ? el("button", { class: "btn expand-btn", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
-          open ? "Collapse" : `Expand (${t.tracks.length})`) : null)),
+        long ? (open
+          ? el("button", { class: "linkbtn collapse-link", "aria-expanded": "true", onclick: () => toggleExpand(t, hits) }, "Collapse")
+          : el("button", { class: "btn expand-btn", "aria-expanded": "false", onclick: () => toggleExpand(t, hits) }, `Expand (${t.tracks.length})`)) : null)),
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
       isTag ? null : el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
@@ -278,6 +284,7 @@ function threadNode({ t, hits }) {
 function markPlaying() {
   document.querySelectorAll(".playing").forEach((n) => n.classList.remove("playing"));
   if (playing) document.querySelectorAll(`[data-k="${playing.thread.id}:${playing.index}"]`).forEach((n) => n.classList.add("playing"));
+  if (playing && playing.thread.kind === "tag") document.querySelector(`#th-${CSS.escape(playing.thread.id)} .tag-head`)?.classList.add("playing");
 }
 
 function renderMore() {
@@ -649,7 +656,7 @@ function tagEditor(initial) {
   const drop = el("ul", { class: "tag-drop", hidden: true });
   const chips = el("span", { class: "tag-chips" });
   let opts = [], active = 0;
-  const drawChips = () => chips.replaceChildren(...chosen.map((g) => el("button", { type: "button", class: "tag chip-x", title: "Remove tag", onclick: () => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); } }, g, el("span", { "aria-hidden": "true" }, " ×"))));
+  const drawChips = () => chips.replaceChildren(...chosen.map((g) => el("button", { type: "button", class: "tag-chip", title: "Remove tag", onclick: () => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); } }, g, el("span", { "aria-hidden": "true" }, " ×"))));
   const drawDrop = () => {
     const q = fold(input.value);
     opts = q ? allTags().filter((g) => !chosen.includes(g) && fold(g).includes(q)).sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q)).slice(0, 6) : [];
