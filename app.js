@@ -81,7 +81,7 @@ function info(t) {
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {};
-    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t)].filter(Boolean).join(" "));
+    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t), ...Object.keys(t.tags || {})].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -90,6 +90,64 @@ const fmtDate = (d) => {
   const [y, mo] = d.split("-");
   return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}`;
 };
+
+/* ---------- tags: every tag is also shown as a thread (a playlist) ---------- */
+const normTag = (g) => (g || "").replace(/\s+/g, " ").trim().toLowerCase().slice(0, 40);
+const isBase = (t) => t.kind !== "tag";
+function activity(t) {
+  if (t.kind === "tag") return t.last;
+  let a = Math.max(t.last || 0, t.ts || 0);
+  for (const x of t.tracks) if (x.ts > a) a = x.ts;
+  return a;
+}
+function makeTagThreads() {
+  const by = new Map();
+  for (const t of threads) {
+    if (!isBase(t)) continue;
+    for (const tr of t.tracks) for (const [g, ts] of Object.entries(tr.tags || {})) {
+      if (!by.has(g)) by.set(g, []);
+      by.get(g).push({ tr, ts });
+    }
+  }
+  return [...by].map(([g, list]) => {
+    list.sort((a, b) => a.ts - b.ts || a.tr.ts - b.tr.ts); // in the order they were tagged
+    return { id: "tag-" + fold(g).replace(/ /g, "-"), name: g, kind: "tag", ts: list[0].ts, last: list[list.length - 1].ts, tracks: list.map((x) => x.tr) };
+  });
+}
+function allTags() {
+  const n = new Map();
+  for (const t of threads) if (isBase(t)) for (const tr of t.tracks) for (const g of Object.keys(tr.tags || {})) n.set(g, (n.get(g) || 0) + 1);
+  return [...n].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+}
+function sortThreads() {
+  threads.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || activity(b) - activity(a));
+}
+/* after a change: rebuild the tag threads and update the ones on screen without moving the page */
+function refreshTags() {
+  const fresh = makeTagThreads(), byId = new Map(fresh.map((t) => [t.id, t]));
+  const old = threads.filter((t) => !isBase(t));
+  threads = threads.filter(isBase);
+  for (const t of old) {
+    const node = document.getElementById("th-" + t.id);
+    const nt = byId.get(t.id);
+    if (!nt) { if (node) node.remove(); shown = shown.filter((x) => x.t !== t); continue; }
+    if (playing && playing.thread === t) playing.thread = nt;
+    shown.forEach((x) => { if (x.t === t) x.t = nt; });
+    if (node) node.replaceWith(threadNode({ t: nt, hits: null }));
+  }
+  const firstBase = threads.findIndex((t) => !t.pinned);
+  for (const t of fresh) {
+    if (old.some((o) => o.id === t.id)) { threads.push(t); continue; }
+    threads.splice(firstBase < 0 ? threads.length : firstBase, 0, t); // a new tag shows up near the top
+    if (!$("#q").value.trim()) {
+      const node = threadNode({ t, hits: null });
+      const firstNode = [...$("#threads").children].find((n) => !n.classList.contains("named") || n.classList.contains("tag-thread"));
+      $("#threads").insertBefore(node, firstNode || null);
+      shown.splice(shown.findIndex((x) => !x.t.pinned) + 0, 0, { t, hits: null }); rendered++;
+    }
+  }
+  markPlaying();
+}
 
 /* ---------- search ---------- */
 function runSearch() {
@@ -108,6 +166,9 @@ function runSearch() {
       });
       if (hits.size) shown.push({ t, hits });
     }
+    // searching a tag's name: its playlist comes first
+    const exact = shown.findIndex((x) => x.t.kind === "tag" && fold(x.t.name) === query);
+    if (exact > 0) shown.unshift(...shown.splice(exact, 1));
     const n = shown.reduce((a, s) => a + s.hits.size, 0);
     $("#resultInfo").hidden = false;
     $("#resultInfo").textContent = n
@@ -124,21 +185,35 @@ const img = (src, cls) => src
   ? el("img", { class: cls, src, alt: "", loading: "lazy", decoding: "async", onerror: (e) => e.target.classList.add("broken") })
   : el("span", { class: cls + " empty" });
 
+/* tags under a title; clicking one searches for it */
+function tagLine(tr, extra) {
+  const tags = Object.keys(tr.tags || {});
+  return [...tags.map((g) => el("span", { class: "tag", role: "link", tabindex: "0", title: `Show “${g}”`,
+    onclick: (e) => { e.stopPropagation(); searchFor(g); },
+    onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); searchFor(g); } } }, g)),
+    extra ? el("span", { class: "sub-note" }, extra) : null];
+}
+function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); scrollTo(0, 0); }
+const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
+const RECOVERED = "deleted, title recovered from the Internet Archive";
+
 function trackRow(t, tr, i, hits) {
   const x = info(tr);
   return el("li", { class: ["track", x.dead && "dead", hits && hits.has(i) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:${i}` },
     img(x.thumb, "chip"),
     el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
       el("span", { class: "tr-title" }, x.title),
-      el("span", { class: "tr-sub" }, [x.author, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
+      el("span", { class: "tr-sub" }, tagLine(tr, x.recovered ? RECOVERED : null))),
     rowLinks(t, i, x));
 }
 
 /* right side of a row: "Edit" (only on a device with a key) and the platform link */
 function rowLinks(t, i, x) {
   const tr = t.tracks[i];
+  const findable = x.dead && x.title !== "Unavailable";
   return el("span", { class: "row-links" },
     el("button", { class: "linkbtn edit-btn", onclick: (e) => toggleEditForm(t, i, e.currentTarget.closest("[data-k]")) }, "Edit"),
+    findable ? el("a", { class: "src find-yt", href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener", title: "Look for this title on YouTube" }, "Search") : null,
     x.archive
       ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
       : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
@@ -146,19 +221,20 @@ function rowLinks(t, i, x) {
 
 function threadNode({ t, hits }) {
   const head = t.tracks[0], hi = info(head);
-  const sub = [t.kind === "replies" ? "Replies to a friend's post" : null, hi.author, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`].filter(Boolean).join(", ");
-  const li = el("li", { class: "thread" + (t.kind === "replies" ? " loose" : "") + (t.name ? " named" : ""), id: "th-" + t.id },
-    t.name ? el("h2", { class: "thread-name" }, t.name) : null,
+  const isTag = t.kind === "tag";
+  const li = el("li", { class: "thread" + (t.name ? " named" : "") + (isTag ? " tag-thread" : ""), id: "th-" + t.id },
+    t.name ? el("h2", { class: "thread-name" }, isTag ? `Tag: ${t.name}` : t.name) : null,
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
         el("span", { class: "thread-main" },
           el("span", { class: "t-title" }, hi.title),
-          el("span", { class: "t-sub" }, sub))),
+          el("span", { class: "t-sub t-tags" }, tagLine(head)),
+          el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       rowLinks(t, 0, hi)),
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
-      el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
+      isTag ? null : el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
       el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
   return li;
 }
@@ -221,11 +297,16 @@ function setTime(cur, dur) {
   seek.value = Math.min(cur, seek.max);
   seek.style.setProperty("--p", (dur > 0 ? (cur / dur) * 100 : 0) + "%");
 }
-function onEnded() {
-  setPlayState(false);
-  if (autoplay && playing && playing.index < playing.thread.tracks.length - 1) play(playing.thread, playing.index + 1);
+/* autoplay goes to the next track that can play, skipping deleted links and ones that only play on YouTube */
+function playable(tr) { const x = info(tr); return !x.dead && !x.noEmbed; }
+function autoNext() {
+  if (!autoplay || !playing) return;
+  const { thread: t, index: i } = playing;
+  for (let k = i + 1; k < t.tracks.length; k++) if (playable(t.tracks[k])) { play(t, k); return; }
 }
-const events = { state: setPlayState, time: setTime, ended: onEnded };
+function onEnded() { setPlayState(false); autoNext(); }
+function onError() { setPlayState(false); autoNext(); }
+const events = { state: setPlayState, time: setTime, ended: onEnded, error: onError };
 
 /* Each adapter wraps one platform's embed and exposes the same controls. */
 /* One YouTube player is kept for the whole visit and reused for every YouTube track.
@@ -273,6 +354,7 @@ function makeYouTube(tr) {
           else if (e.data === YT.PlayerState.PAUSED) events.state(false);
           else if (e.data === YT.PlayerState.ENDED) events.ended();
         },
+        onError: () => { if (yt.active) events.error(); },
       },
     });
   }));
@@ -289,6 +371,7 @@ function makeSoundCloud(box, tr, src) {
       w.bind(E.PLAY, () => { events.state(true); w.getDuration((d) => (dur = d / 1000)); });
       w.bind(E.PAUSE, () => events.state(false));
       w.bind(E.FINISH, () => events.ended());
+      if (E.ERROR) w.bind(E.ERROR, () => events.error());
       w.bind(E.PLAY_PROGRESS, (e) => events.time(e.currentPosition / 1000, dur));
     }),
     play: () => w && w.play(), pause: () => w && w.pause(),
@@ -306,6 +389,7 @@ function makeVimeo(box, tr) {
       p = new Vimeo.Player(f); p.setVolume(volume / 100).catch(() => {});
       p.on("play", () => events.state(true)); p.on("pause", () => events.state(false));
       p.on("ended", () => events.ended());
+      p.on("error", () => events.error());
       p.on("timeupdate", (d) => events.time(d.seconds, d.duration));
     }),
     play: () => p && p.play(), pause: () => p && p.pause(),
@@ -521,21 +605,59 @@ window.addEventListener("hashchange", checkSetupHash);
 const toBase64 = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
 const LINK_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com|[\w-]+\.bandcamp\.com|bandcamp\.com|vimeo\.com|mixcloud\.com|open\.spotify\.com)\//i;
 
+/* Tag field: type, pick a suggestion with Enter (or the arrow keys), keep typing the next one.
+   Chosen tags show as chips; clicking a chip removes it. */
+function tagEditor(initial) {
+  const chosen = [...initial];
+  const input = el("input", { type: "text", class: "tag-input", placeholder: "Add tag", autocomplete: "off", spellcheck: "false", "aria-label": "Add tag" });
+  const drop = el("ul", { class: "tag-drop", hidden: true });
+  const chips = el("span", { class: "tag-chips" });
+  let opts = [], active = 0;
+  const drawChips = () => chips.replaceChildren(...chosen.map((g) => el("button", { type: "button", class: "tag chip-x", title: "Remove tag", onclick: () => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); } }, g, el("span", { "aria-hidden": "true" }, " ×"))));
+  const drawDrop = () => {
+    const q = fold(input.value);
+    opts = q ? allTags().filter((g) => !chosen.includes(g) && fold(g).includes(q)).sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q)).slice(0, 6) : [];
+    active = 0;
+    drop.hidden = !opts.length;
+    drop.replaceChildren(...opts.map((g, k) => el("li", { class: k === active ? "on" : "", onmousedown: (e) => { e.preventDefault(); add(g); } }, g)));
+  };
+  const add = (g) => { g = normTag(g); if (g && !chosen.includes(g)) chosen.push(g); input.value = ""; drawDrop(); drawChips(); input.focus(); };
+  input.addEventListener("input", drawDrop);
+  input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || (e.key === "," && input.value.trim())) {
+      e.preventDefault();
+      if (!drop.hidden && opts[active]) add(opts[active]); else if (input.value.trim()) add(input.value);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (drop.hidden) return; e.preventDefault();
+      active = (active + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length;
+      [...drop.children].forEach((li, k) => li.classList.toggle("on", k === active));
+    } else if (e.key === "Escape" && !drop.hidden) { e.stopPropagation(); drop.hidden = true; }
+    else if (e.key === "Backspace" && !input.value && chosen.length) { chosen.pop(); drawChips(); }
+  });
+  drawChips();
+  return { box: el("span", { class: "tag-box" }, input, drop), chips, get: () => [...chosen] };
+}
+
 function addForm(thread, edit) {
   // edit = { t, i } when editing an existing track
   const tr = edit ? edit.t.tracks[edit.i] : null;
+  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : []);
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
       el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
     el("label", { class: "af-field" }, el("span", {}, "Link"),
       el("input", { name: "url", type: "url", required: true, placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
     el("div", { class: "af-actions" },
+      tags.box,
       el("span", { class: "af-msg hint", role: "status" }),
+      tags.chips,
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
       edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false", onclick: (e) => toggleMovePanel(form, edit, e.currentTarget) }, "Move") : null,
       el("button", { type: "submit", class: "btn" }, "Save")));
   if (tr) { form.title.value = tr.title || info(tr).title; form.url.value = tr.url; }
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
+  form.tags = tags;
   form.addEventListener("submit", (ev) => { ev.preventDefault(); edit ? saveEdit(form, edit) : saveTrack(form, thread); });
   form.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeAddForm(form); });
   return form;
@@ -621,7 +743,7 @@ async function saveEdit(form, { t, i }) {
     form.url.reportValidity();
     return;
   }
-  const item = { action: "edit", thread: t.id, id: tr.id, title, url, ts: Math.floor(Date.now() / 1000) };
+  const item = { action: "edit", thread: t.id, id: tr.id, title, url, tags: form.tags.get(), ts: Math.floor(Date.now() / 1000) };
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
   btns.forEach((b) => (b.disabled = true)); msg.textContent = "Saving…";
   try { await writeInbox(item, "edit"); }
@@ -629,8 +751,16 @@ async function saveEdit(form, { t, i }) {
   // apply on screen right away
   if (url !== tr.url) { const p = parseLocal(url); delete tr.yt; delete tr.vimeo; Object.assign(tr, p); if (!p.yt) delete tr.yt; if (!p.vimeo) delete tr.vimeo; }
   if (title) tr.title = title; else delete tr.title;
+  applyTags(tr, item.tags, item.ts);
+  t.last = item.ts;
   tr._hay = null;
   rerenderThread(t, i);
+  refreshTags();
+}
+function applyTags(tr, list, ts) {
+  const old = tr.tags || {}, nu = {};
+  for (const g of list) nu[g] = old[g] || ts;
+  if (Object.keys(nu).length) tr.tags = nu; else delete tr.tags;
 }
 
 /* ---------- move a track to another thread ---------- */
@@ -652,7 +782,7 @@ function toggleMovePanel(form, edit, btn) {
     if (!terms.length) return;
     const found = [];
     for (const t of threads) {
-      if (t === edit.t) continue;
+      if (t === edit.t || t.kind === "tag") continue;
       const byName = t.name && terms.every((w) => fold(t.name).includes(w));
       const k = byName ? 0 : t.tracks.findIndex((tr) => { const h = haystack(tr); return terms.every((w) => h.includes(w)); });
       if (k > -1) found.push({ t, k });
@@ -684,9 +814,11 @@ async function moveTrack(form, { t, i }, dest) {
   dest.tracks.push(tr);
   dest.tracks.sort((a, b) => a.ts - b.ts);
   dest.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
+  dest.last = Math.floor(Date.now() / 1000);
   if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
   rerenderThread(t, null);
   rerenderThread(dest, dest.tracks.indexOf(tr));
+  refreshTags();
   // say where it went, on the spot where the track was
   const src = document.getElementById("th-" + t.id);
   if (src) {
@@ -708,6 +840,7 @@ async function deleteTrack(form, { t, i }, btn) {
   if (t.tracks[0]) t.tracks[0].main = true;
   if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
   rerenderThread(t, null);
+  if (tr.tags) refreshTags();
 }
 
 async function saveTrack(form, thread) {
@@ -718,7 +851,7 @@ async function saveTrack(form, thread) {
     return;
   }
   const ts = Math.floor(Date.now() / 1000);
-  const item = { url, title: form.title.value.trim(), thread: thread ? thread.id : "", ts };
+  const item = { url, title: form.title.value.trim(), thread: thread ? thread.id : "", tags: form.tags.get(), ts };
   const msg = form.querySelector(".af-msg"), btn = form.querySelector("button[type=submit]");
   btn.disabled = true; msg.textContent = "Saving…";
   try { await writeInbox(item, ""); }
@@ -735,8 +868,9 @@ function showLocally(item) {
   const tr = { id: `t${item.ts}_0`, date: new Date(item.ts * 1000).toISOString().slice(0, 10), ts: item.ts, platform, url: item.url };
   if (yt) tr.yt = yt;
   if (item.title) tr.title = item.title;
+  if (item.tags && item.tags.length) applyTags(tr, item.tags, item.ts);
   let th = item.thread && threads.find((x) => x.id === item.thread);
-  if (th) th.tracks.push(tr);
+  if (th) { th.tracks.push(tr); th.last = item.ts; }
   else { tr.main = true; th = { id: `p${item.ts}`, date: tr.date, ts: item.ts, kind: "thread", tracks: [tr] }; threads.unshift(th); }
   // update only what changed, so the page doesn't jump
   const old = document.getElementById("th-" + th.id);
@@ -751,6 +885,7 @@ function showLocally(item) {
     row.scrollIntoView({ block: "nearest", behavior: "smooth" });
     setTimeout(() => row.classList.remove("just-saved"), 4000);
   }
+  if (item.tags && item.tags.length) refreshTags();
 }
 
 
@@ -766,8 +901,10 @@ function copyLink(t, btn) {
 
 /* ---------- boot ---------- */
 let timer;
-$("#q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(runSearch, 150); });
-$("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; history.replaceState(null, "", location.pathname); runSearch(); scrollTo(0, 0); };
+function syncClear() { $("#clearQ").hidden = !$("#q").value; }
+$("#q").addEventListener("input", () => { syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 150); });
+$("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); $("#q").focus(); };
+$("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; syncClear(); history.replaceState(null, "", location.pathname); runSearch(); scrollTo(0, 0); };
 
 (async function boot() {
   try {
@@ -776,6 +913,8 @@ $("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; history.re
       fetch("data/meta.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
     threads = d.threads; meta = m;
+    threads.push(...makeTagThreads());
+    sortThreads();
   } catch (e) {
     $("#resultInfo").hidden = false;
     $("#resultInfo").textContent = "The archive didn't load. Reload the page to try again.";

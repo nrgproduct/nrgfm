@@ -20,6 +20,26 @@ def stamp(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def norm_tag(t):
+    """Tags are stored in lowercase with single spaces."""
+    import re
+    return re.sub(r"\s+", " ", str(t)).strip().lower()[:40]
+
+
+def set_tags(tr, tags, ts):
+    """tags: full list after the change. Keeps the time a tag was first added (orders the tag's playlist)."""
+    old = tr.get("tags") or {}
+    new = {}
+    for t in tags or []:
+        t = norm_tag(t)
+        if t and t not in new:
+            new[t] = old.get(t, ts)
+    if new:
+        tr["tags"] = new
+    else:
+        tr.pop("tags", None)
+
+
 def day(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")
 
@@ -46,6 +66,8 @@ def apply_add(data, by_id, item):
     tr = {"id": f"t{ts}_0", "date": day(ts), "ts": ts, "added": stamp(ts), **t}
     if item.get("title"):
         tr["title"] = item["title"].strip()[:200]
+    if item.get("tags"):
+        set_tags(tr, item["tags"], ts)
     th = by_id.get(item.get("thread") or "")
     if th:
         th["tracks"].append(tr)
@@ -76,7 +98,11 @@ def apply_edit(data, item):
             tr["title"] = title
         else:
             tr.pop("title", None)  # empty title: fall back to the fetched one
-    tr["edited"] = stamp(int(item.get("ts") or time.time()))
+    ts = int(item.get("ts") or time.time())
+    if "tags" in item:
+        set_tags(tr, item["tags"], ts)
+    tr["edited"] = stamp(ts)
+    th["last"] = max(th.get("last", 0), ts)
     return "edited"
 
 
@@ -97,9 +123,14 @@ def apply_delete(data, by_id, item):
     return "deleted"
 
 
+def activity(t):
+    """Latest thing that happened in a thread: a post, a comment, or a change made on the site."""
+    return max([t.get("last", 0), t["ts"]] + [x["ts"] for x in t["tracks"]])
+
+
 def sort_threads(data):
-    """Pinned collections first, then newest activity first."""
-    data["threads"].sort(key=lambda t: (0, 0) if t.get("pinned") else (1, -t.get("last", t["ts"])))
+    """Pinned collections first, then the thread with the latest activity first."""
+    data["threads"].sort(key=lambda t: (0, 0) if t.get("pinned") else (1, -activity(t)))
 
 
 def apply_move(data, by_id, item):
@@ -112,6 +143,7 @@ def apply_move(data, by_id, item):
     tr.pop("main", None)
     dest["tracks"].append(tr)
     dest["tracks"].sort(key=lambda x: x["ts"])
+    dest["last"] = max(dest.get("last", 0), int(item.get("ts") or time.time()))
     for t in (th, dest):
         for k, x in enumerate(t["tracks"]):
             x.pop("main", None)
