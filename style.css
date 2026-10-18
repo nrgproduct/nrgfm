@@ -71,7 +71,7 @@ button, input { font: inherit; color: inherit; }
 /* tags */
 .tag-box { position: relative; margin-right: auto; }
 .tag-input {
-  width: 200px; height: 40px; padding: 0 12px; color: var(--text);
+  width: 200px; height: 40px; padding: 0 12px; color: var(--text); font-size: 14px;
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
 }
 .tag-drop {
@@ -83,14 +83,14 @@ button, input { font: inherit; color: inherit; }
 .tag-drop li.on, .tag-drop li:hover { background: var(--line); }
 .tag-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 /* tags under a title: just a quiet note that the track is tagged */
-.tag { margin-right: 8px; color: rgba(228, 238, 232, .5); text-decoration: underline; text-underline-offset: 2px; font-size: 13px; }
+.tag { margin-right: 8px; color: rgba(228, 238, 232, .5); font-size: 13px; }
 /* tags in the add/edit card: small boxes like buttons; clicking removes them */
 button.tag-chip {
   display: inline-block; padding: 0 8px; border-radius: var(--radius-sm); cursor: pointer;
-  background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-line);
+  background: transparent; color: var(--text); border: 1px solid var(--line);
   font: inherit; font-size: 13px; font-weight: 500; line-height: 26px;
 }
-button.tag-chip:hover { border-color: var(--blue); color: var(--text); }
+button.tag-chip:hover { border-color: var(--muted); }
 .sub-note { color: var(--muted); }
 .t-sub:empty { display: none; }
 .thread.tag-thread .edit-btn { display: none; }
@@ -103,14 +103,20 @@ button.tag-chip:hover { border-color: var(--blue); color: var(--text); }
 .tag-head.playing .tag-thumb { border-color: var(--blue); }
 .tag-head { align-items: center; }
 .head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.btn.expand-btn { background: #4f9e7a; height: 34px; padding: 0 12px; font-size: 14px; }
-.btn.expand-btn:hover { background: #5ab087; }
-.btn.tag-btn { background: var(--blue); color: var(--blue-ink); }
-.btn.tag-btn:hover { background: #9cc3ec; }
+.more-toggle {
+  all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  height: 34px; padding: 0 12px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 700; color: var(--jade); white-space: nowrap;
+}
+.more-toggle:hover { background: var(--surface-2); }
+.more-toggle:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+.tag-head .more-toggle { color: var(--blue); }
+.tag-head .more-toggle:hover { background: #233a52; }
+
 .tracks.tag-tracks { padding-left: 168px; }
 .tag-thread .track:hover { background: var(--blue-bg); }
 .tag-thread .track.playing { background: #233a52; }
-.linkbtn.collapse-link { align-self: flex-end; font-size: 14px; padding: 6px 0; }
+
 /* search clear button: square, only while searching */
 .btn.square {
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
@@ -364,7 +370,7 @@ img.broken { visibility: hidden; }
   .thread .add-form, .thread .edit-wrap .add-form, .thread > .edit-wrap .add-form { margin-left: 0; }
   .t-title { font-size: 17px; }
   .tracks, .tracks.tag-tracks, .thread-foot { padding-left: 0; }
-  .tag-head .tag-btn { justify-self: start; }
+  .tag-head .more-toggle { justify-self: start; padding-left: 0; }
   /* phone: transport bar on top, full-width video underneath */
   .dock { display: flex; flex-direction: column; background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
   .bar { order: 1; border-top: 1px solid var(--line); padding-bottom: 10px; }

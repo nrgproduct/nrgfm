@@ -236,9 +236,7 @@ function tagThreadNode({ t, hits }) {
           el("span", { class: "t-title tag-title" }, t.name),
           el("span", { class: "t-sub" }, `${n} ${n === 1 ? "track" : "tracks"}`))),
       n > TAG_PREVIEW
-        ? (open
-          ? el("button", { class: "linkbtn collapse-link", "aria-expanded": "true", onclick: () => toggleExpand(t, hits) }, "Collapse")
-          : el("button", { class: "btn tag-btn", "aria-expanded": "false", onclick: () => toggleExpand(t, hits) }, `Expand (${n})`))
+        ? el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : `Expand (${n})`)
         : null),
     el("ol", { class: "tracks tag-tracks" }, rows),
     el("div", { class: "thread-foot" },
@@ -271,9 +269,8 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" },
         rowLinks(t, 0, hi),
-        long ? (open
-          ? el("button", { class: "linkbtn collapse-link", "aria-expanded": "true", onclick: () => toggleExpand(t, hits) }, "Collapse")
-          : el("button", { class: "btn expand-btn", "aria-expanded": "false", onclick: () => toggleExpand(t, hits) }, `Expand (${t.tracks.length})`)) : null)),
+        long ? el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
+          open ? "Collapse" : `Expand (${t.tracks.length})`) : null)),
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
       isTag ? null : el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
