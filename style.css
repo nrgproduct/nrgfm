@@ -119,14 +119,17 @@ img.broken { visibility: hidden; }
 .dock > * { pointer-events: auto; }
 .media-row { display: flex; justify-content: flex-end; padding: 0 16px 8px; pointer-events: none; }
 .media {
-  pointer-events: auto;
-  width: 356px; aspect-ratio: 16/9; /* smallest size YouTube allows (200px tall) */
+  pointer-events: auto; position: relative;
+  /* fixed size instead of aspect-ratio: Safari can resolve nested 100% heights to 0 */
+  width: 358px; height: 202px; /* 356x200 inside the border: smallest size YouTube allows */
   background: #000; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden;
   box-shadow: 0 12px 40px #0008;
 }
-.media[data-kind="audio"] { aspect-ratio: auto; height: 166px; background: var(--surface); }
-.media[data-kind="note"] { aspect-ratio: auto; background: var(--surface); }
-.media iframe, .media .slot, .media .slot > div { width: 100%; height: 100%; border: 0; display: block; }
+.media[data-kind="audio"] { height: 166px; background: var(--surface); }
+.media[data-kind="note"] { height: auto; background: var(--surface); }
+.media .slot { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+.media[data-kind="note"] .slot { position: static; }
+.media .slot > iframe, .media .slot > div { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: block; }
 .media .slot[hidden] { display: none; }
 .media .slot:empty { display: none; }
 .media .nolink { margin: 0; padding: 16px 18px; color: var(--muted); }
@@ -242,7 +245,7 @@ img.broken { visibility: hidden; }
   .dock { display: flex; flex-direction: column; background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
   .bar { order: 1; border-top: 1px solid var(--line); padding-bottom: 10px; }
   .media-row { order: 2; padding: 0; }
-  .media { width: 100%; border-radius: 0; border: 0; box-shadow: none; }
+  .media { width: 100%; height: 56.25vw; border-radius: 0; border: 0; box-shadow: none; } /* 16:9 of the screen width */
   .ctrlrow { flex-wrap: wrap; gap: 6px 10px; }
   /* track rows: no platform label, bigger 16:9 thumbnail, title gets the room */
   .track { grid-template-columns: 80px 1fr; gap: 10px; padding: 6px 0; }
