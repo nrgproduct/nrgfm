@@ -133,6 +133,19 @@ def sort_threads(data):
     data["threads"].sort(key=lambda t: (0, 0) if t.get("pinned") else (1, -activity(t)))
 
 
+def apply_tag(data, item):
+    """{"action": "tag", "ids": [track ids], "add": [tags], "remove": [tags]} -> tag many tracks at once."""
+    ts = int(item.get("ts") or time.time())
+    want, n = set(item.get("ids") or []), 0
+    for th in data["threads"]:
+        for tr in th["tracks"]:
+            if tr["id"] in want:
+                cur = [t for t in (tr.get("tags") or {}) if t not in {norm_tag(x) for x in item.get("remove") or []}]
+                set_tags(tr, cur + list(item.get("add") or []), ts)
+                n += 1
+    return "tagged" if n else "tag: no tracks found"
+
+
 def apply_move(data, by_id, item):
     """{"action": "move", "id": track id, "to": thread id} -> move a track into another thread."""
     th, i = find(data, item.get("thread"), item.get("id"))
@@ -175,10 +188,12 @@ def main():
             res = apply_delete(data, by_id, item)
         elif action == "move":
             res = apply_move(data, by_id, item)
+        elif action == "tag":
+            res = apply_tag(data, item)
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted", "moved"):
+        if res in ("added", "edited", "deleted", "moved", "tagged"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")

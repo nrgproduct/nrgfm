@@ -188,10 +188,7 @@ const img = (src, cls) => src
 /* tags under a title; clicking one searches for it */
 function tagLine(tr, extra) {
   const tags = Object.keys(tr.tags || {});
-  return [...tags.map((g) => el("span", { class: "tag", role: "link", tabindex: "0", title: `Show “${g}”`,
-    onclick: (e) => { e.stopPropagation(); searchFor(g); },
-    onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); searchFor(g); } } }, g)),
-    extra ? el("span", { class: "sub-note" }, extra) : null];
+  return [...tags.map((g) => el("span", { class: "tag" }, g)), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); scrollTo(0, 0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
@@ -219,7 +216,38 @@ function rowLinks(t, i, x) {
       : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
 }
 
+/* A tag is shown as its own thread: a blue "tag" box, the tag's name, and its first 8 tracks
+   (Expand shows all of them). */
+const TAG_PREVIEW = 8;
+const expandedTags = new Set();
+function tagThreadNode({ t, hits }) {
+  const open = expandedTags.has(t.id), n = t.tracks.length;
+  const rows = (open ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
+  // a search hit further down the list opens it
+  return el("li", { class: "thread tag-thread", id: "th-" + t.id },
+    el("div", { class: "head-row tag-head" },
+      el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play the tag ${t.name}` },
+        el("span", { class: "thumb tag-thumb" }, el("span", {}, "tag")),
+        el("span", { class: "thread-main" },
+          el("span", { class: "t-title tag-title" }, t.name),
+          el("span", { class: "t-sub" }, `${n} ${n === 1 ? "track" : "tracks"}`))),
+      n > TAG_PREVIEW
+        ? el("button", { class: "btn tag-btn", "aria-expanded": String(open), onclick: () => {
+            open ? expandedTags.delete(t.id) : expandedTags.add(t.id);
+            const node = document.getElementById("th-" + t.id);
+            node.replaceWith(tagThreadNode({ t, hits })); markPlaying();
+          } }, open ? "Collapse" : `Expand (${n})`)
+        : null),
+    el("ol", { class: "tracks tag-tracks" }, rows),
+    el("div", { class: "thread-foot" },
+      el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
+}
+
 function threadNode({ t, hits }) {
+  if (t.kind === "tag") {
+    if (hits && [...hits].some((i) => i >= TAG_PREVIEW)) expandedTags.add(t.id);
+    return tagThreadNode({ t, hits });
+  }
   const head = t.tracks[0], hi = info(head);
   const isTag = t.kind === "tag";
   const li = el("li", { class: "thread" + (t.name ? " named" : "") + (isTag ? " tag-thread" : ""), id: "th-" + t.id },
