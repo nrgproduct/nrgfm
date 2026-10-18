@@ -268,7 +268,8 @@ function play(t, i) {
   const box = $("#media"); box.replaceChildren();
   const dock = $("#dock"); dock.hidden = false;
   $("#nowTitle").textContent = x.title;
-  $("#nowSub").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
+  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
+  closeThread();
   $("#openSrc").href = x.dead && x.archive ? x.archive : tr.url;
   $("#openSrc").title = `Open the link on ${x.dead && x.archive ? "the Internet Archive" : PLATFORM[tr.platform] || "the original site"}`;
   $("#prevBtn").disabled = i === 0;
@@ -322,6 +323,27 @@ seekEl.addEventListener("input", () => {
   seekEl.style.setProperty("--p", (seekEl.value / seekEl.max) * 100 + "%");
 });
 seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); });
+
+/* thread menu: list the playing thread above the bar; picking a track plays it and closes the menu */
+function closeThread() { $("#threadPop").hidden = true; $("#threadBtn").setAttribute("aria-expanded", "false"); }
+function openThread() {
+  if (!playing) return;
+  const t = playing.thread;
+  $("#threadList").replaceChildren(...t.tracks.map((tr, i) => {
+    const x = info(tr);
+    return el("li", {},
+      el("button", { class: "tl-item" + (i === playing.index ? " current" : "") + (x.dead ? " dead" : ""), onclick: () => play(t, i), "aria-current": i === playing.index ? "true" : null },
+        img(x.thumb, "chip"),
+        el("span", { class: "tl-text" },
+          el("span", { class: "tr-title" }, x.title),
+          el("span", { class: "tr-sub" }, [i === 0 ? "Main track" : null, x.author].filter(Boolean).join(", ")))));
+  }));
+  $("#threadPop").hidden = false; $("#threadBtn").setAttribute("aria-expanded", "true");
+  $("#threadList .current")?.scrollIntoView({ block: "nearest" });
+}
+$("#threadBtn").onclick = (e) => { e.stopPropagation(); $("#threadPop").hidden ? openThread() : closeThread(); };
+$("#threadPop").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", closeThread);
 
 /* copy the playing track's original link */
 $("#copyBtn").onclick = (e) => { if (playing) copyText(playing.thread.tracks[playing.index].url, e.currentTarget, "Copied"); };

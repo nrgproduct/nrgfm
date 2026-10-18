@@ -36,6 +36,9 @@
 <section id="dock" class="dock" hidden aria-label="Player">
   <div class="media-row"><div id="media" class="media"></div></div>
   <div class="bar">
+    <div id="threadPop" class="thread-pop" hidden>
+      <ol id="threadList" class="thread-list"></ol>
+    </div>
     <div class="seekrow">
       <span id="tCur" class="time">0:00</span>
       <input id="seek" class="seek" type="range" min="0" max="1" step="0.1" value="0" aria-label="Position in track">
@@ -49,7 +52,7 @@
       </div>
       <div class="now">
         <strong id="nowTitle"></strong>
-        <span id="nowSub"></span>
+        <button id="threadBtn" class="thread-btn" aria-expanded="false" aria-controls="threadPop" title="Show all tracks in this thread"></button>
       </div>
       <div class="opts">
         <button id="autoBtn" class="ctl toggle" aria-pressed="false" title="Play through the rest of the thread">Autoplay off</button>
