@@ -157,50 +157,215 @@ function renderMore() {
 
 new IntersectionObserver((e) => { if (e[0].isIntersecting && rendered < shown.length) renderMore(); }, { rootMargin: "800px" }).observe($("#more"));
 
-/* ---------- player ---------- */
-function embedFor(tr) {
-  const m = meta[tr.url] || {};
-  const enc = encodeURIComponent;
-  switch (tr.platform) {
-    case "youtube": return tr.yt && m.status !== 401 ? { src: `https://www.youtube-nocookie.com/embed/${tr.yt}?autoplay=1&rel=0&vq=hd1080`, video: true } : null;
-    case "vimeo": return tr.vimeo ? { src: `https://player.vimeo.com/video/${tr.vimeo}?autoplay=1`, video: true } : null;
-    case "soundcloud": return { src: (m.sc_src || `https://w.soundcloud.com/player/?url=${enc(tr.url)}`) + "&auto_play=true&visual=false" };
-    case "bandcamp": return m.bandcamp_embed ? { src: `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=182c24/linkcol=6fcb9f/artwork=small/tracklist=false/transparent=true/` } : null;
-    case "mixcloud": return { src: `https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&autoplay=1&feed=${enc(new URL(tr.url).pathname)}` };
-    default: return null;
-  }
+/* ---------- player dock ---------- */
+const scripts = {};
+function loadScript(src, ready) {
+  if (!scripts[src]) scripts[src] = new Promise((res, rej) => {
+    if (ready && ready()) return res();
+    const s = document.createElement("script");
+    s.src = src; s.onload = () => res(); s.onerror = rej;
+    document.head.append(s);
+  });
+  return scripts[src];
+}
+function loadYT() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (!scripts.yt) scripts.yt = new Promise((res) => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prev && prev(); res(); };
+    const s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; document.head.append(s);
+  });
+  return scripts.yt;
+}
+
+let adapter = null, loadToken = 0, autoplay = false, seeking = false;
+const fmtTime = (s) => {
+  if (!isFinite(s) || s < 0) return "0:00";
+  s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+};
+
+function setPlayState(isPlaying) {
+  $("#playBtn").textContent = isPlaying ? "Pause" : "Play";
+  $("#playBtn").setAttribute("aria-pressed", isPlaying ? "true" : "false");
+}
+function setTime(cur, dur) {
+  if (seeking) return;
+  $("#tCur").textContent = fmtTime(cur);
+  $("#tDur").textContent = fmtTime(dur);
+  const seek = $("#seek");
+  seek.max = dur > 0 ? dur : 1;
+  seek.value = Math.min(cur, seek.max);
+  seek.style.setProperty("--p", (dur > 0 ? (cur / dur) * 100 : 0) + "%");
+}
+function onEnded() {
+  setPlayState(false);
+  if (autoplay && playing && playing.index < playing.thread.tracks.length - 1) play(playing.thread, playing.index + 1);
+}
+const events = { state: setPlayState, time: setTime, ended: onEnded };
+
+/* Each adapter wraps one platform's embed and exposes the same controls. */
+function makeYouTube(box, tr, token) {
+  const host = el("div"); box.append(host);
+  let p = null, timer = null;
+  const a = {
+    controllable: true,
+    ready: loadYT().then(() => new Promise((res) => {
+      if (token !== loadToken) return res();
+      p = new YT.Player(host, {
+        videoId: tr.yt, host: "https://www.youtube-nocookie.com", width: "100%", height: "100%",
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1, vq: "hd1080" },
+        events: {
+          onReady: () => { res(); timer = setInterval(() => p && p.getCurrentTime && events.time(p.getCurrentTime(), p.getDuration()), 250); },
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.PLAYING) events.state(true);
+            else if (e.data === YT.PlayerState.PAUSED) events.state(false);
+            else if (e.data === YT.PlayerState.ENDED) events.ended();
+          },
+        },
+      });
+    })),
+    play: () => p && p.playVideo(), pause: () => p && p.pauseVideo(),
+    seek: (s) => p && p.seekTo(s, true),
+    destroy: () => { clearInterval(timer); try { p && p.destroy(); } catch {} },
+  };
+  return a;
+}
+function makeSoundCloud(box, tr, src) {
+  const f = el("iframe", { src, allow: "autoplay", title: "SoundCloud player" }); box.append(f);
+  let w = null, dur = 0;
+  return {
+    controllable: true,
+    ready: loadScript("https://w.soundcloud.com/player/api.js", () => window.SC && SC.Widget).then(() => {
+      w = SC.Widget(f); const E = SC.Widget.Events;
+      w.bind(E.READY, () => w.getDuration((d) => { dur = d / 1000; events.time(0, dur); }));
+      w.bind(E.PLAY, () => { events.state(true); w.getDuration((d) => (dur = d / 1000)); });
+      w.bind(E.PAUSE, () => events.state(false));
+      w.bind(E.FINISH, () => events.ended());
+      w.bind(E.PLAY_PROGRESS, (e) => events.time(e.currentPosition / 1000, dur));
+    }),
+    play: () => w && w.play(), pause: () => w && w.pause(),
+    seek: (s) => w && w.seekTo(s * 1000),
+    destroy: () => {},
+  };
+}
+function makeVimeo(box, tr) {
+  const f = el("iframe", { src: `https://player.vimeo.com/video/${tr.vimeo}?autoplay=1`, allow: "autoplay; fullscreen", allowfullscreen: true, title: "Vimeo player" }); box.append(f);
+  let p = null;
+  return {
+    controllable: true,
+    ready: loadScript("https://player.vimeo.com/api/player.js", () => window.Vimeo).then(() => {
+      p = new Vimeo.Player(f);
+      p.on("play", () => events.state(true)); p.on("pause", () => events.state(false));
+      p.on("ended", () => events.ended());
+      p.on("timeupdate", (d) => events.time(d.seconds, d.duration));
+    }),
+    play: () => p && p.play(), pause: () => p && p.pause(),
+    seek: (s) => p && p.setCurrentTime(s),
+    destroy: () => { try { p && p.destroy(); } catch {} },
+  };
+}
+function makePlain(box, src, title) {
+  box.append(el("iframe", { src, allow: "autoplay; encrypted-media; fullscreen", allowfullscreen: true, title }));
+  return { controllable: false, ready: Promise.resolve(), play() {}, pause() {}, seek() {}, destroy() {} };
 }
 
 function play(t, i) {
   if (i < 0 || i >= t.tracks.length) return;
   playing = { thread: t, index: i };
-  const tr = t.tracks[i], x = info(tr), e = x.dead ? null : embedFor(tr);
-  $("#player").hidden = false;
+  const token = ++loadToken;
+  const tr = t.tracks[i], x = info(tr), m = meta[tr.url] || {};
+  if (adapter) adapter.destroy();
+  adapter = null;
+  const box = $("#media"); box.replaceChildren();
+  const dock = $("#dock"); dock.hidden = false;
   $("#nowTitle").textContent = x.title;
   $("#nowSub").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
   $("#openSrc").href = x.dead && x.archive ? x.archive : tr.url;
-  $("#openSrc").textContent = "Open"; $("#openSrc").title = `Open on ${PLATFORM[tr.platform] || "the original site"}`;
+  $("#openSrc").title = `Open on ${x.dead && x.archive ? "the Internet Archive" : PLATFORM[tr.platform] || "the original site"}`;
   $("#prevBtn").disabled = i === 0;
   $("#nextBtn").disabled = i === t.tracks.length - 1;
-  const wrap = $("#frameWrap");
-  wrap.className = "frame" + (e && !e.video ? " audio" : "");
-  wrap.replaceChildren(e
-    ? el("iframe", { src: e.src, allow: "autoplay; encrypted-media; fullscreen", allowfullscreen: true, title: x.title })
-    : el("p", { class: "nolink" }, x.dead
-        ? (x.archive ? "This track was deleted. “Open” shows the archived page; try searching the title on YouTube for a re-upload." : "This track was deleted and no archived copy of its page was found.")
-        : `This ${PLATFORM[tr.platform] || "link"} can't play here yet. Use “Open” above.`));
+  setPlayState(false); setTime(0, 0);
+
+  let kind = "video";
+  if (x.dead) {
+    kind = "note";
+    box.append(el("p", { class: "nolink" }, x.archive
+      ? "This track was deleted. “Open” shows the archived page; search the title on YouTube to find a re-upload."
+      : "This track was deleted and no archived copy of its page was found."));
+  } else if (tr.platform === "youtube" && tr.yt && m.status !== 401) {
+    adapter = makeYouTube(box, tr, token);
+  } else if (tr.platform === "soundcloud") {
+    kind = "audio";
+    adapter = makeSoundCloud(box, tr, (m.sc_src || `https://w.soundcloud.com/player/?url=${encodeURIComponent(tr.url)}`) + "&auto_play=true&visual=false");
+  } else if (tr.platform === "vimeo" && tr.vimeo) {
+    adapter = makeVimeo(box, tr);
+  } else if (tr.platform === "bandcamp" && m.bandcamp_embed) {
+    kind = "audio";
+    adapter = makePlain(box, `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=182c24/linkcol=6fcb9f/artwork=small/tracklist=false/transparent=true/`, x.title);
+  } else if (tr.platform === "mixcloud") {
+    kind = "audio";
+    adapter = makePlain(box, `https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&autoplay=1&feed=${encodeURIComponent(new URL(tr.url).pathname)}`, x.title);
+  } else {
+    kind = "note";
+    box.append(el("p", { class: "nolink" }, `This ${PLATFORM[tr.platform] || "link"} can't play here. Use “Open”.`));
+  }
+  box.dataset.kind = kind;
+  const controllable = !!(adapter && adapter.controllable);
+  $("#dock").classList.toggle("no-transport", !controllable);
+  $("#playBtn").disabled = !controllable; $("#seek").disabled = !controllable;
+  if (adapter) adapter.ready.catch(() => {
+    if (token !== loadToken) return;
+    box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load. Use “Open” to play it on the original site."));
+  });
   if (openId === t.id) refreshOpen();
+  syncDockSpace();
+}
+
+function stop() {
+  loadToken++;
+  if (adapter) adapter.destroy();
+  adapter = null; playing = null;
+  $("#media").replaceChildren(); $("#dock").hidden = true;
+  refreshOpen(); syncDockSpace();
 }
 
 $("#prevBtn").onclick = () => playing && play(playing.thread, playing.index - 1);
 $("#nextBtn").onclick = () => playing && play(playing.thread, playing.index + 1);
-$("#bigBtn").onclick = () => {
-  const big = $("#player").classList.toggle("big");
-  $("#bigBtn").textContent = big ? "Smaller" : "Larger";
-  try { localStorage.setItem("nrgfm-big", big ? "1" : ""); } catch {}
+$("#playBtn").onclick = () => { if (!adapter) return; $("#playBtn").textContent === "Pause" ? adapter.pause() : adapter.play(); };
+$("#closeBtn").onclick = stop;
+
+const seekEl = $("#seek");
+seekEl.addEventListener("input", () => {
+  seeking = true;
+  $("#tCur").textContent = fmtTime(+seekEl.value);
+  seekEl.style.setProperty("--p", (seekEl.value / seekEl.max) * 100 + "%");
+});
+seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); });
+
+$("#autoBtn").onclick = () => {
+  autoplay = !autoplay;
+  $("#autoBtn").setAttribute("aria-pressed", autoplay ? "true" : "false");
+  $("#autoBtn").textContent = autoplay ? "Autoplay on" : "Autoplay off";
 };
-try { if (localStorage.getItem("nrgfm-big")) { $("#player").classList.add("big"); $("#bigBtn").textContent = "Smaller"; } } catch {}
-$("#closeBtn").onclick = () => { $("#frameWrap").replaceChildren(); $("#player").hidden = true; playing = null; refreshOpen(); };
+
+function setSize(size) {
+  $("#dock").dataset.size = size;
+  document.querySelectorAll("#sizes button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.size === size ? "true" : "false"));
+  try { localStorage.setItem("nrgfm-size", size); } catch {}
+  syncDockSpace();
+}
+document.querySelectorAll("#sizes button").forEach((b) => (b.onclick = () => setSize(b.dataset.size)));
+let savedSize = "m";
+try { savedSize = localStorage.getItem("nrgfm-size") || "m"; } catch {}
+setSize(savedSize);
+
+/* keep the end of the list reachable above the dock */
+function syncDockSpace() {
+  const d = $("#dock");
+  document.body.style.setProperty("--dock-h", d.hidden ? "0px" : d.offsetHeight + "px");
+}
+new ResizeObserver(syncDockSpace).observe($("#dock"));
 
 /* ---------- add track (via GitHub's web editor, no token needed) ---------- */
 let addTarget = null, lastAdded = null;
@@ -264,12 +429,10 @@ $("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; openId = n
     ]);
     threads = d.threads; meta = m;
   } catch (e) {
-    $("#stats").textContent = "The archive didn't load. Reload the page to try again.";
+    $("#resultInfo").hidden = false;
+    $("#resultInfo").textContent = "The archive didn't load. Reload the page to try again.";
     return;
   }
-  const n = threads.reduce((a, t) => a + t.tracks.length, 0);
-  const first = threads.reduce((a, t) => (t.date < a ? t.date : a), "9999");
-  $("#stats").textContent = `${n.toLocaleString("en")} tracks in ${threads.length} threads since ${first.slice(0, 4)}`;
   const deep = location.hash.match(/^#t\/(.+)$/);
   if (deep) {
     const i = threads.findIndex((t) => t.id === deep[1]);

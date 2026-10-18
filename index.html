@@ -12,17 +12,12 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand">
-    <h1><a href="#" id="home">nrgfm</a></h1>
-    <p id="stats" class="stats">Loading the archive…</p>
-  </div>
-  <div class="tools">
-    <label class="search">
-      <span class="sr">Search tracks</span>
-      <input id="q" type="search" placeholder="Search artist or title" autocomplete="off" spellcheck="false">
-    </label>
-    <button id="addBtn" class="btn">Add track</button>
-  </div>
+  <h1 class="brand"><a href="#" id="home">nrgfm</a></h1>
+  <label class="search">
+    <span class="sr">Search tracks</span>
+    <input id="q" type="search" placeholder="Search artist or title" autocomplete="off" spellcheck="false">
+  </label>
+  <button id="addBtn" class="btn">Add track</button>
 </header>
 
 <main>
@@ -31,22 +26,37 @@
   <div id="more" class="more"></div>
 </main>
 
-<aside id="player" class="player" hidden aria-label="Player">
-  <div class="player-bar">
-    <div class="now">
-      <strong id="nowTitle"></strong>
-      <span id="nowSub"></span>
+<section id="dock" class="dock" hidden aria-label="Player" data-size="m">
+  <div class="media-row"><div id="media" class="media"></div></div>
+  <div class="bar">
+    <div class="seekrow">
+      <span id="tCur" class="time">0:00</span>
+      <input id="seek" class="seek" type="range" min="0" max="1" step="0.1" value="0" aria-label="Position in track">
+      <span id="tDur" class="time">0:00</span>
     </div>
-    <div class="player-actions">
-      <button id="prevBtn" class="icon" aria-label="Previous track in thread">‹</button>
-      <button id="nextBtn" class="icon" aria-label="Next track in thread">›</button>
-      <button id="bigBtn" class="icon text" title="A larger player usually gets higher video quality from YouTube">Larger</button>
-      <a id="openSrc" class="icon text" target="_blank" rel="noopener">Open</a>
-      <button id="closeBtn" class="icon" aria-label="Close player">×</button>
+    <div class="ctrlrow">
+      <div class="transport">
+        <button id="prevBtn" class="ctl" aria-label="Previous track in thread">Prev</button>
+        <button id="playBtn" class="ctl play" aria-pressed="false">Play</button>
+        <button id="nextBtn" class="ctl" aria-label="Next track in thread">Next</button>
+      </div>
+      <div class="now">
+        <strong id="nowTitle"></strong>
+        <span id="nowSub"></span>
+      </div>
+      <div class="opts">
+        <button id="autoBtn" class="ctl toggle" aria-pressed="false" title="Play through the rest of the thread">Autoplay off</button>
+        <div id="sizes" class="sizes" role="group" aria-label="Video size">
+          <button class="ctl" data-size="s" aria-pressed="false" title="Small video">S</button>
+          <button class="ctl" data-size="m" aria-pressed="true" title="Medium video">M</button>
+          <button class="ctl" data-size="l" aria-pressed="false" title="Large video, usually the best quality">L</button>
+        </div>
+        <a id="openSrc" class="ctl" target="_blank" rel="noopener">Open</a>
+        <button id="closeBtn" class="ctl" aria-label="Close player">Close</button>
+      </div>
     </div>
   </div>
-  <div id="frameWrap" class="frame"></div>
-</aside>
+</section>
 
 <dialog id="addDlg" class="dlg">
   <form id="addForm" method="dialog">
