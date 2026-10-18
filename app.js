@@ -50,6 +50,15 @@ function channelArtist(author) {
   if (!a || /various artists|records|recordings|music$/i.test(a)) return "";
   return a;
 }
+/* "Emotions · Mariah Carey" -> "Mariah Carey – Emotions"; a trailing year stays at the end:
+   "Suimasen · Blonde Redhead (1998)" -> "Blonde Redhead – Suimasen (1998)" */
+function flipDotTitle(title) {
+  const parts = title.split(" · ");
+  if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) return title;
+  const m = parts[1].trim().match(/^(.*?)\s*(\(\d{4}\))?$/);
+  const artist = m[1], year = m[2] ? " " + m[2] : "";
+  return `${artist} – ${parts[0].trim()}${year}`;
+}
 const HAS_ARTIST_SEP = /\s[-–—]\s|\S[-–—]\s|\s[-–—]\S/;
 
 function info(t) {
@@ -61,6 +70,7 @@ function info(t) {
   let title = t.title || fetched || m.wb_title || slugTitle(t) || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
   // link-only tracks from artist channels: put the artist in front of YouTube's bare song title
   if (!t.title && artist && (fetched || m.wb_title) && !HAS_ARTIST_SEP.test(title) && !title.toLowerCase().includes(artist.toLowerCase())) title = `${artist} – ${title}`;
+  title = flipDotTitle(title);
   const author = artist || channel;
   let thumb = m.thumbnail_url || "";
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
