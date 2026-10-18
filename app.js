@@ -453,12 +453,66 @@ function syncDockSpace() {
 }
 new ResizeObserver(syncDockSpace).observe($("#dock"));
 
-/* ---------- add track (via GitHub's web editor, no token needed) ---------- */
+/* ---------- add track: saved straight to the repository with a key stored on this device ----------
+   The key is a GitHub fine-grained token limited to this one repository (Contents: read & write).
+   It lives in this browser's storage for this site only. Without it, adding is hidden. */
+const TOKEN_KEY = "nrgfm-token";
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; } };
+function updateCanAdd() { document.body.classList.toggle("can-add", !!getToken()); }
+updateCanAdd();
+
+async function gh(path, opts = {}) {
+  const r = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
+    ...opts,
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${opts.token || getToken()}`, "X-GitHub-Api-Version": "2022-11-28", ...(opts.headers || {}) },
+  });
+  return r;
+}
+
+/* setup screen: open the site with #setup in the address */
+function openSetup() {
+  $("#tokenInput").value = "";
+  $("#setupMsg").textContent = getToken() ? "A key is saved on this device." : "No key saved on this device yet.";
+  $("#tokenRemove").hidden = !getToken();
+  $("#setupDlg").showModal();
+}
+$("#setupForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const token = $("#tokenInput").value.trim();
+  if (!token) return;
+  $("#setupMsg").textContent = "Checking the key…";
+  try {
+    const r = await gh("", { token });
+    const j = r.ok ? await r.json() : null;
+    if (!r.ok) throw new Error(r.status === 401 ? "GitHub doesn't accept this key. Check that you copied all of it." : `GitHub answered ${r.status}. Check the key has access to the nrgfm repository.`);
+    if (!j.permissions || !j.permissions.push) throw new Error("This key can read the repository but not save to it. Give it Contents: Read and write.");
+    try { localStorage.setItem(TOKEN_KEY, token); } catch { throw new Error("This browser won't store the key (private window?)."); }
+    updateCanAdd();
+    $("#setupMsg").textContent = "Saved on this device. You can now add tracks.";
+    $("#tokenRemove").hidden = false;
+    $("#tokenInput").value = "";
+  } catch (e) {
+    $("#setupMsg").textContent = e.message;
+  }
+});
+$("#tokenRemove").onclick = () => {
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  updateCanAdd();
+  $("#setupMsg").textContent = "Key removed from this device.";
+  $("#tokenRemove").hidden = true;
+};
+$("#setupClose").onclick = () => { $("#setupDlg").close(); history.replaceState(null, "", location.pathname); };
+function checkSetupHash() { if (location.hash === "#setup") openSetup(); }
+window.addEventListener("hashchange", checkSetupHash);
+
 let addTarget = null, lastAdded = null;
 function openAdd(t) {
+  if (!getToken()) { openSetup(); return; }
   addTarget = t || (playing && playing.thread) || null;
   $("#addForm").hidden = false; $("#shareStep").hidden = true; $("#copied").hidden = true;
   $("#addForm").reset();
+  $("#addMsg").textContent = "";
+  $("#addSave").disabled = false;
   $("#replyOpt").hidden = !addTarget;
   if (addTarget) {
     $("#replyLabel").textContent = `Add to “${info(addTarget.tracks[0]).title}”`;
@@ -470,7 +524,9 @@ $("#addBtn").onclick = () => openAdd(null);
 $("#aCancel").onclick = () => $("#addDlg").close();
 $("#shareDone").onclick = () => $("#addDlg").close();
 
-$("#addForm").addEventListener("submit", (ev) => {
+const toBase64 = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+
+$("#addForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const url = $("#aUrl").value.trim();
   if (!/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com|[\w-]+\.bandcamp\.com|bandcamp\.com|vimeo\.com|mixcloud\.com|open\.spotify\.com)\//i.test(url)) {
@@ -481,13 +537,41 @@ $("#addForm").addEventListener("submit", (ev) => {
   const ts = Math.floor(Date.now() / 1000);
   const reply = $("#addForm").where.value === "reply" && addTarget;
   const item = { url, title: $("#aTitle").value.trim(), thread: reply ? addTarget.id : "", ts };
-  const file = `inbox/${ts}.json`;
-  const gh = `https://github.com/${REPO}/new/main?filename=${encodeURIComponent(file)}&value=${encodeURIComponent(JSON.stringify(item, null, 2))}&message=${encodeURIComponent("Add track")}`;
-  window.open(gh, "_blank", "noopener");
+  $("#addSave").disabled = true;
+  $("#addMsg").textContent = "Saving…";
+  try {
+    const r = await gh(`/contents/inbox/${ts}.json`, {
+      method: "PUT",
+      body: JSON.stringify({ message: "Add track", content: toBase64(JSON.stringify(item, null, 2) + "\n") }),
+    });
+    if (!r.ok) {
+      if (r.status === 401) throw new Error("The saved key no longer works (expired or deleted). Open the site with #setup and paste a new one.");
+      throw new Error(`GitHub answered ${r.status}. Nothing was saved; try again.`);
+    }
+  } catch (e) {
+    $("#addMsg").textContent = e.message === "Failed to fetch" ? "No connection to GitHub. Nothing was saved; try again." : e.message;
+    $("#addSave").disabled = false;
+    return;
+  }
+  showLocally(item);
   lastAdded = item;
   $("#fbShare").href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
   $("#addForm").hidden = true; $("#shareStep").hidden = false;
 });
+
+/* show the new track right away; the full title and thumbnail arrive with the next site update */
+function showLocally(item) {
+  const yt = (item.url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/) || [])[1];
+  const host = new URL(item.url).hostname;
+  const platform = yt ? "youtube" : /soundcloud/.test(host) ? "soundcloud" : /bandcamp/.test(host) ? "bandcamp" : /vimeo/.test(host) ? "vimeo" : /mixcloud/.test(host) ? "mixcloud" : "link";
+  const tr = { id: `t${item.ts}_0`, date: new Date(item.ts * 1000).toISOString().slice(0, 10), ts: item.ts, platform, url: item.url };
+  if (yt) tr.yt = yt;
+  if (item.title) tr.title = item.title;
+  const th = item.thread && threads.find((x) => x.id === item.thread);
+  if (th) th.tracks.push(tr);
+  else { tr.main = true; threads.unshift({ id: `p${item.ts}`, date: tr.date, ts: item.ts, kind: "thread", tracks: [tr] }); }
+  runSearch();
+}
 $("#aUrl").addEventListener("input", () => $("#aUrl").setCustomValidity(""));
 
 $("#fbCopy").onclick = async () => {
@@ -530,4 +614,5 @@ $("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; history.re
     if (i > -1) threads.unshift(threads.splice(i, 1)[0]);
   }
   runSearch();
+  checkSetupHash();
 })();
