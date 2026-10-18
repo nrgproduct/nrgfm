@@ -198,6 +198,7 @@ img.broken { visibility: hidden; }
 .ctl.play[aria-pressed="true"] { background: var(--jade); color: var(--jade-ink); }
 .dock.no-transport .seekrow .time { visibility: hidden; }
 .vol-wrap { position: relative; display: inline-flex; }
+.vol-wrap[hidden] { display: none; }
 .vol-pop {
   position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 8px; width: 220px; padding: 10px 12px;
@@ -231,6 +232,7 @@ img.broken { visibility: hidden; }
 @media (max-width: 640px) {
   .top { padding: 10px 16px; gap: 10px; }
   .brand { font-size: 28px; }
+  #addBtn { display: none; }
   .btn { padding: 0 12px; }
   main { padding: 0 16px calc(var(--dock-h, 0px) + 24px); }
   .thread-head { grid-template-columns: 112px 1fr; gap: 12px; }

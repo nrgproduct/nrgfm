@@ -103,7 +103,7 @@ function trackRow(t, tr, i, hits) {
     img(x.thumb, "chip"),
     el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
       el("span", { class: "tr-title" }, x.title),
-      el("span", { class: "tr-sub" }, [x.author, tr.date ? fmtDate(tr.date) : null, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
+      el("span", { class: "tr-sub" }, [x.author, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
     x.archive
       ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
       : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
@@ -111,7 +111,7 @@ function trackRow(t, tr, i, hits) {
 
 function threadNode({ t, hits }) {
   const head = t.tracks[0], hi = info(head);
-  const sub = [t.kind === "replies" ? "Replies to a friend's post" : null, hi.author, fmtDate(t.date), `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`].filter(Boolean).join(", ");
+  const sub = [t.kind === "replies" ? "Replies to a friend's post" : null, hi.author, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`].filter(Boolean).join(", ");
   const li = el("li", { class: "thread" + (t.kind === "replies" ? " loose" : ""), id: "th-" + t.id },
     el("button", { class: ["thread-head", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0`, onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
       el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
@@ -293,8 +293,7 @@ function play(t, i) {
   $("#nowTitle").textContent = x.title;
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
   closeThread();
-  $("#openSrc").href = x.dead && x.archive ? x.archive : tr.url;
-  $("#openSrc").title = `Open the link on ${x.dead && x.archive ? "the Internet Archive" : PLATFORM[tr.platform] || "the original site"}`;
+  fitTitle();
   $("#prevBtn").disabled = i === 0;
   $("#nextBtn").disabled = i === t.tracks.length - 1;
   setPlayState(false); setTime(0, 0);
@@ -371,6 +370,28 @@ document.addEventListener("click", closeThread);
 
 /* copy the playing track's original link */
 $("#copyBtn").onclick = (e) => { if (playing) copyText(playing.thread.tracks[playing.index].url, e.currentTarget, "Copied"); };
+
+/* "Artist – Title" for the playing track. YouTube titles often lack the artist when the
+   uploader is the artist's own channel ("Randy Newman - Topic", "SomeoneVEVO"), so add it then. */
+function fullInfo(tr) {
+  const x = info(tr);
+  const artist = (x.author || "").replace(/\s*-\s*Topic$/i, "").replace(/VEVO$/, "").trim();
+  const t = x.title;
+  if (!artist || /\s[-–—]\s/.test(t) || t.toLowerCase().includes(artist.toLowerCase())) return t;
+  return `${artist} – ${t}`;
+}
+$("#infoBtn").onclick = (e) => { if (playing) copyText(fullInfo(playing.thread.tracks[playing.index]), e.currentTarget, "Copied"); };
+
+/* phone: shrink the player title so long names fit on one line (down to 11px, then "…") */
+const narrow = window.matchMedia("(max-width: 640px)");
+function fitTitle() {
+  const n = $("#nowTitle");
+  n.style.fontSize = "";
+  if (!narrow.matches || $("#dock").hidden) return;
+  let size = 16;
+  while (n.scrollWidth > n.clientWidth && size > 11) { size -= 0.5; n.style.fontSize = size + "px"; }
+}
+window.addEventListener("resize", fitTitle);
 
 /* volume popup; the level is remembered and applied to every track that loads */
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
