@@ -8,6 +8,7 @@
   --jade: #6fcb9f;
   --jade-ink: #0c1a14;
   --rust: #c98b6b;
+  --red: #e0706a;
   --radius-lg: 10px;
   --radius-sm: 4px;
   color-scheme: dark;
@@ -49,7 +50,9 @@ button, input { font: inherit; color: inherit; }
 .row-links { display: inline-flex; align-items: center; gap: 4px; }
 .linkbtn.edit-btn { font-size: 13px; line-height: normal; text-decoration: none; padding: 4px; }
 body:not(.can-add) .edit-btn { display: none; }
-.btn.danger { color: var(--rust); border-color: var(--rust); }
+.btn.ghost.danger { color: var(--red); border-color: var(--red); }
+.btn.ghost.danger:hover { background: rgba(224, 112, 106, .12); }
+.btn.ghost.danger[data-confirm="1"] { background: var(--red); color: var(--bg); }
 
 /* adding is only shown on a device with a saved key */
 body:not(.can-add) #addBtn, body:not(.can-add) .add-here { display: none; }
