@@ -235,7 +235,7 @@ img.broken { visibility: hidden; }
 @media (max-width: 640px) {
   .top { padding: 10px 16px; gap: 10px; }
   .brand { font-size: 28px; }
-  #addBtn { display: none; }
+  #addBtn, .add-here { display: none; }
   .btn { padding: 0 12px; }
   main { padding: 0 16px calc(var(--dock-h, 0px) + 24px); }
   .thread-head { grid-template-columns: 112px 1fr; gap: 12px; }

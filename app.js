@@ -39,12 +39,29 @@ function slugTitle(t) {
   } catch { return ""; }
 }
 
+/* "Randy Newman - Topic" -> "Randy Newman", "KTTunstallVEVO" -> "KT Tunstall".
+   Only for YouTube's automatic artist channels and VEVO; labels ("...RecordingsVEVO") are skipped. */
+function channelArtist(author) {
+  if (!author) return "";
+  let a = "";
+  if (/\s-\sTopic$/i.test(author)) a = author.replace(/\s-\sTopic$/i, "");
+  else if (/VEVO$/.test(author)) a = author.replace(/VEVO$/, "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
+  a = a.trim();
+  if (!a || /various artists|records|recordings|music$/i.test(a)) return "";
+  return a;
+}
+const HAS_ARTIST_SEP = /\s[-–—]\s|\S[-–—]\s|\s[-–—]\S/;
+
 function info(t) {
   const m = meta[t.url] || {};
   const recovered = !!(m.dead && m.wb_title);
   const fetched = BAD_TITLES.has((m.title || "").toLowerCase()) ? "" : m.title;
-  const title = t.title || fetched || m.wb_title || slugTitle(t) || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
-  const author = (m.author_name && t.platform !== "bandcamp" ? m.author_name : "") || m.wb_author || "";
+  const channel = (m.author_name && t.platform !== "bandcamp" ? m.author_name : "") || m.wb_author || "";
+  const artist = channelArtist(channel);
+  let title = t.title || fetched || m.wb_title || slugTitle(t) || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
+  // link-only tracks from artist channels: put the artist in front of YouTube's bare song title
+  if (!t.title && artist && (fetched || m.wb_title) && !HAS_ARTIST_SEP.test(title) && !title.toLowerCase().includes(artist.toLowerCase())) title = `${artist} – ${title}`;
+  const author = artist || channel;
   let thumb = m.thumbnail_url || "";
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
   const noEmbed = m.status === 401; // video exists but its owner blocks playing it on other sites
@@ -54,7 +71,7 @@ function info(t) {
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {};
-    t._hay = fold([t.title, m.title, m.author_name, m.wb_title, m.wb_author, slugTitle(t)].filter(Boolean).join(" "));
+    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t)].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -120,7 +137,7 @@ function threadNode({ t, hits }) {
         el("span", { class: "t-sub" }, sub))),
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
-      el("button", { class: "linkbtn", onclick: () => openAdd(t) }, "Add a track here"),
+      el("button", { class: "linkbtn add-here", onclick: () => openAdd(t) }, "Add a track here"),
       el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
   return li;
 }
@@ -374,11 +391,7 @@ $("#copyBtn").onclick = (e) => { if (playing) copyText(playing.thread.tracks[pla
 /* "Artist – Title" for the playing track. YouTube titles often lack the artist when the
    uploader is the artist's own channel ("Randy Newman - Topic", "SomeoneVEVO"), so add it then. */
 function fullInfo(tr) {
-  const x = info(tr);
-  const artist = (x.author || "").replace(/\s*-\s*Topic$/i, "").replace(/VEVO$/, "").trim();
-  const t = x.title;
-  if (!artist || /\s[-–—]\s/.test(t) || t.toLowerCase().includes(artist.toLowerCase())) return t;
-  return `${artist} – ${t}`;
+  return info(tr).title; // info() already puts the artist in front for artist channels
 }
 $("#infoBtn").onclick = (e) => { if (playing) copyText(fullInfo(playing.thread.tracks[playing.index]), e.currentTarget, "Copied"); };
 
