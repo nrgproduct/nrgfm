@@ -1,0 +1,38 @@
+name: Read YouTube video details
+
+# Reads length, category and age restriction of each YouTube link into data/ytinfo.json.
+# Started by hand (Actions tab -> Run workflow); "max" limits how many videos per run.
+on:
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "How many videos to look up"
+        default: "100000"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ytdetails
+  cancel-in-progress: false
+
+jobs:
+  details:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Read video details
+        run: python3 scripts/yt_details.py ${{ inputs.max }}
+      - name: Commit
+        run: |
+          git config user.name "nrgproduct"
+          git config user.email "nrgproduct@users.noreply.github.com"
+          git add data/ytinfo.json
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -m "Read YouTube video details"
+          git pull --rebase origin main
+          git push
