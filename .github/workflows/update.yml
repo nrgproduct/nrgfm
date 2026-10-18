@@ -60,6 +60,8 @@ jobs:
           mkdir -p _site
           cp -r index.html app.js style.css manifest.webmanifest icons data _site/
           touch _site/.nojekyll
+          # new file names on every update, so browsers never keep an old style or script
+          sed -i "s/?v=dev/?v=${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}/g" _site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

@@ -96,7 +96,7 @@ const normTag = (g) => (g || "").replace(/\s+/g, " ").trim().toLowerCase().slice
 const isBase = (t) => t.kind !== "tag";
 function activity(t) {
   if (t.kind === "tag") return t.last;
-  let a = Math.max(t.last || 0, t.ts || 0);
+  let a = t.ts || 0; // only new tracks count as activity, not edits, tags or moves
   for (const x of t.tracks) if (x.ts > a) a = x.ts;
   return a;
 }
@@ -232,22 +232,27 @@ function tagThreadNode({ t, hits }) {
           el("span", { class: "t-title tag-title" }, t.name),
           el("span", { class: "t-sub" }, `${n} ${n === 1 ? "track" : "tracks"}`))),
       n > TAG_PREVIEW
-        ? el("button", { class: "btn tag-btn", "aria-expanded": String(open), onclick: () => {
-            open ? expandedTags.delete(t.id) : expandedTags.add(t.id);
-            const node = document.getElementById("th-" + t.id);
-            node.replaceWith(tagThreadNode({ t, hits })); markPlaying();
-          } }, open ? "Collapse" : `Expand (${n})`)
+        ? el("button", { class: "btn tag-btn", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : `Expand (${n})`)
         : null),
     el("ol", { class: "tracks tag-tracks" }, rows),
     el("div", { class: "thread-foot" },
       el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
 }
 
+const THREAD_PREVIEW = 30;
+function toggleExpand(t, hits) {
+  expandedTags.has(t.id) ? expandedTags.delete(t.id) : expandedTags.add(t.id);
+  const node = document.getElementById("th-" + t.id);
+  if (node) node.replaceWith(threadNode({ t, hits }));
+  markPlaying();
+}
 function threadNode({ t, hits }) {
   if (t.kind === "tag") {
     if (hits && [...hits].some((i) => i >= TAG_PREVIEW)) expandedTags.add(t.id);
     return tagThreadNode({ t, hits });
   }
+  if (hits && [...hits].some((i) => i >= THREAD_PREVIEW)) expandedTags.add(t.id);
+  const long = t.tracks.length > THREAD_PREVIEW, open = expandedTags.has(t.id);
   const head = t.tracks[0], hi = info(head);
   const isTag = t.kind === "tag";
   const li = el("li", { class: "thread" + (t.name ? " named" : "") + (isTag ? " tag-thread" : ""), id: "th-" + t.id },
@@ -259,8 +264,11 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
-      rowLinks(t, 0, hi)),
-    t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
+      el("span", { class: "head-side" },
+        rowLinks(t, 0, hi),
+        long ? el("button", { class: "btn expand-btn", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
+          open ? "Collapse" : `Expand (${t.tracks.length})`) : null)),
+    t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
       isTag ? null : el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
       el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
@@ -780,7 +788,6 @@ async function saveEdit(form, { t, i }) {
   if (url !== tr.url) { const p = parseLocal(url); delete tr.yt; delete tr.vimeo; Object.assign(tr, p); if (!p.yt) delete tr.yt; if (!p.vimeo) delete tr.vimeo; }
   if (title) tr.title = title; else delete tr.title;
   applyTags(tr, item.tags, item.ts);
-  t.last = item.ts;
   tr._hay = null;
   rerenderThread(t, i);
   refreshTags();
@@ -842,7 +849,6 @@ async function moveTrack(form, { t, i }, dest) {
   dest.tracks.push(tr);
   dest.tracks.sort((a, b) => a.ts - b.ts);
   dest.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
-  dest.last = Math.floor(Date.now() / 1000);
   if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
   rerenderThread(t, null);
   rerenderThread(dest, dest.tracks.indexOf(tr));
@@ -898,7 +904,7 @@ function showLocally(item) {
   if (item.title) tr.title = item.title;
   if (item.tags && item.tags.length) applyTags(tr, item.tags, item.ts);
   let th = item.thread && threads.find((x) => x.id === item.thread);
-  if (th) { th.tracks.push(tr); th.last = item.ts; }
+  if (th) th.tracks.push(tr);
   else { tr.main = true; th = { id: `p${item.ts}`, date: tr.date, ts: item.ts, kind: "thread", tracks: [tr] }; threads.unshift(th); }
   // update only what changed, so the page doesn't jump
   const old = document.getElementById("th-" + th.id);

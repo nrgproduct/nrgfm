@@ -76,7 +76,6 @@ def apply_add(data, by_id, item):
         th = {"id": f"p{ts}", "date": tr["date"], "ts": ts, "kind": "thread", "tracks": [tr]}
         data["threads"].append(th)
         by_id[th["id"]] = th
-    th["last"] = ts
     return "added"
 
 
@@ -102,7 +101,6 @@ def apply_edit(data, item):
     if "tags" in item:
         set_tags(tr, item["tags"], ts)
     tr["edited"] = stamp(ts)
-    th["last"] = max(th.get("last", 0), ts)
     return "edited"
 
 
@@ -124,8 +122,9 @@ def apply_delete(data, by_id, item):
 
 
 def activity(t):
-    """Latest thing that happened in a thread: a post, a comment, or a change made on the site."""
-    return max([t.get("last", 0), t["ts"]] + [x["ts"] for x in t["tracks"]])
+    """When the newest track was added to a thread (a post or comment on Facebook, or a track added
+    on the site). Edits, tags and moves don't count."""
+    return max([t["ts"]] + [x["ts"] for x in t["tracks"]])
 
 
 def sort_threads(data):
@@ -156,7 +155,6 @@ def apply_move(data, by_id, item):
     tr.pop("main", None)
     dest["tracks"].append(tr)
     dest["tracks"].sort(key=lambda x: x["ts"])
-    dest["last"] = max(dest.get("last", 0), int(item.get("ts") or time.time()))
     for t in (th, dest):
         for k, x in enumerate(t["tracks"]):
             x.pop("main", None)

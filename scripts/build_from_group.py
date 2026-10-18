@@ -249,6 +249,17 @@ def review(threads, meta, yt):
     return removed
 
 
+def as_threads(data):
+    """The review groups ("Unsorted", "Text didn't match the video", ...) end as ordinary threads:
+    no headline, the first track is the main post. Their tracks carry the tag "unsorted"."""
+    for th in data["threads"]:
+        if th.get("kind") == "collection":
+            th["kind"] = "thread"
+            th.pop("name", None)
+            th.pop("pinned", None)
+            th["ts"], th["date"] = th["tracks"][0]["ts"], th["tracks"][0]["date"]
+
+
 def replay(data, path):
     """Apply every change made on the site since the build."""
     if not os.path.exists(path):
@@ -288,6 +299,7 @@ def main():
     removed = review(data["threads"], meta, yt)
     print("removed as Unavailable:", len(removed))
     changes = replay(data, os.path.join(os.path.dirname(os.path.abspath(out)), "changes.jsonl"))
+    as_threads(data)
     ingest_inbox.sort_threads(data)
     json.dump(data, open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     T = data["threads"]
