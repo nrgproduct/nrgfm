@@ -532,6 +532,7 @@ function addForm(thread, edit) {
     el("div", { class: "af-actions" },
       el("span", { class: "af-msg hint", role: "status" }),
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
+      edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false", onclick: (e) => toggleMovePanel(form, edit, e.currentTarget) }, "Move") : null,
       el("button", { type: "submit", class: "btn" }, "Save")));
   if (tr) { form.title.value = tr.title || info(tr).title; form.url.value = tr.url; }
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
@@ -630,6 +631,69 @@ async function saveEdit(form, { t, i }) {
   if (title) tr.title = title; else delete tr.title;
   tr._hay = null;
   rerenderThread(t, i);
+}
+
+/* ---------- move a track to another thread ---------- */
+const threadLabel = (t) => t.name || info(t.tracks[0]).title;
+
+function toggleMovePanel(form, edit, btn) {
+  const open = form.querySelector(".move-panel");
+  if (open) { open.remove(); btn.setAttribute("aria-expanded", "false"); return; }
+  btn.setAttribute("aria-expanded", "true");
+  const input = el("input", { type: "search", placeholder: "Search a track in the thread you want to move it to", autocomplete: "off", spellcheck: "false" });
+  const list = el("ul", { class: "move-results" });
+  const panel = el("div", { class: "move-panel" }, el("label", { class: "af-field" }, el("span", {}, "Move to the thread of…"), input), list);
+  form.appendChild(panel);
+  input.focus();
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); const first = list.querySelector("button"); if (first) first.click(); } });
+  input.addEventListener("input", () => {
+    const terms = fold(input.value).split(" ").filter(Boolean);
+    list.replaceChildren();
+    if (!terms.length) return;
+    const found = [];
+    for (const t of threads) {
+      if (t === edit.t) continue;
+      const byName = t.name && terms.every((w) => fold(t.name).includes(w));
+      const k = byName ? 0 : t.tracks.findIndex((tr) => { const h = haystack(tr); return terms.every((w) => h.includes(w)); });
+      if (k > -1) found.push({ t, k });
+      if (found.length >= 8) break;
+    }
+    if (!found.length) { list.appendChild(el("li", { class: "move-none hint" }, "No other thread has a track like that.")); return; }
+    for (const { t, k } of found) {
+      const x = info(t.tracks[k]);
+      list.appendChild(el("li", {},
+        el("button", { type: "button", class: "move-hit", onclick: () => moveTrack(form, edit, t) },
+          el("span", { class: "mh-thumb" }, img(x.thumb, "thumb-img")),
+          el("span", { class: "mh-text" },
+            el("span", { class: "mh-title" }, x.title),
+            el("span", { class: "mh-thread" }, "Thread: " + threadLabel(t) + ` (${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"})`)))));
+    }
+  });
+}
+
+async function moveTrack(form, { t, i }, dest) {
+  const tr = t.tracks[i];
+  const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
+  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Moving…";
+  try { await writeInbox({ action: "move", thread: t.id, id: tr.id, to: dest.id, ts: Math.floor(Date.now() / 1000) }, "move"); }
+  catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  if (playing && playing.thread === t) playing = null;
+  t.tracks.splice(i, 1);
+  t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
+  delete tr.main;
+  dest.tracks.push(tr);
+  dest.tracks.sort((a, b) => a.ts - b.ts);
+  dest.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
+  if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
+  rerenderThread(t, null);
+  rerenderThread(dest, dest.tracks.indexOf(tr));
+  // say where it went, on the spot where the track was
+  const src = document.getElementById("th-" + t.id);
+  if (src) {
+    const note = el("p", { class: "moved-note" }, "Moved to: ", el("a", { href: "#th-" + dest.id, onclick: (e) => { e.preventDefault(); const n = document.getElementById("th-" + dest.id); if (n) n.scrollIntoView({ behavior: "smooth", block: "center" }); else { history.replaceState(null, "", `#t/${dest.id}`); threads.unshift(threads.splice(threads.indexOf(dest), 1)[0]); runSearch(); scrollTo(0, 0); } } }, threadLabel(dest)));
+    src.querySelector(".thread-foot").before(note);
+    setTimeout(() => note.remove(), 8000);
+  }
 }
 
 async function deleteTrack(form, { t, i }, btn) {
