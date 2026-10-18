@@ -190,31 +190,54 @@ function onEnded() {
 const events = { state: setPlayState, time: setTime, ended: onEnded };
 
 /* Each adapter wraps one platform's embed and exposes the same controls. */
-function makeYouTube(box, tr, token) {
-  const host = el("div"); box.append(host);
-  let p = null, timer = null;
+/* One YouTube player is kept for the whole visit and reused for every YouTube track.
+   iPhones only start sound in a player the person has already tapped, so after the first
+   play, later tracks (and autoplay through a thread) start by themselves. */
+const yt = { player: null, ready: false, active: false, pending: null, waiters: [], timer: null };
+function ytSlot() { return $("#ytSlot"); }
+function makeYouTube(tr) {
+  ytSlot().hidden = false;
+  yt.active = true;
   const a = {
     controllable: true,
-    ready: loadYT().then(() => new Promise((res) => {
-      if (token !== loadToken) return res();
-      p = new YT.Player(host, {
-        videoId: tr.yt, host: "https://www.youtube-nocookie.com", width: "100%", height: "100%",
-        playerVars: { autoplay: 1, rel: 0, playsinline: 1, vq: "hd1080" },
-        events: {
-          onReady: () => { res(); timer = setInterval(() => p && p.getCurrentTime && events.time(p.getCurrentTime(), p.getDuration()), 250); try { p.setVolume(volume); } catch {} },
-          onStateChange: (e) => {
-            if (e.data === YT.PlayerState.PLAYING) events.state(true);
-            else if (e.data === YT.PlayerState.PAUSED) events.state(false);
-            else if (e.data === YT.PlayerState.ENDED) events.ended();
-          },
-        },
-      });
-    })),
-    play: () => p && p.playVideo(), pause: () => p && p.pauseVideo(),
-    seek: (s) => p && p.seekTo(s, true),
-    setVolume: (v) => { if (p && p.setVolume) { p.setVolume(v); if (v > 0) p.unMute(); } },
-    destroy: () => { clearInterval(timer); try { p && p.destroy(); } catch {} },
+    play: () => yt.player && yt.player.playVideo(), pause: () => yt.player && yt.player.pauseVideo(),
+    seek: (s) => yt.player && yt.player.seekTo(s, true),
+    setVolume: (v) => { if (yt.ready) { yt.player.setVolume(v); if (v > 0) yt.player.unMute(); } },
+    destroy: () => { yt.active = false; try { yt.ready && yt.player.pauseVideo(); } catch {} ytSlot().hidden = true; },
   };
+  if (yt.ready) {
+    // load straight away, inside the click, so the browser still counts it as the person's action
+    yt.player.loadVideoById(tr.yt);
+    try { yt.player.setVolume(volume); } catch {}
+    a.ready = Promise.resolve();
+    return a;
+  }
+  yt.pending = tr.yt;
+  a.ready = loadYT().then(() => new Promise((res) => {
+    yt.waiters.push(res);
+    if (yt.player) return; // still starting up; it will load yt.pending when ready
+    const host = el("div"); ytSlot().replaceChildren(host);
+    yt.player = new YT.Player(host, {
+      videoId: yt.pending, host: "https://www.youtube-nocookie.com", width: "100%", height: "100%",
+      playerVars: { autoplay: 1, rel: 0, playsinline: 1, vq: "hd1080" },
+      events: {
+        onReady: () => {
+          yt.ready = true;
+          try { yt.player.setVolume(volume); } catch {}
+          const vid = yt.player.getVideoData && yt.player.getVideoData().video_id;
+          if (yt.pending && vid !== yt.pending) yt.player.loadVideoById(yt.pending);
+          yt.timer = setInterval(() => { if (yt.active && yt.player.getCurrentTime) events.time(yt.player.getCurrentTime(), yt.player.getDuration()); }, 250);
+          yt.waiters.splice(0).forEach((f) => f());
+        },
+        onStateChange: (e) => {
+          if (!yt.active) return;
+          if (e.data === YT.PlayerState.PLAYING) events.state(true);
+          else if (e.data === YT.PlayerState.PAUSED) events.state(false);
+          else if (e.data === YT.PlayerState.ENDED) events.ended();
+        },
+      },
+    });
+  }));
   return a;
 }
 function makeSoundCloud(box, tr, src) {
@@ -265,7 +288,7 @@ function play(t, i) {
   const tr = t.tracks[i], x = info(tr), m = meta[tr.url] || {};
   if (adapter) adapter.destroy();
   adapter = null;
-  const box = $("#media"); box.replaceChildren();
+  const box = $("#otherSlot"); box.replaceChildren();
   const dock = $("#dock"); dock.hidden = false;
   $("#nowTitle").textContent = x.title;
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
@@ -283,7 +306,7 @@ function play(t, i) {
       ? "This track was deleted. “Open” shows the archived page; search the title on YouTube to find a re-upload."
       : "This track was deleted and no archived copy of its page was found."));
   } else if (tr.platform === "youtube" && tr.yt && m.status !== 401) {
-    adapter = makeYouTube(box, tr, token);
+    adapter = makeYouTube(tr);
   } else if (tr.platform === "soundcloud") {
     kind = "audio";
     adapter = makeSoundCloud(box, tr, (m.sc_src || `https://w.soundcloud.com/player/?url=${encodeURIComponent(tr.url)}`) + "&auto_play=true&visual=false");
@@ -299,13 +322,14 @@ function play(t, i) {
     kind = "note";
     box.append(el("p", { class: "nolink" }, `This ${PLATFORM[tr.platform] || "link"} can't play here. Use “Open”.`));
   }
-  box.dataset.kind = kind;
+  $("#media").dataset.kind = kind;
   const controllable = !!(adapter && adapter.controllable);
   $("#dock").classList.toggle("no-transport", !controllable);
   $("#playBtn").disabled = !controllable; $("#seek").disabled = !controllable; $("#volBtn").disabled = !controllable;
   if (!controllable) closeVol();
   if (adapter) adapter.ready.catch(() => {
     if (token !== loadToken) return;
+    ytSlot().hidden = true;
     box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load. Use “Open” to play it on the original site."));
   });
   markPlaying();
