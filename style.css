@@ -135,6 +135,7 @@ main { max-width: 860px; padding: 8px 24px 160px; }
   font-size: 22px; line-height: 1; color: var(--text); text-decoration: none;
 }
 .icon.text { font-size: 14px; }
+.icon:disabled { opacity: .35; cursor: default; }
 .icon:hover { background: var(--surface-2); }
 .frame { aspect-ratio: 16/9; background: #000; }
 .frame.audio { aspect-ratio: auto; height: 166px; background: var(--surface); }
@@ -161,6 +162,8 @@ main { max-width: 860px; padding: 8px 24px 160px; }
 .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
 .row.col { flex-direction: column; align-items: stretch; }
 
+.player.big { width: min(960px, calc(100vw - 32px)); }
+
 @media (max-width: 640px) {
   .top { padding: 16px; }
   main { padding: 0 16px 260px; }
@@ -168,6 +171,6 @@ main { max-width: 860px; padding: 8px 24px 160px; }
   .t-title { font-size: 17px; }
   .strip .chip { width: 28px; height: 28px; }
   .tracks, .thread-foot { padding-left: 0; }
-  .player { left: 0; right: 0; bottom: 0; width: auto; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .player, .player.big { left: 0; right: 0; bottom: 0; width: auto; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

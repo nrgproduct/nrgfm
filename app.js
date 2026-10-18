@@ -29,18 +29,19 @@ const PLATFORM = { youtube: "YouTube", soundcloud: "SoundCloud", bandcamp: "Band
 
 function info(t) {
   const m = meta[t.url] || {};
-  const title = t.title || m.title || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
-  const author = m.author_name && t.platform !== "bandcamp" ? m.author_name : "";
+  const recovered = !!(m.dead && m.wb_title);
+  const title = t.title || m.title || m.wb_title || (m.dead ? "Unavailable" : `${PLATFORM[t.platform] || "Link"} track`);
+  const author = (m.author_name && t.platform !== "bandcamp" ? m.author_name : "") || m.wb_author || "";
   let thumb = m.thumbnail_url || "";
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
   const noEmbed = m.status === 401; // video exists but its owner blocks playing it on other sites
-  return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, untitled: !t.title && !m.title };
+  return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, recovered, archive: m.wb_url || "", untitled: !t.title && !m.title };
 }
 
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {};
-    t._hay = fold([t.title, m.title, m.author_name].filter(Boolean).join(" "));
+    t._hay = fold([t.title, m.title, m.author_name, m.wb_title, m.wb_author].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -114,8 +115,10 @@ function expand(li) {
       el("span", { class: "chip", style: x.thumb ? `background-image:url(${x.thumb})` : "" }),
       el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
         el("span", { class: "tr-title" }, x.title),
-        el("span", { class: "tr-sub" }, [x.author, tr.date ? fmtDate(tr.date) : null, i === 0 ? "Main track" : null].filter(Boolean).join(", "))),
-      el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
+        el("span", { class: "tr-sub" }, [x.author, tr.date ? fmtDate(tr.date) : null, i === 0 ? "Main track" : null, x.recovered ? "deleted, title recovered from the Internet Archive" : null].filter(Boolean).join(", "))),
+      x.archive
+        ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
+        : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
   }));
   const foot = el("div", { class: "thread-foot" },
     el("button", { class: "linkbtn", onclick: () => play(t, 0) }, "Play from the top"),
@@ -159,7 +162,7 @@ function embedFor(tr) {
   const m = meta[tr.url] || {};
   const enc = encodeURIComponent;
   switch (tr.platform) {
-    case "youtube": return tr.yt && m.status !== 401 ? { src: `https://www.youtube-nocookie.com/embed/${tr.yt}?autoplay=1&rel=0`, video: true } : null;
+    case "youtube": return tr.yt && m.status !== 401 ? { src: `https://www.youtube-nocookie.com/embed/${tr.yt}?autoplay=1&rel=0&vq=hd1080`, video: true } : null;
     case "vimeo": return tr.vimeo ? { src: `https://player.vimeo.com/video/${tr.vimeo}?autoplay=1`, video: true } : null;
     case "soundcloud": return { src: (m.sc_src || `https://w.soundcloud.com/player/?url=${enc(tr.url)}`) + "&auto_play=true&visual=false" };
     case "bandcamp": return m.bandcamp_embed ? { src: `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=182c24/linkcol=6fcb9f/artwork=small/tracklist=false/transparent=true/` } : null;
@@ -171,11 +174,11 @@ function embedFor(tr) {
 function play(t, i) {
   if (i < 0 || i >= t.tracks.length) return;
   playing = { thread: t, index: i };
-  const tr = t.tracks[i], x = info(tr), e = embedFor(tr);
+  const tr = t.tracks[i], x = info(tr), e = x.dead ? null : embedFor(tr);
   $("#player").hidden = false;
   $("#nowTitle").textContent = x.title;
   $("#nowSub").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
-  $("#openSrc").href = tr.url;
+  $("#openSrc").href = x.dead && x.archive ? x.archive : tr.url;
   $("#openSrc").textContent = "Open"; $("#openSrc").title = `Open on ${PLATFORM[tr.platform] || "the original site"}`;
   $("#prevBtn").disabled = i === 0;
   $("#nextBtn").disabled = i === t.tracks.length - 1;
@@ -183,12 +186,20 @@ function play(t, i) {
   wrap.className = "frame" + (e && !e.video ? " audio" : "");
   wrap.replaceChildren(e
     ? el("iframe", { src: e.src, allow: "autoplay; encrypted-media; fullscreen", allowfullscreen: true, title: x.title })
-    : el("p", { class: "nolink" }, `This ${PLATFORM[tr.platform] || "link"} can't play here yet. Use “Open” above.`));
+    : el("p", { class: "nolink" }, x.dead
+        ? (x.archive ? "This track was deleted. “Open” shows the archived page; try searching the title on YouTube for a re-upload." : "This track was deleted and no archived copy of its page was found.")
+        : `This ${PLATFORM[tr.platform] || "link"} can't play here yet. Use “Open” above.`));
   if (openId === t.id) refreshOpen();
 }
 
 $("#prevBtn").onclick = () => playing && play(playing.thread, playing.index - 1);
 $("#nextBtn").onclick = () => playing && play(playing.thread, playing.index + 1);
+$("#bigBtn").onclick = () => {
+  const big = $("#player").classList.toggle("big");
+  $("#bigBtn").textContent = big ? "Smaller" : "Larger";
+  try { localStorage.setItem("nrgfm-big", big ? "1" : ""); } catch {}
+};
+try { if (localStorage.getItem("nrgfm-big")) { $("#player").classList.add("big"); $("#bigBtn").textContent = "Smaller"; } } catch {}
 $("#closeBtn").onclick = () => { $("#frameWrap").replaceChildren(); $("#player").hidden = true; playing = null; refreshOpen(); };
 
 /* ---------- add track (via GitHub's web editor, no token needed) ---------- */
