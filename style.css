@@ -88,6 +88,8 @@ body:not(.can-add) #addBtn, body:not(.can-add) .add-here { display: none; }
   background: var(--jade); color: var(--jade-ink); border: 0;
   font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap;
 }
+#addBtn { background: #4f9e7a; }  /* a step darker than the logo */
+#addBtn:hover { background: #5ab087; }
 .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
 
 /* list */

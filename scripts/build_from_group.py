@@ -8,7 +8,7 @@ repository (it holds other people's names and comments). Run it on a copy:
 Rules
 - A post by Rasmus with a music link is a thread. Its first music link is the main track; further
   links in the post, and every music link in the comments under it, follow in posting order.
-- "Anders posts": every music link Anders shared in his own posts and in comments under his own
+- "Anders posts" (off, see SHOW_ANDERS): every music link Anders shared in his own posts and in comments under his own
   posts (and under posts without music), so they can be looked through.
 - "Unsorted": music links whose place is unclear: Rasmus's comments under posts without a
   music link, comments under Anders' or other people's posts, and posts by other people.
@@ -26,6 +26,7 @@ from build_url import parse, MUSIC  # noqa: E402
 import ingest_inbox  # noqa: E402
 
 RASMUS = "1207737035"
+SHOW_ANDERS = False  # Rasmus looked through "Anders posts" on 2026-10-18 and had them removed
 URL_RE = re.compile(r"https?://\S+|(?:www\.|m\.)?(?:youtube\.com|youtu\.be|soundcloud\.com|vimeo\.com|mixcloud\.com|[\w-]+\.bandcamp\.com)/\S+")
 
 
@@ -123,7 +124,10 @@ def build(posts):
     for th in out:
         th["tracks"].sort(key=lambda x: x["ts"])
     collections = []
-    for cid, name, tr in (("anders", "Anders posts", anders), ("unsorted", "Unsorted", unsorted)):
+    named = [("unsorted", "Unsorted", unsorted)]
+    if SHOW_ANDERS:
+        named.insert(0, ("anders", "Anders posts", anders))
+    for cid, name, tr in named:
         tr.sort(key=lambda x: x["ts"])
         if tr:
             collections.append({"id": cid, "name": name, "date": tr[0]["date"], "ts": tr[-1]["ts"], "kind": "collection", "pinned": True, "tracks": tr})
