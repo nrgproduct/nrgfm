@@ -231,7 +231,7 @@ const userToggled = new Set(); // threads the visitor opened or closed by hand (
 function moreToggle(t, hits, n) {
   const open = expanded.has(t.id);
   return el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
-    open ? "Collapse" : `Expand (${n})`);
+    open ? "Collapse" : t.kind === "tag" ? "Expand" : `Expand (${n})`);
 }
 function toggleExpand(t, hits) {
   userToggled.add(t.id);
@@ -244,7 +244,7 @@ function toggleExpand(t, hits) {
   markPlaying();
   // after collapsing a long thread, keep its top in view
   if (wasOpen && fresh.getBoundingClientRect().top < 0) fresh.scrollIntoView({ block: "start" });
-  if (!wasOpen && t.kind === "tag") updateTagScroll(fresh);
+  if (t.kind === "tag") fitTagList(fresh);
 }
 
 /* A tag: its name, track count and Expand on the left (blue), the newest tagged tracks on the right.
@@ -253,17 +253,33 @@ function tagThreadNode({ t, hits }) {
   const open = expanded.has(t.id), n = t.tracks.length;
   const rows = (open ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
   const list = el("ol", { class: "tag-list" + (open ? " open" : "") }, rows);
-  const pos = el("span", { class: "tag-pos" });
   const node = el("li", { class: "thread tag-thread", id: "th-" + t.id },
     el("div", { class: "tag-side" },
       el("span", { class: "tag-name" }, t.name),
       el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
       n > TAG_PREVIEW ? moreToggle(t, hits, n) : null,
-      open ? pos : null,
-      el("button", { class: "linkbtn tag-copy", onclick: (e) => copyLink(t, e.target) }, "Copy link")),
-    list);
-  if (open) list.addEventListener("scroll", () => updateTagScroll(node), { passive: true });
+      n > TAG_PREVIEW ? el("span", { class: "tag-pos" }, `1–${Math.min(n, TAG_PREVIEW)} of ${n}`) : null),
+    list,
+    el("div", { class: "thread-foot tag-foot" },
+      el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
+  if (open) {
+    list.addEventListener("scroll", () => updateTagScroll(node), { passive: true });
+    requestAnimationFrame(() => fitTagList(node));
+  }
   return node;
+}
+/* an expanded tag shows 12 tracks at a time and scrolls through the rest */
+const TAG_VISIBLE = 12;
+function fitTagList(node) {
+  const list = node.querySelector(".tag-list.open");
+  if (!list || !list.children.length) return;
+  const rows = [...list.children].slice(0, TAG_VISIBLE), last = rows[rows.length - 1];
+  list.style.maxHeight = last.offsetTop + last.offsetHeight + "px";
+  // keep the rows as wide as when collapsed: the scrollbar goes just outside on the right
+  list.style.marginRight = "0px"; list.style.paddingRight = "0px";
+  const bar = list.offsetWidth - list.clientWidth;
+  if (bar > 0 && innerWidth > 640) { list.style.marginRight = -(bar + 6) + "px"; list.style.paddingRight = "6px"; }
+  updateTagScroll(node);
 }
 /* "41–52 of 299" while scrolling inside an expanded tag */
 function updateTagScroll(node) {
