@@ -250,7 +250,10 @@ function toggleExpand(t, hits) {
   if (wasOpen && fresh.getBoundingClientRect().top < headerBottom()) fresh.scrollIntoView({ block: "start" });
   fitList(fresh, !wasOpen);
 }
+const keptHeight = new Map(); // search results: Scroll keeps the box as tall as it was
 function toggleScroll(t, hits) {
+  const old = document.querySelector(`#th-${CSS.escape(t.id)} .tracks`);
+  if (old && !scrollOn.has(t.id)) keptHeight.set(t.id, old.getBoundingClientRect().height);
   scrollOn.has(t.id) ? scrollOn.delete(t.id) : scrollOn.add(t.id);
   const fresh = rerenderKeep(t, hits);
   if (fresh) fitList(fresh);
@@ -266,7 +269,9 @@ function fitList(node, scroll) {
   if (!list.classList.contains("open")) {
     const rows = [...list.querySelectorAll(":scope > li.track")];
     const last = rows[Math.min(rows.length, +list.dataset.show || TAG_PREVIEW) - 1];
-    if (last) list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
+    const id = node.id.slice(3);
+    if (scrollOn.has(id) && keptHeight.has(id)) list.style.maxHeight = keptHeight.get(id) + "px";
+    else if (last) list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
     const focus = list.querySelector(":scope > li.track.hit");
     if (focus && list.dataset.centred !== "1") { // search: put the hit in the middle
       list.dataset.centred = "1";
@@ -351,7 +356,7 @@ function threadNode({ t, hits }) {
   const scrolling = searching && scrollOn.has(t.id);
   let idx, listCls = "tracks", show = limit - 1;
   if (open) { idx = range(1, n); listCls += " scroll-list open"; }
-  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = SEARCH_AROUND; }
+  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = Math.max(SEARCH_AROUND, searchRows(t, hits).length); } // keep the box as tall as the results were
   else if (searching) { idx = searchRows(t, hits); }
   else if (long && !phone()) { idx = range(1, n); listCls += " scroll-list"; }
   else if (long) { idx = range(1, limit); }
@@ -379,11 +384,11 @@ function threadNode({ t, hits }) {
     n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
     // search results: "Scroll" centred under the tracks (green while on); the counter again on phones
     searching ? el("div", { class: "search-foot" }, pos(),
-      el("button", { class: "linkbtn scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll"),
+      el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll"),
       el("span", {})) : null,
     // phone: counter and Expand again under a long list
     long && !open && !searching ? el("div", { class: "more-after" }, pos(), expandBtn()) : null,
-    searching ? null : el("div", { class: "thread-foot" },
+    hits ? null : el("div", { class: "thread-foot" }, // no "Add a track here" in search results
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
   const list = li.querySelector(".scroll-list");
   if (list) {

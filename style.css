@@ -139,6 +139,8 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .search-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 0 18px 168px; }
 .search-foot .more-pos { visibility: hidden; }
 .scroll-link.on { color: var(--jade); }
+.search-foot .more-toggle { margin: 0; }
+.thread.searching:not(:has(.search-foot)) , .thread:not(:has(.thread-foot)):not(:has(.search-foot)) { padding-bottom: 14px; }
 .tag-label .more-pos { display: none; }
 .tag-chip.suggest { border-style: dashed; color: var(--muted); }
 .tag-chip.suggest:hover { color: var(--text); border-color: var(--muted); }
