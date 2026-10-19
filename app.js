@@ -256,8 +256,8 @@ const headerBottom = () => $(".top").getBoundingClientRect().bottom;
 function fitList(node, scroll) {
   const list = node.querySelector(".scroll-list");
   if (!list || !list.children.length) return;
-  if (!list.classList.contains("open")) { // collapsed tag: 5 tracks high
-    const rows = [...list.children], last = rows[Math.min(rows.length, TAG_PREVIEW) - 1];
+  if (!list.classList.contains("open")) { // collapsed on a laptop: a few tracks high, scroll for the rest
+    const rows = [...list.children], last = rows[Math.min(rows.length, +list.dataset.show || TAG_PREVIEW) - 1];
     list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
     updateListPos(node);
     return;
@@ -295,7 +295,7 @@ function tagThreadNode({ t, hits }) {
   const all = open || !phone();
   const rows = (all ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
   const scrolls = many && all;
-  const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : "") }, rows);
+  const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW }, rows);
   const node = el("li", { class: "thread tag-thread" + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
@@ -318,6 +318,7 @@ function threadNode({ t, hits }) {
   if (hits && !userToggled.has(t.id) && [...hits].some((i) => i >= limit)) expanded.add(t.id);
   if (t.kind === "tag") return tagThreadNode({ t, hits });
   const long = t.tracks.length > THREAD_PREVIEW, open = long && expanded.has(t.id);
+  const allRows = open || (long && !phone()); // laptop: all replies in a box you can scroll; phone: 12 until Expand
   const head = t.tracks[0], hi = info(head);
   const li = el("li", { class: "thread" + (long ? " long" : "") + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
@@ -328,11 +329,15 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
-    long ? el("div", { class: "thread-more" }, moreBox(t, hits, THREAD_PREVIEW)) : null,
-    t.tracks.length > 1 ? el("ol", { class: "tracks" + (open ? " scroll-list" : "") }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
+    long ? el("div", { class: "thread-more" },
+      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), moreBox(t, hits, THREAD_PREVIEW)[1]),
+      moreBox(t, hits, THREAD_PREVIEW)[0],
+      open ? el("button", { class: "more-toggle more-bottom", onclick: () => toggleExpand(t, hits) }, "Collapse") : null) : null,
+    t.tracks.length > 1 ? el("ol", { class: "tracks" + (long && allRows ? " scroll-list" : "") + (open ? " open" : ""), "data-show": THREAD_PREVIEW - 1 },
+      t.tracks.slice(1, allRows ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
-  if (open) {
+  if (li.querySelector(".scroll-list")) {
     const list = li.querySelector(".scroll-list");
     list.addEventListener("scroll", () => updateListPos(li), { passive: true });
     requestAnimationFrame(() => fitList(li));
@@ -535,7 +540,7 @@ function play(t, i) {
   } else if (tr.platform === "vimeo" && tr.vimeo) {
     adapter = makeVimeo(box, tr);
   } else if (tr.platform === "bandcamp" && m.bandcamp_embed) {
-    kind = "audio";
+    kind = "bandcamp"; // Bandcamp's player is 120px high
     adapter = makePlain(box, `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=182c24/linkcol=6fcb9f/artwork=small/tracklist=false/transparent=true/`, x.title);
   } else if (tr.platform === "mixcloud") {
     kind = "audio";
@@ -1020,7 +1025,10 @@ function copyLink(t, btn) {
 let timer;
 function syncClear() { $("#clearQ").hidden = !$("#q").value; }
 $("#q").addEventListener("input", () => { syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 150); });
-$("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); $("#q").focus(); };
+$("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if (phone()) $("#q").blur(); else $("#q").focus(); };
+// phones: Enter, or touching anywhere outside the search field, puts the keyboard away
+$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
+document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
 $("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; syncClear(); history.replaceState(null, "", location.pathname); runSearch(); scrollTo(0, 0); };
 
 (async function boot() {

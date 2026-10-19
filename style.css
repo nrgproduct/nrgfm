@@ -96,7 +96,7 @@ button.tag-chip:hover { border-color: var(--muted); }
 /* tag threads: one frame around the name box and the tracks */
 .thread.tag-thread { padding: 12px 0 18px; }
 .tag-frame {
-  display: grid; grid-template-columns: 160px 1fr; align-items: stretch;
+  display: grid; grid-template-columns: 160px 1fr; align-items: stretch; margin: 0 -8px; /* as wide as a track thread's rows */
   border: 3px solid var(--line); border-radius: var(--radius-sm);
 }
 .tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; min-height: 90px; }
@@ -122,7 +122,11 @@ button.tag-chip:hover { border-color: var(--muted); }
 .tracks.scroll-list { position: relative; }
 /* long track threads: Expand and the counter under the thumbnail */
 .thread.long { position: relative; }
-.thread-more { position: absolute; left: 0; top: 116px; width: 160px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.thread-more { position: absolute; z-index: 2; left: 0; top: 116px; bottom: 44px; width: 160px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.thread-more .more-info { order: 2; }
+.thread-more .more-title { display: none; }
+.thread-more .more-toggle { order: 1; margin-left: -8px; }
+.thread-more .more-bottom { order: 3; margin-top: auto; }
 .close-btn { display: none; }
 /* search clear button: square, only while searching */
 .btn.square {
@@ -261,6 +265,7 @@ img.broken { visibility: hidden; }
   box-shadow: 0 12px 40px #0008;
 }
 .media[data-kind="audio"] { height: 166px; background: var(--surface); }
+.media[data-kind="bandcamp"] { height: 120px; background: var(--surface); }
 .media[data-kind="note"] { height: auto; background: var(--surface); }
 .media .slot { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
 .media[data-kind="note"] .slot { position: static; }
@@ -388,9 +393,18 @@ img.broken { visibility: hidden; }
     position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
   }
   .close-btn { display: inline-flex; margin-left: auto; }
+  .thread { border-bottom-color: #3f6152; }
+  .dock { padding-bottom: 0 !important; }
+  .bar { padding-bottom: 10px; }
+  /* long track thread on a phone: counter left, Expand/Collapse right; expanded it is a pinned header */
+  .thread-more { position: static; width: auto; flex-direction: row; justify-content: space-between; align-items: center; margin: 0 0 4px; }
+  .thread-more .more-info { order: 1; display: flex; flex-direction: column; }
+  .thread-more .more-toggle { order: 2; margin: 0 -8px 0 auto; }
+  .thread-more .more-bottom { display: none; }
+  .thread.expanded .thread-more { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .thread.expanded .thread-more .more-title { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
   .tag-more { align-items: flex-end; }
   .tag-more .more-toggle { margin: 0 -8px 0 0; }
-  .thread-more { position: static; width: auto; flex-direction: row; align-items: center; gap: 12px; margin: 0 0 4px; }
   /* phone: transport bar on top, full-width video underneath */
   .dock { display: flex; flex-direction: column; background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
   .bar { order: 1; border-top: 1px solid var(--line); padding-bottom: 10px; }
