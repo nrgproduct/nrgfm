@@ -116,17 +116,28 @@ button.tag-chip:hover { border-color: var(--muted); }
 .more-toggle:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
 .more-pos { color: var(--text); font-size: 13px; }
 /* an expanded list scrolls inside its own box */
+/* a starting height so a long list is never briefly thousands of pixels tall (the page would jump) */
+html, body { overflow-anchor: none; } /* the site places threads itself when they open or close */
+.scroll-list { max-height: 60vh; }
+.scroll-list.open { max-height: 100vh; }
 .scroll-list { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
 .scroll-list::-webkit-scrollbar { width: 8px; }
 .scroll-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
 .tracks.scroll-list { position: relative; }
 /* long track threads: Expand and the counter under the thumbnail */
 .thread.long { position: relative; }
-.thread-more { position: absolute; z-index: 2; left: 0; top: 116px; bottom: 44px; width: 160px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.thread-more { position: absolute; z-index: 2; left: 0; top: 116px; bottom: 44px; width: 152px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .thread-more .more-info { order: 2; }
 .thread-more .more-title { display: none; }
-.thread-more .more-toggle { order: 1; margin-left: -8px; }
+.more-btns { order: 1; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.more-btns .tg-expand, .more-btns > .more-toggle:first-child { margin-left: -8px; }
+.more-btns .tg-scroll { margin-right: 0; }
+.more-toggle.on { color: var(--jade); }
 .thread-more .more-bottom { order: 3; margin-top: auto; }
+.more-after { display: none; }
+.tag-label .more-pos { display: none; }
+.tag-chip.suggest { border-style: dashed; color: var(--muted); }
+.tag-chip.suggest:hover { color: var(--text); border-color: var(--muted); }
 .close-btn { display: none; }
 /* search clear button: square, only while searching */
 .btn.square {
@@ -393,17 +404,26 @@ img.broken { visibility: hidden; }
     position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
   }
   .close-btn { display: inline-flex; margin-left: auto; }
-  .thread { border-bottom-color: #3f6152; }
+  .thread { border-bottom: 2px solid #5b8571; }
   .dock { padding-bottom: 0 !important; }
   .bar { padding-bottom: 10px; }
   /* long track thread on a phone: counter left, Expand/Collapse right; expanded it is a pinned header */
-  .thread-more { position: static; width: auto; flex-direction: row; justify-content: space-between; align-items: center; margin: 0 0 4px; }
+  .thread.long .head-row { margin-bottom: 0; }
+  .thread-more { position: static; width: auto; flex-direction: row; justify-content: space-between; align-items: center; margin: 0; }
   .thread-more .more-info { order: 1; display: flex; flex-direction: column; }
-  .thread-more .more-toggle { order: 2; margin: 0 -8px 0 auto; }
+  .more-btns { order: 2; width: auto; justify-content: flex-end; gap: 12px; }
+  .more-btns .tg-expand, .more-btns > .more-toggle:first-child { margin-left: 0; }
+  .more-btns > .more-toggle:last-child { margin-right: -8px; }
   .thread-more .more-bottom { display: none; }
+  .more-after { display: flex; justify-content: flex-end; gap: 12px; padding: 2px 0 0; }
+  .more-after > .more-toggle:last-child { margin-right: -8px; }
+  .tag-label .more-pos { display: block; padding-top: 2px; }
+  .tag-more .more-pos { display: none; }
+  .thread.expanded .tag-name { font-size: 13px; color: var(--muted); }
+  .thread.expanded .tag-count { display: none; }
   .thread.expanded .thread-more { padding: 6px 0; border-bottom: 1px solid var(--line); }
   .thread.expanded .thread-more .more-title { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
-  .tag-more { align-items: flex-end; }
+  .tag-more { align-items: flex-end; align-self: center; }
   .tag-more .more-toggle { margin: 0 -8px 0 0; }
   /* phone: transport bar on top, full-width video underneath */
   .dock { display: flex; flex-direction: column; background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }

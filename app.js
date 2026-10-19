@@ -223,42 +223,55 @@ function rowLinks(t, i, x) {
 /* A tag is shown as its own thread: a blue "tag" box, the tag's name, and its first 8 tracks
    (Expand shows all of them). */
 const TAG_PREVIEW = 5;
-const THREAD_PREVIEW = 12;
-const expanded = new Set();   // threads opened with Expand
-const userToggled = new Set(); // threads the visitor opened or closed by hand (search won't override)
+const SEARCH_AROUND = 5;       // in search results: 5 replies, the hit in the middle
+const threadLimit = () => (phone() ? 12 : 30); // tracks shown before Expand appears
+const expanded = new Set();    // threads opened with Expand
+const scrollOn = new Set();    // search results whose list was switched to scrolling
+const userToggled = new Set();
 
-/* Expand / Collapse text with a "1–12 of 175" counter under it */
-function moreBox(t, hits, shownN) {
-  const open = expanded.has(t.id), n = t.tracks.length;
-  return [
-    el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : "Expand"),
-    el("span", { class: "more-pos" }, `1–${Math.min(n, shownN)} of ${n}`),
-  ];
-}
 const phone = () => window.matchMedia("(max-width: 640px)").matches;
+const headerBottom = () => $(".top").getBoundingClientRect().bottom;
+const btn = (cls, label, fn) => el("button", { class: "more-toggle " + cls, onclick: fn }, label);
+
+function rerenderKeep(t, hits) {
+  const node = document.getElementById("th-" + t.id);
+  if (!node) return null;
+  const fresh = threadNode({ t, hits });
+  node.replaceWith(fresh);
+  markPlaying();
+  return fresh;
+}
 function toggleExpand(t, hits) {
   userToggled.add(t.id);
   const wasOpen = expanded.has(t.id);
   wasOpen ? expanded.delete(t.id) : expanded.add(t.id);
-  const node = document.getElementById("th-" + t.id);
-  if (!node) return;
-  const fresh = threadNode({ t, hits });
-  node.replaceWith(fresh);
-  markPlaying();
+  const fresh = rerenderKeep(t, hits);
+  if (!fresh) return;
   if (wasOpen && fresh.getBoundingClientRect().top < headerBottom()) fresh.scrollIntoView({ block: "start" });
   fitList(fresh, !wasOpen);
 }
-const headerBottom = () => $(".top").getBoundingClientRect().bottom;
+function toggleScroll(t, hits) {
+  scrollOn.has(t.id) ? scrollOn.delete(t.id) : scrollOn.add(t.id);
+  const fresh = rerenderKeep(t, hits);
+  if (fresh) fitList(fresh);
+}
 
 /* Expanded: the thread moves to the top of the window and its list fills the rest of it
-   (down to the player) and scrolls inside. A collapsed tag on a laptop shows 5 tracks
-   but can be scrolled too. The counter follows the scrolling. */
+   (down to the player) and scrolls inside. Collapsed boxes on a laptop show a few tracks and
+   scroll for the rest. The counter follows the scrolling. */
 function fitList(node, scroll) {
+  if (!node) return;
   const list = node.querySelector(".scroll-list");
   if (!list || !list.children.length) return;
-  if (!list.classList.contains("open")) { // collapsed on a laptop: a few tracks high, scroll for the rest
-    const rows = [...list.children], last = rows[Math.min(rows.length, +list.dataset.show || TAG_PREVIEW) - 1];
-    list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
+  if (!list.classList.contains("open")) {
+    const rows = [...list.querySelectorAll(":scope > li.track")];
+    const last = rows[Math.min(rows.length, +list.dataset.show || TAG_PREVIEW) - 1];
+    if (last) list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
+    const focus = list.querySelector(":scope > li.track.hit");
+    if (focus && list.dataset.centred !== "1") { // search: put the hit in the middle
+      list.dataset.centred = "1";
+      list.scrollTop = focus.offsetTop - (list.clientHeight - focus.offsetHeight) / 2;
+    }
     updateListPos(node);
     return;
   }
@@ -272,14 +285,15 @@ function fitList(node, scroll) {
   updateListPos(node);
 }
 function updateListPos(node) {
-  const list = node.querySelector(".scroll-list"), pos = node.querySelector(".more-pos");
-  if (!list || !pos) return;
+  const list = node.querySelector(".scroll-list"), pos = node.querySelectorAll(".more-pos");
+  if (!list || !pos.length) return;
   const offset = list.classList.contains("tracks") ? 1 : 0; // a track thread's main post is number 1
   const rows = [...list.children].filter((r) => r.matches("li.track")), top = list.scrollTop, bottom = top + list.clientHeight;
   let first = 0, last = 0;
   rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
   const total = rows.length + offset;
-  pos.textContent = `${offset && top < 4 ? 1 : (first || 1) + offset}–${last + offset} of ${total}`;
+  const text = `${offset && top < 4 ? 1 : (first || 1) + offset}–${last + offset} of ${total}`;
+  pos.forEach((p) => (p.textContent = text));
 }
 addEventListener("resize", () => {
   document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
@@ -296,14 +310,16 @@ function tagThreadNode({ t, hits }) {
   const rows = (all ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
   const scrolls = many && all;
   const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW }, rows);
+  const pos = () => el("span", { class: "more-pos" }, `1–${Math.min(n, TAG_PREVIEW)} of ${n}`);
   const node = el("li", { class: "thread tag-thread" + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
           el("span", { class: "tag-name" }, t.name),
-          el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
-        many ? el("div", { class: "tag-more" }, moreBox(t, hits, TAG_PREVIEW)) : null,
-        many && open ? el("button", { class: "more-toggle tag-collapse-bottom", onclick: () => toggleExpand(t, hits) }, "Collapse") : null),
+          el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
+          many ? pos() : null),
+        many ? el("div", { class: "tag-more" }, btn("", open ? "Collapse" : "Expand", () => toggleExpand(t, hits)), pos()) : null,
+        many && open ? btn("tag-collapse-bottom", "Collapse", () => toggleExpand(t, hits)) : null),
       list));
   if (scrolls) {
     list.addEventListener("scroll", () => updateListPos(node), { passive: true });
@@ -313,14 +329,28 @@ function tagThreadNode({ t, hits }) {
 }
 
 function threadNode({ t, hits }) {
-  const limit = t.kind === "tag" ? TAG_PREVIEW : THREAD_PREVIEW;
-  // a search hit further down opens the thread, unless the visitor closed it by hand
-  if (hits && !userToggled.has(t.id) && [...hits].some((i) => i >= limit)) expanded.add(t.id);
   if (t.kind === "tag") return tagThreadNode({ t, hits });
-  const long = t.tracks.length > THREAD_PREVIEW, open = long && expanded.has(t.id);
-  const allRows = open || (long && !phone()); // laptop: all replies in a box you can scroll; phone: 12 until Expand
+  const n = t.tracks.length, limit = threadLimit();
+  const long = n > limit, open = long && expanded.has(t.id);
+  const firstHit = hits ? [...hits].sort((x, y) => x - y).find((i) => i > 0) : undefined;
+  const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // show the hit with 2 tracks above and below
+  const scrolling = searching && scrollOn.has(t.id);
+  let from = 1, to = n, list = null, listCls = "tracks", show = limit - 1;
+  if (open) { listCls += " scroll-list open"; }
+  else if (searching && !scrolling) {
+    const h = firstHit || 1;
+    from = Math.max(1, Math.min(h - 2, n - SEARCH_AROUND)); to = from + SEARCH_AROUND;
+  } else if (scrolling) { listCls += " scroll-list"; show = SEARCH_AROUND; }
+  else if (long && !phone()) { listCls += " scroll-list"; }
+  else if (long) { to = limit; }
+  const controls = long || searching;
   const head = t.tracks[0], hi = info(head);
-  const li = el("li", { class: "thread" + (long ? " long" : "") + (open ? " expanded" : ""), id: "th-" + t.id },
+  const posText = `${from === 1 ? 1 : from + 1}–${Math.min(n, to)} of ${n}`;
+  const buttons = (where) => [
+    (where === "top" || !open) ? btn("tg-expand", open ? "Collapse" : "Expand", () => toggleExpand(t, hits)) : null,
+    searching ? btn("tg-scroll" + (scrolling ? " on" : ""), scrolling ? "Stop" : "Scroll", () => toggleScroll(t, hits)) : null,
+  ];
+  const li = el("li", { class: "thread" + (controls ? " long" : "") + (open ? " expanded" : "") + (searching ? " searching" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
@@ -329,16 +359,17 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
-    long ? el("div", { class: "thread-more" },
-      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), moreBox(t, hits, THREAD_PREVIEW)[1]),
-      moreBox(t, hits, THREAD_PREVIEW)[0],
-      open ? el("button", { class: "more-toggle more-bottom", onclick: () => toggleExpand(t, hits) }, "Collapse") : null) : null,
-    t.tracks.length > 1 ? el("ol", { class: "tracks" + (long && allRows ? " scroll-list" : "") + (open ? " open" : ""), "data-show": THREAD_PREVIEW - 1 },
-      t.tracks.slice(1, allRows ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
+    controls ? el("div", { class: "thread-more" },
+      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), el("span", { class: "more-pos" }, posText)),
+      el("div", { class: "more-btns" }, buttons("top")),
+      // laptop: the same buttons again at the bottom of the left column
+      (open || searching) ? el("div", { class: "more-btns more-bottom" }, open ? btn("", "Collapse", () => toggleExpand(t, hits)) : buttons("bottom")) : null) : null,
+    n > 1 ? (list = el("ol", { class: listCls, "data-show": show }, t.tracks.slice(from, to).map((tr, k) => trackRow(t, tr, k + from, hits)))) : null,
+    // phone: Expand (and Scroll) again under the list while collapsed
+    controls && !open ? el("div", { class: "more-after" }, buttons("bottom")) : null,
     el("div", { class: "thread-foot" },
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
-  if (li.querySelector(".scroll-list")) {
-    const list = li.querySelector(".scroll-list");
+  if (list && list.classList.contains("scroll-list")) {
     list.addEventListener("scroll", () => updateListPos(li), { passive: true });
     requestAnimationFrame(() => fitList(li));
   }
@@ -726,13 +757,16 @@ const LINK_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com
 
 /* Tag field: type, pick a suggestion with Enter (or the arrow keys), keep typing the next one.
    Chosen tags show as chips; clicking a chip removes it. */
-function tagEditor(initial) {
+function tagEditor(initial, suggested = []) {
   const chosen = [...initial];
   const input = el("input", { type: "text", class: "tag-input", placeholder: "Add tag", autocomplete: "off", spellcheck: "false", "aria-label": "Add tag" });
   const drop = el("ul", { class: "tag-drop", hidden: true });
   const chips = el("span", { class: "tag-chips" });
   let opts = [], active = 0;
-  const drawChips = () => chips.replaceChildren(...chosen.map((g) => el("button", { type: "button", class: "tag-chip", title: "Remove tag", onclick: () => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); } }, g, el("span", { "aria-hidden": "true" }, " ×"))));
+  const drawChips = () => chips.replaceChildren(
+    ...chosen.map((g) => el("button", { type: "button", class: "tag-chip", title: "Remove tag", onclick: () => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); } }, g, el("span", { "aria-hidden": "true" }, " ×"))),
+    // the main track's tags, offered with a dotted outline; click to use one
+    ...suggested.filter((g) => !chosen.includes(g)).map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag", onclick: () => { chosen.push(g); drawChips(); } }, "+ " + g)));
   const drawDrop = () => {
     const q = fold(input.value);
     opts = q ? allTags().filter((g) => !chosen.includes(g) && fold(g).includes(q)).sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q)).slice(0, 6) : [];
@@ -761,7 +795,7 @@ function tagEditor(initial) {
 function addForm(thread, edit) {
   // edit = { t, i } when editing an existing track
   const tr = edit ? edit.t.tracks[edit.i] : null;
-  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : []);
+  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : []);
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
       el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
@@ -783,7 +817,7 @@ function addForm(thread, edit) {
 }
 function closeAddForm(form) {
   if (!form) return;
-  if (form.parentElement && form.parentElement.classList.contains("edit-li")) { form.parentElement.remove(); return; }
+  if (form.parentElement && form.parentElement.classList.contains("edit-li")) { const th = form.closest(".thread"); form.parentElement.remove(); fitList(th); return; }
   if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
   form.remove();
 }
@@ -814,7 +848,7 @@ $("#addBtn").onclick = toggleHeaderForm;
 function toggleEditForm(t, i, row) {
   if (!getToken()) { openSetup(); return; }
   const next = row.nextElementSibling;
-  if (next && next.classList.contains("edit-wrap")) { next.remove(); return; }
+  if (next && next.classList.contains("edit-wrap")) { next.remove(); fitList(row.closest(".thread")); return; }
   if (t.kind === "tag") { // the track lives in its own thread; edit it there
     const tr = t.tracks[i], home = threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
     if (!home) return;
@@ -823,6 +857,8 @@ function toggleEditForm(t, i, row) {
   const form = addForm(null, { t, i });
   const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
   row.after(wrap);
+  const box = wrap.closest(".scroll-list"); // inside a scrolling box: make room for the card
+  if (box) { box.style.maxHeight = box.clientHeight + wrap.offsetHeight + "px"; wrap.scrollIntoView({ block: "nearest" }); }
   form.title.focus(); form.title.select();
 }
 
