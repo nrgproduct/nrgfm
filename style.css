@@ -238,11 +238,11 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
 .head-row.hit .t-title, .track.hit .tr-title {
-  display: inline; background: var(--hit, var(--seek)); color: var(--text); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
+  display: inline; background: var(--hit, var(--seek)); color: var(--jade-ink); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .head-row.dead .t-title { color: var(--rust); text-decoration: line-through; }
-.head-row.dead.hit .t-title, .track.dead.hit .tr-title { color: var(--text); }
+.head-row.dead.hit .t-title, .track.dead.hit .tr-title { color: var(--jade-ink); }
 .thread-head {
   display: grid; grid-template-columns: 160px 1fr; gap: 16px; align-items: start;
   width: 100%; padding: 0; text-align: left; color: inherit;
@@ -472,7 +472,7 @@ img.broken { visibility: hidden; }
   .thread.expanded .tag-name { font-size: 13px; color: var(--muted); }
   .thread.expanded .tag-count { display: none; }
   .thread.expanded .thread-more { padding: 6px 0; border-bottom: 1px solid var(--line); }
-  .thread.expanded .thread-more .more-title { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+  .thread.expanded:not(.framed) .thread-more .more-title { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
   .tag-more { align-items: flex-end; align-self: center; margin-top: 0; }
   .tag-more .more-toggle { margin: 0 -8px 0 0; }
   /* phone: transport bar on top, full-width video underneath */
@@ -507,7 +507,7 @@ img.broken { visibility: hidden; }
 /* tag threads and long threads: a dotted frame exactly as wide as the divider lines, no divider next to it */
 .thread.framed:not(.searching) { position: relative; margin: 8px 0; }
 .thread.framed:not(.searching)::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 4;
   border: 1px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm);
 }
 .thread.framed:not(.searching), .thread:has(+ .framed:not(.searching)) { border-bottom-color: transparent; }
@@ -545,10 +545,13 @@ img.broken { visibility: hidden; }
 .af-date-row .hint { margin-left: 6px; font-size: 13px; }
 .foot-count .src { padding: 4px; font-size: 13px; }
 
-/* the post date under the thumbnail; in search results it leads to the thread, with the track count under it */
-.head-row .thumb { margin-bottom: 26px; }
-.head-row.two-lines .thumb { margin-bottom: 44px; }
-.t-when { position: absolute; left: 8px; bottom: 8px; display: grid; gap: 2px; color: var(--muted); font-size: 13px; line-height: 18px; }
+/* the post date under the thumbnail (outside the post's box); in search results it leads to the thread, centred,
+   with the track count under it */
+.thread { position: relative; }
+.t-when { position: absolute; left: 8px; top: 114px; width: 160px; display: grid; justify-items: start; gap: 2px; color: var(--muted); font-size: 13px; line-height: 18px; }
+.t-when.in-search { justify-items: center; }
+.thread.searching { min-height: 168px; }
+.t-date-phone, .t-date.only-date { display: none; }
 .when-link { all: unset; cursor: pointer; color: var(--muted); text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .when-link:hover { color: var(--text); }
 /* the list is as wide as the space left of the video player (laptop) */
@@ -561,7 +564,13 @@ html.inner-scroll, html.inner-scroll body { height: 100%; overflow: hidden; }
 html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; }
 @media (max-width: 640px) {
   .thread.framed:not(.searching) { padding: 0 8px; }
-  .head-row .thumb { margin-bottom: 24px; }
-  .head-row.two-lines .thumb { margin-bottom: 42px; }
-  .t-when { left: 0; bottom: 6px; }
+  .t-when { display: none; }
+  .thread.searching { min-height: 0; }
+  .t-date-phone { display: inline; }
+  .t-date.only-date { display: block; }
+  .t-date.only-date:empty { display: none; }
 }
+
+/* a thread whose box scrolls is selected first (click in it, play from it, Expand); the frame lights up */
+.thread.framed.active:not(.searching)::before { border-color: var(--jade); }
+@media (hover: none) { .thread:not(.active) .scroll-list { overflow-y: hidden; } }
