@@ -182,6 +182,7 @@ function runSearch() {
   }
   rendered = 0;
   $("#threads").replaceChildren();
+  if (terms.length) scrollTo(0, 0); // results start at the top, wherever you were in the feed
   renderMore();
 }
 
@@ -283,11 +284,18 @@ function fitList(node, scroll) {
     updateListPos(node);
     return;
   }
-  if (scroll) {
-    const anchor = phone() ? node.querySelector(".tag-side, .thread-more") || node : node;
-    scrollBy(0, anchor.getBoundingClientRect().top - headerBottom() - 8);
-  }
   const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  if (scroll) {
+    // size the box for a thread sitting right under the header, then scroll it there
+    const anchor = phone() ? node.querySelector(".tag-side, .thread-more") || node : node;
+    const above = list.getBoundingClientRect().top - anchor.getBoundingClientRect().top;
+    list.style.maxHeight = Math.max(240, innerHeight - dock - headerBottom() - 8 - above - 12) + "px";
+    document.body.style.minHeight = document.documentElement.scrollHeight + innerHeight + "px"; // room to scroll even near the end
+    scrollBy(0, anchor.getBoundingClientRect().top - headerBottom() - 8);
+    document.body.style.minHeight = "";
+    updateListPos(node);
+    return;
+  }
   const room = innerHeight - dock - list.getBoundingClientRect().top - 12;
   list.style.maxHeight = Math.max(240, room) + "px";
   updateListPos(node);
@@ -326,8 +334,7 @@ function tagThreadNode({ t, hits }) {
           el("span", { class: "tag-name" }, t.name),
           el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
           many ? pos() : null),
-        many ? el("div", { class: "tag-more" }, btn("", open ? "Collapse" : "Expand", () => toggleExpand(t, hits)), pos()) : null,
-        many && open ? btn("tag-collapse-bottom", "Collapse", () => toggleExpand(t, hits)) : null),
+        many ? el("div", { class: "tag-more" }, pos(), btn("", open ? "Collapse" : "Expand", () => toggleExpand(t, hits))) : null),
       list));
   if (scrolls) {
     list.addEventListener("scroll", () => updateListPos(node), { passive: true });
@@ -606,7 +613,8 @@ function play(t, i) {
   const box = $("#otherSlot"); box.replaceChildren();
   const dock = $("#dock"); dock.hidden = false;
   $("#nowTitle").textContent = x.title;
-  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length} in this thread`;
+  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}`;
+  $("#sourceBtn").hidden = t.kind !== "tag"; // from a tag: a way to the track's own thread
   closeThread();
   fitTitle();
   $("#prevBtn").disabled = i === 0;
@@ -947,6 +955,7 @@ function toggleEditForm(t, i, row) {
   if (!getToken()) { openSetup(); return; }
   const next = row.nextElementSibling;
   if (next && next.classList.contains("edit-wrap")) { closeAddForm(next.querySelector(".add-form")); return; }
+  document.querySelectorAll(".edit-form").forEach((f) => closeAddForm(f)); // one edit card at a time
   if (t.kind === "tag") { // the track lives in its own thread; edit it there
     const tr = t.tracks[i], home = threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
     if (!home) return;
@@ -1085,7 +1094,7 @@ async function moveTrack(form, { t, i }, dest) {
 }
 
 async function deleteTrack(form, { t, i }, btn) {
-  if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Click again to delete"; return; }
+  if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Confirm delete"; return; }
   const tr = t.tracks[i];
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
   btns.forEach((b) => (b.disabled = true)); btn.textContent = "Deleting…"; msg.textContent = "";
@@ -1168,6 +1177,30 @@ document.addEventListener("keydown", (e) => {
   const t = e.target;
   if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
   $("#q").focus(); // the key itself then lands in the search field
+});
+
+/* "Source" in the player: the playing track's own thread (when playing from a tag) */
+const homeOf = (tr) => threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
+$("#sourceBtn").onclick = () => {
+  if (!playing) return;
+  const home = homeOf(playing.thread.tracks[playing.index]);
+  if (home) goToThread(home);
+};
+/* Enter while a track plays: open its edit card (on a device with a key) */
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || !playing || !getToken()) return;
+  const t = e.target;
+  if (t.closest && t.closest("input, textarea, select, button, a, [contenteditable], [role=button]")) return;
+  e.preventDefault();
+  const tr = playing.thread.tracks[playing.index], home = homeOf(tr);
+  if (!home) return;
+  const i = home.tracks.indexOf(tr);
+  let row = document.querySelector(`[data-k="${home.id}:${i}"]`);
+  if (!row) { goToThread(home); row = document.querySelector(`[data-k="${home.id}:${i}"]`); }
+  if (!row) return;
+  const next = row.nextElementSibling;
+  if (!(next && next.classList.contains("edit-wrap"))) toggleEditForm(home, i, row);
+  row.scrollIntoView({ block: "nearest" });
 });
 
 /* keyboard (laptop): Space plays/pauses, Left/Right jump 5 seconds back/forward */

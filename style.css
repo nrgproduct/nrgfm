@@ -113,8 +113,9 @@ button.tag-chip:hover { border-color: var(--muted); }
 .tag-label { display: flex; flex-direction: column; gap: 2px; }
 .tag-name { color: var(--text); font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
 .tag-count { color: var(--muted); font-size: 14px; }
-.tag-more { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.tag-list { list-style: none; margin: 0; padding: 4px; display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
+.tag-more { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: auto; }
+.tag-more .more-toggle { margin: 0 -8px 0 0; }
+.tag-list { list-style: none; margin: 0; padding: 4px 4px 4px 13px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
 /* Expand / Collapse and the counter */
 .more-toggle {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center;
@@ -145,13 +146,15 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .thread-more .more-bottom { order: 3; margin-top: auto; }
 .more-after { display: none; }
 /* search results: Scroll centred under the tracks */
-.search-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 0 18px 168px; }
+.search-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 0 18px 176px; }
 .search-foot .more-pos { visibility: visible; }
 .scroll-link.on { color: var(--jade); }
 .search-foot .more-toggle { margin: 0; }
 .search-foot .foot-right { justify-self: end; margin-right: -8px; }
 .thread-more-search { align-items: center; width: 160px; }
-.thread-more-search .more-toggle { margin: 0; }
+.thread-more-search .more-toggle { margin: 0; font-size: 15px; }
+#sourceBtn { margin-left: 10px; }
+#sourceBtn[hidden] { display: none; }
 .thread.searching .thread-more { bottom: auto; }
 .thread.searching:not(:has(.search-foot)) , .thread:not(:has(.thread-foot)):not(:has(.search-foot)) { padding-bottom: 14px; }
 .tag-label .more-pos { display: none; }
@@ -454,7 +457,7 @@ img.broken { visibility: hidden; }
   .thread.expanded .tag-count { display: none; }
   .thread.expanded .thread-more { padding: 6px 0; border-bottom: 1px solid var(--line); }
   .thread.expanded .thread-more .more-title { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
-  .tag-more { align-items: flex-end; align-self: center; }
+  .tag-more { align-items: flex-end; align-self: center; margin-top: 0; }
   .tag-more .more-toggle { margin: 0 -8px 0 0; }
   /* phone: transport bar on top, full-width video underneath */
   .dock { display: flex; flex-direction: column; background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
