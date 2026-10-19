@@ -92,7 +92,7 @@ def musicbrainz_once(artist, title):
     for r in good:
         for t in r.get("tags", []) or []:
             tags[t["name"].lower()] = tags.get(t["name"].lower(), 0) + int(t.get("count", 1))
-    return {"y": min(years) if years else None, "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
+    return {"y": min(years) if years else None, "ys": years, "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
 
 
 def discogs(artist, title):
@@ -110,7 +110,68 @@ def discogs(artist, title):
     for r in res:
         for g in (r.get("style") or []) + (r.get("genre") or []):
             count[g.lower()] = count.get(g.lower(), 0) + 1
-    return {"y": min(years) if years else None, "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])][:6]}
+    return {"y": min(years) if years else None, "ys": years, "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])][:6]}
+
+
+VERSION = 2  # entries looked up by an older version of this script are looked up again
+BASE_GENRES = """ambient,acid house,alternative rock,art rock,bass music,breakbeat,breaks,chillwave,classical,coldwave,dancehall,
+deep house,disco,downtempo,drum and bass,drum n bass,dub,dub techno,dubstep,edm,electro,electronic,electropop,experimental,folk,
+folk rock,footwork,funk,garage,grime,hard rock,hardcore,hip hop,house,idm,indie,indie pop,indie rock,industrial,italo disco,
+jazz,jungle,krautrock,lo-fi,metal,minimal,new age,new wave,noise,nu metal,pop,pop rock,post-punk,post rock,progressive house,
+psychedelic,psychedelic rock,punk,r&b,rap,reggae,rock,shoegaze,ska,slowcore,soft rock,soul,soundtrack,synth-pop,synthwave,
+techno,trance,trap,trip hop,uk garage,vaporwave""".replace("\n", "").split(",")
+
+
+def year_ok(y):
+    return 1900 < y <= time.gmtime().tm_year
+
+
+def desc_hints(text, vocab):
+    """Years and genres stated in a video description: YouTube's own "Released on: 1984-05-01" and "℗ 1984" lines,
+    a "Genre: …" line, and hashtags that are known genres (#deephouse)."""
+    years, genres = [], []
+    if not text:
+        return years, genres
+    for m in re.finditer(r"(?:released on|release date|released)\s*[:\-]?\s*(\d{4})", text, re.I):
+        years.append(int(m.group(1)))
+    for m in re.finditer(r"[℗Ⓟ]\s*(\d{4})", text):
+        years.append(int(m.group(1)))
+    flat = {re.sub(r"[^a-z0-9&]", "", g): g for g in vocab}
+    for m in re.finditer(r"genres?\s*:\s*([^\n]+)", text, re.I):
+        for part in re.split(r"[,/|]", m.group(1)):
+            g = flat.get(re.sub(r"[^a-z0-9&]", "", part.lower()))
+            if g and g not in genres:
+                genres.append(g)
+    for m in re.finditer(r"#(\w+)", text):
+        g = flat.get(m.group(1).lower())
+        if g and g not in genres:
+            genres.append(g)
+    return [y for y in years if year_ok(y)], genres
+
+
+def set_years(e, years):
+    """The earliest year is the suggestion; the other years found go in "ys", most often found first."""
+    years = [y for y in years if y and year_ok(y)] + ([e["y"]] if e.get("y") else []) + list(e.get("ys") or [])
+    if not years:
+        return
+    count = {}
+    for y in years:
+        count[y] = count.get(y, 0) + 1
+    e["y"] = min(count)
+    rest = sorted((y for y in count if y != e["y"]), key=lambda y: (-count[y], y))[:4]
+    if rest:
+        e["ys"] = rest
+    else:
+        e.pop("ys", None)
+
+
+def add_genres(e, genres):
+    g = list(e.get("g") or [])
+    for x in genres:
+        if x not in g:
+            g.append(x)
+    if g:
+        e["g"] = g[:10]
 
 
 def oembed_details(tr):
@@ -160,14 +221,17 @@ def main():
                 continue
             seen.add(u)
             e = extra.get(u, {})
-            if "chk" not in e or (YTKEY and tr["platform"] == "youtube" and "ytchk" not in e):
+            if e.get("v") != VERSION or (YTKEY and tr["platform"] == "youtube" and "ytchk" not in e):
                 todo.append(tr)
     todo = todo[:MAX]
     print("to look up", len(todo), "| discogs", "on" if DISCOGS else "off", "| youtube", "on" if YTKEY else "off")
 
     # YouTube details in bulk first (cheap: 50 per request)
     ytd = youtube_details([t["yt"] for t in todo if t.get("yt") and not meta.get(t["url"], {}).get("dead")])
-    stats = {"parsed": 0, "mb": 0, "dg": 0, "year": 0, "genres": 0}
+    stats = {"parsed": 0, "mb": 0, "dg": 0, "year": 0, "genres": 0, "desc": 0}
+    vocab = set(BASE_GENRES)
+    for v in extra.values():
+        vocab.update(v.get("g") or [])
     done = 0
     for tr in todo:
         if time.time() - START > MINUTES * 60:
@@ -175,7 +239,8 @@ def main():
             break
         u = tr["url"]
         e = extra.get(u, {})
-        if "chk" not in e:
+        if e.get("v") != VERSION:
+            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk")}  # look up again from scratch
             at = artist_title(tr, meta) if not meta.get(u, {}).get("dead") or tr.get("title") or meta.get(u, {}).get("wb_title") else None
             if at:
                 stats["parsed"] += 1
@@ -188,7 +253,7 @@ def main():
                     dg = discogs(*at)
                 except Exception as x:  # noqa: BLE001
                     print("discogs", type(x).__name__, x)
-                years = [r["y"] for r in (mb, dg) if r and r.get("y")]
+                years = [y for r in (mb, dg) if r for y in r.get("ys", [])]
                 genres = []
                 for r in (dg, mb):
                     for g in (r or {}).get("g", []):
@@ -198,11 +263,11 @@ def main():
                     stats["mb"] += 1
                 if dg:
                     stats["dg"] += 1
-                if years:
-                    e["y"] = min(years)
+                set_years(e, years)
+                if e.get("y"):
                     stats["year"] += 1
-                if genres:
-                    e["g"] = genres[:8]
+                add_genres(e, genres[:8])
+                if e.get("g"):
                     stats["genres"] += 1
                 e["src"] = "+".join(s for s, r in (("musicbrainz", mb), ("discogs", dg)) if r) or None
                 if not e["src"]:
@@ -211,12 +276,23 @@ def main():
             e.update({k: v for k, v in d_info.items() if v})
             if d_text:
                 desc[u] = d_text
+                hy, hg = desc_hints(d_text, vocab)
+                set_years(e, hy)
+                add_genres(e, hg)
             e["chk"] = int(time.time())
+            e["v"] = VERSION
         if tr.get("yt") and tr["yt"] in ytd:
             info, text = ytd[tr["yt"]]
             e.update({k: v for k, v in info.items() if v})
             if text:
                 desc[u] = text
+                hy, hg = desc_hints(text, vocab)
+                if hy or hg:
+                    stats["desc"] += 1
+                    set_years(e, hy)
+                    add_genres(e, hg)
+                    if "youtube" not in (e.get("src") or ""):
+                        e["src"] = "+".join(x for x in (e.get("src"), "youtube") if x)
         if YTKEY and tr["platform"] == "youtube":
             e["ytchk"] = int(time.time())
         extra[u] = e
