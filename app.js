@@ -247,11 +247,14 @@ function rerenderKeep(t, hits) {
 function toggleExpand(t, hits) {
   userToggled.add(t.id);
   const wasOpen = expanded.has(t.id);
+  const oldList = document.querySelector(`#th-${CSS.escape(t.id)} .scroll-list`), keep = oldList ? oldList.scrollTop : 0;
   wasOpen ? expanded.delete(t.id) : expanded.add(t.id);
   const fresh = rerenderKeep(t, hits);
   if (!fresh) return;
   if (wasOpen && fresh.getBoundingClientRect().top < headerBottom()) fresh.scrollIntoView({ block: "start" });
   fitList(fresh, !wasOpen);
+  const list = fresh.querySelector(".scroll-list"); // carry on from where you were in the list
+  if (list && keep) { list.scrollTop = keep; fresh.querySelector(".scroll-list").dataset.centred = "1"; updateListPos(fresh); }
 }
 const keptHeight = new Map(); // search results: Scroll keeps the box as tall as it was
 function toggleScroll(t, hits) {
@@ -387,7 +390,7 @@ function threadNode({ t, hits }) {
   if (hits && !mobile) {
     // laptop search: "Thread" under the thumbnail; track count and Expand under the tracks
     side = el("div", { class: "thread-more thread-more-search" }, threadBtn());
-    if (searching) foot = el("div", { class: "search-foot" }, countText(), expandBtn(), el("span", {}));
+    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), countText());
     else if (open && long) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
@@ -395,8 +398,7 @@ function threadNode({ t, hits }) {
   } else if (long) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
-      el("div", { class: "more-btns" }, expandBtn()),
-      open ? el("div", { class: "more-btns more-bottom" }, btn("", "Collapse", () => toggleExpand(t, hits))) : null);
+      el("div", { class: "more-btns" }, expandBtn()));
     if (!open) after = el("div", { class: "more-after" }, pos(), expandBtn()); // phone: again under the list
   }
   const li = el("li", { class: "thread" + (side ? " long" : "") + (open ? " expanded" : "") + (hits ? " searching" : ""), id: "th-" + t.id },
@@ -613,8 +615,7 @@ function play(t, i) {
   const box = $("#otherSlot"); box.replaceChildren();
   const dock = $("#dock"); dock.hidden = false;
   $("#nowTitle").textContent = x.title;
-  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}`;
-  $("#sourceBtn").hidden = t.kind !== "tag"; // from a tag: a way to the track's own thread
+  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : " in this thread");
   closeThread();
   fitTitle();
   $("#prevBtn").disabled = i === 0;
@@ -927,6 +928,8 @@ function closeAddForm(form) {
   if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
   form.remove();
 }
+/* only one add/edit card open at a time */
+function closeAllCards() { document.querySelectorAll(".add-form").forEach((f) => closeAddForm(f)); }
 function openAdd(thread) {
   if (!getToken()) { openSetup(); return; }
   if (thread) toggleAddForm(thread, document.getElementById("th-" + thread.id));
@@ -936,6 +939,7 @@ function toggleHeaderForm() {
   if (!getToken()) { openSetup(); return; }
   const panel = $("#addPanel");
   if (!panel.hidden) { closeAddForm(panel.querySelector("form")); return; }
+  closeAllCards();
   panel.replaceChildren(addForm(null));
   panel.hidden = false; $("#addBtn").setAttribute("aria-expanded", "true");
   panel.querySelector("input").focus();
@@ -945,6 +949,7 @@ function toggleAddForm(thread, li) {
   if (!li) return;
   const open = li.querySelector(".add-form");
   if (open) { closeAddForm(open); return; }
+  closeAllCards();
   const form = addForm(thread);
   li.querySelector(".thread-foot").after(form);
   form.querySelector("input").focus();
@@ -955,7 +960,7 @@ function toggleEditForm(t, i, row) {
   if (!getToken()) { openSetup(); return; }
   const next = row.nextElementSibling;
   if (next && next.classList.contains("edit-wrap")) { closeAddForm(next.querySelector(".add-form")); return; }
-  document.querySelectorAll(".edit-form").forEach((f) => closeAddForm(f)); // one edit card at a time
+  closeAllCards();
   if (t.kind === "tag") { // the track lives in its own thread; edit it there
     const tr = t.tracks[i], home = threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
     if (!home) return;
@@ -1186,11 +1191,11 @@ $("#sourceBtn").onclick = () => {
   const home = homeOf(playing.thread.tracks[playing.index]);
   if (home) goToThread(home);
 };
-/* Enter while a track plays: open its edit card (on a device with a key) */
+/* Cmd+Enter (Ctrl+Enter on Windows) while a track plays: open its edit card (on a device with a key) */
 document.addEventListener("keydown", (e) => {
-  if (e.key !== "Enter" || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || !playing || !getToken()) return;
+  if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || !playing || !getToken()) return;
   const t = e.target;
-  if (t.closest && t.closest("input, textarea, select, button, a, [contenteditable], [role=button]")) return;
+  if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
   e.preventDefault();
   const tr = playing.thread.tracks[playing.index], home = homeOf(tr);
   if (!home) return;
@@ -1210,6 +1215,11 @@ document.addEventListener("keydown", (e) => {
   if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
   if ($("#dock").hidden) return;
   if (e.code === "Space") { e.preventDefault(); if (!$("#playBtn").disabled) $("#playBtn").click(); }
+  else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !IOS) { // volume in steps of 5
+    e.preventDefault();
+    const v = Math.max(0, Math.min(100, volume + (e.key === "ArrowUp" ? 5 : -5)));
+    $("#vol").value = v; $("#vol").dispatchEvent(new Event("input"));
+  }
   else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && adapter && adapter.controllable) {
     e.preventDefault();
     adapter.seek(Math.max(0, lastTime + (e.key === "ArrowRight" ? 5 : -5)));
