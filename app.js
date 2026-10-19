@@ -267,10 +267,10 @@ function setActive(id) {
   if (id) document.getElementById("th-" + id)?.classList.add("active");
 }
 document.addEventListener("click", (e) => {
-  const th = e.target.closest && e.target.closest("#threads > .thread");
-  if (!th || !th.querySelector(".scroll-list")) return;
-  if (e.target.closest(".edit-btn, .add-form, .edit-wrap")) return; // editing doesn't select
-  if (!th.classList.contains("active")) setActive(th.id.slice(3));
+  if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap")) return; // the player and editing leave it as it is
+  const th = e.target.closest("#threads > .thread");
+  if (th && th.querySelector(".scroll-list") && !th.classList.contains("active")) setActive(th.id.slice(3)); // select (and unselect another)
+  else if (activeId) setActive(null); // a click in the selected box or anywhere else unselects
 }, true);
 document.addEventListener("wheel", (e) => {
   const box = e.target.closest && e.target.closest(".scroll-list");
@@ -1349,6 +1349,7 @@ function copyLink(t, btn) {
 /* Escape: close every add/edit card and leave the search */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  if (activeId) setActive(null);
   const now = Date.now(), twice = now - lastEsc < 450;
   lastEsc = twice ? 0 : now;
   if (twice) { showPlaying(); return; }

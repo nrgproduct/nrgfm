@@ -101,7 +101,7 @@ button.tag-chip:hover { border-color: var(--muted); }
 .tag-frame {
   display: grid; grid-template-columns: 168px 1fr; align-items: stretch;
 }
-.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 8px; min-height: 90px; }
+.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 8px 7px; min-height: 90px; } /* Expand lines up with the last track's tags */
 .tag-side .tag-collapse-bottom { margin-top: auto; margin-left: -8px; align-self: flex-start; }
 .tag-label { display: flex; flex-direction: column; gap: 2px; }
 .tag-name { color: var(--text); font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
@@ -131,7 +131,7 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .tracks.scroll-list { position: relative; }
 /* long track threads: Expand and the counter under the thumbnail */
 .thread.long { position: relative; }
-.thread-more { position: absolute; z-index: 2; left: 8px; top: 146px; bottom: 44px; width: 152px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.thread-more { position: absolute; z-index: 2; left: 8px; top: 146px; bottom: 49px; width: 152px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .thread-more .more-info { order: 2; }
 /* laptop, long thread: counter and Expand/Collapse at the bottom right of the left column */
 @media (min-width: 641px) {
@@ -238,10 +238,10 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
 .head-row.hit .t-title, .track.hit .tr-title {
-  display: inline; background: var(--hit, var(--seek)); color: var(--jade-ink); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
+  display: inline; background: var(--text); color: var(--jade-ink); padding: 2px 7px; /* inverted: track colour behind dark text */ margin: 0 -3px; border-radius: 4px; line-height: 1.55;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
-.head-row.dead .t-title { color: var(--rust); text-decoration: line-through; }
+.head-row.dead .t-title { text-decoration: line-through; }
 .head-row.dead.hit .t-title, .track.dead.hit .tr-title { color: var(--jade-ink); }
 .thread-head {
   display: grid; grid-template-columns: 160px 1fr; gap: 16px; align-items: start;
@@ -283,7 +283,7 @@ img.broken { visibility: hidden; }
 }
 .tr-title { display: block; font-weight: 500; overflow-wrap: anywhere; }
 .tr-sub { display: block; color: var(--muted); font-size: 13px; }
-.track.dead .tr-title { color: var(--rust); text-decoration: line-through; }
+.track.dead .tr-title { text-decoration: line-through; }
 .thread-foot { padding: 4px 0 18px 184px; display: flex; gap: 16px; }
 .linkbtn { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 .linkbtn:hover { color: var(--text); }
@@ -366,7 +366,7 @@ img.broken { visibility: hidden; }
 .tl-item:focus-visible { outline: 2px solid var(--jade); outline-offset: -2px; }
 .tl-item.current { background: var(--surface); }
 .tl-item.current .tr-title { color: var(--jade); }
-.tl-item.dead .tr-title { color: var(--rust); text-decoration: line-through; }
+.tl-item.dead .tr-title { text-decoration: line-through; }
 .tl-item .chip { width: 48px; height: 36px; border-radius: 3px; background: var(--surface); object-fit: cover; display: block; }
 .tl-text { min-width: 0; }
 .ctl {
@@ -548,7 +548,7 @@ img.broken { visibility: hidden; }
 /* the post date under the thumbnail (outside the post's box); in search results it leads to the thread, centred,
    with the track count under it */
 .thread { position: relative; }
-.t-when { position: absolute; left: 8px; top: 114px; width: 160px; display: grid; justify-items: start; gap: 2px; color: var(--muted); font-size: 13px; line-height: 18px; }
+.t-when { position: absolute; left: 8px; top: 114px; width: 160px; display: grid; justify-items: start; gap: 6px; color: var(--muted); font-size: 13px; line-height: 18px; }
 .t-when.in-search { justify-items: center; }
 .thread.searching { min-height: 168px; }
 .t-date-phone, .t-date.only-date { display: none; }
@@ -572,5 +572,8 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 }
 
 /* a thread whose box scrolls is selected first (click in it, play from it, Expand); the frame lights up */
-.thread.framed.active:not(.searching)::before { border-color: var(--jade); }
+.thread.framed.active:not(.searching)::before {
+  border: 1px solid var(--jade); box-shadow: 0 0 0 1px var(--jade), 0 0 18px color-mix(in srgb, var(--jade) 25%, transparent);
+}
+.thread.framed.active:not(.searching) { background: color-mix(in srgb, var(--jade) 5%, transparent); border-radius: var(--radius-sm); }
 @media (hover: none) { .thread:not(.active) .scroll-list { overflow-y: hidden; } }
