@@ -99,7 +99,7 @@ button.tag-chip:hover { border-color: var(--muted); }
 .thread.tag-thread { padding: 12px 0 18px; }
 .tag-frame {
   display: grid; grid-template-columns: 160px 1fr; align-items: stretch; margin: 0 -8px; /* as wide as a track thread's rows */
-  border: 3px solid var(--line); border-radius: var(--radius-sm);
+  border: 2px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm);
 }
 .tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; min-height: 90px; }
 .tag-side .tag-collapse-bottom { margin-top: auto; margin-left: -8px; align-self: flex-start; }
@@ -216,15 +216,15 @@ body:not(.can-add) #addBtn, body:not(.can-add) .add-here { display: none; }
   background: var(--jade); color: var(--jade-ink); border: 0;
   font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap;
 }
-#addBtn { background: var(--accent-dim); }  /* a step darker than the logo */
-#addBtn:hover { background: var(--accent-dim-hover); }
+#addBtn { background: var(--seek, var(--accent-dim)); }  /* the playhead blue */
+#addBtn:hover { background: var(--accent-dim); }
 .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
 
 /* list */
 main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 .result-info { color: var(--muted); margin: 16px 0 0; }
 .threads { list-style: none; margin: 0; padding: 0; }
-.thread { border-bottom: 1px solid var(--line); }
+.thread { border-bottom: 1px dotted var(--dots, var(--line-strong)); }
 /* main track: same box treatment as the replies (hover, playing) */
 .head-row {
   display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
@@ -383,6 +383,14 @@ img.broken { visibility: hidden; }
 .dock.no-transport .seekrow .time { visibility: hidden; }
 .vol-wrap { position: relative; display: inline-flex; }
 .vol-wrap[hidden] { display: none; }
+/* the volume number under the Volume button when it isn't 100 */
+.vol-num {
+  position: absolute; top: calc(100% - 4px); left: 50%; transform: translateX(-50%);
+  color: var(--muted); font-size: 13px; cursor: pointer; line-height: 1;
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px;
+}
+.vol-num:hover { color: var(--jade); }
+.vol-num[hidden] { display: none; }
 .vol-pop {
   position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 8px; width: 220px; padding: 10px 12px;
@@ -434,7 +442,7 @@ img.broken { visibility: hidden; }
     position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
   }
   .ctl.close-btn { display: inline-flex; margin-left: auto; }
-  .thread { border-bottom: 2px solid var(--line-strong); }
+  .thread { border-bottom: 2px dotted var(--dots, var(--line-strong)); }
   .dock { padding-bottom: 0 !important; }
   .bar { padding-bottom: 10px; }
   /* long track thread on a phone: counter left, Expand/Collapse right; expanded it is a pinned header */
@@ -489,3 +497,24 @@ img.broken { visibility: hidden; }
 @media (min-width: 641px) { .thread.searching:not(:has(.search-foot)):not(:has(.tracks)) { padding-bottom: 44px; } }
 /* bordered tag threads next to each other: keep the spacing, drop the divider line between them */
 .thread.tag-thread:has(+ .tag-thread) { border-bottom-color: transparent; }
+
+/* add/edit cards: the arrow and the More info panel under it */
+.btn.ghost.more-info-btn { width: 40px; padding: 0; font-size: 16px; }
+.btn.ghost.more-info-btn[aria-expanded="true"] { border-color: var(--jade); color: var(--jade); transform: none; }
+.af-more { display: grid; gap: 12px; padding-top: 12px; border-top: 1px dotted var(--dots, var(--line-strong)); }
+.af-more[hidden] { display: none; }
+.af-field textarea {
+  min-height: 70px; padding: 10px 12px; resize: vertical; font: inherit; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.af-field input[type="date"] { max-width: 200px; color-scheme: dark; }
+.af-sug { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; }
+.af-label { color: var(--muted); font-size: 14px; margin-right: 6px; }
+.af-meta { display: grid; gap: 6px; font-size: 14px; }
+.af-meta[hidden], .af-desc[hidden] { display: none; }
+.af-desc {
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; font-size: 13px;
+  padding: 10px 12px; background: var(--bg); border-radius: var(--radius-sm); color: var(--text);
+}
+.af-more .thread-btn { font-size: 14px; }
+.af-later { margin: 0; font-size: 13px; }

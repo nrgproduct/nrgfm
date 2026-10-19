@@ -1,0 +1,48 @@
+name: Look up track info
+
+# Suggested genres and year (MusicBrainz, Discogs) plus uploader, upload date and description.
+# Runs every 4 hours in batches until every track is done; after that each run only picks up new tracks.
+# Needs the repository secrets DISCOGS_TOKEN (and YT_API_KEY for YouTube details); works without them, just with less.
+on:
+  schedule:
+    - cron: "37 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "How many tracks to look up"
+        default: "100000"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: enrich
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Look up
+        env:
+          DISCOGS_TOKEN: ${{ secrets.DISCOGS_TOKEN }}
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: python3 scripts/enrich.py ${{ inputs.max || '100000' }} 100
+      - name: Save and republish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "nrgproduct"
+          git config user.email "nrgproduct@users.noreply.github.com"
+          git add data/extra.json data/descriptions.json
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -m "Look up track info"
+          git pull --rebase origin main
+          git push
+          gh workflow run update.yml --ref main

@@ -68,6 +68,8 @@ def apply_add(data, by_id, item):
         tr["title"] = item["title"].strip()[:200]
     if item.get("tags"):
         set_tags(tr, item["tags"], ts)
+    if (item.get("notes") or "").strip():
+        tr["notes"] = item["notes"].strip()[:4000]
     th = by_id.get(item.get("thread") or "")
     if th:
         th["tracks"].append(tr)
@@ -100,8 +102,33 @@ def apply_edit(data, item):
     ts = int(item.get("ts") or time.time())
     if "tags" in item:
         set_tags(tr, item["tags"], ts)
+    if "notes" in item:
+        notes = (item["notes"] or "").strip()[:4000]
+        if notes:
+            tr["notes"] = notes
+        else:
+            tr.pop("notes", None)
+    if item.get("date") and i == 0:
+        set_thread_date(th, tr, item["date"], ts)
     tr["edited"] = stamp(ts)
     return "edited"
+
+
+def set_thread_date(th, tr, date, ts):
+    """Option A: the main post's date (YYYY-MM-DD) decides where the thread sits in the feed,
+    until a newer track is added to it. The original posting time stays in tr["ts"]."""
+    try:
+        d = datetime.datetime.strptime(date, "%Y-%m-%d").replace(hour=12, tzinfo=datetime.timezone.utc)
+    except ValueError:
+        return
+    if date == tr.get("date"):  # back to the original date: undo
+        tr.pop("shown_date", None)
+        th.pop("pos_ts", None)
+        th.pop("pos_set", None)
+        return
+    tr["shown_date"] = date
+    th["pos_ts"] = int(d.timestamp())
+    th["pos_set"] = ts
 
 
 def apply_delete(data, by_id, item):
@@ -124,6 +151,8 @@ def apply_delete(data, by_id, item):
 def activity(t):
     """When the newest track was added to a thread (a post or comment on Facebook, or a track added
     on the site). Edits, tags and moves don't count."""
+    if t.get("pos_ts"):  # a date set by hand; only tracks added after that lift the thread again
+        return max([t["pos_ts"]] + [x["ts"] for x in t["tracks"] if x["ts"] > t.get("pos_set", 0)])
     return max([t["ts"]] + [x["ts"] for x in t["tracks"]])
 
 

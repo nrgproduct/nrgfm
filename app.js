@@ -16,7 +16,7 @@ const el = (tag, attrs = {}, ...kids) => {
   return n;
 };
 
-let threads = [], meta = {}, shown = [], rendered = 0, query = "";
+let threads = [], meta = {}, extra = {}, shown = [], rendered = 0, query = "";
 let playing = null; // playing = {thread, index}
 
 /* ---------- data helpers ---------- */
@@ -80,8 +80,10 @@ function info(t) {
 
 function haystack(t) {
   if (t._hay == null) {
-    const m = meta[t.url] || {};
-    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t)].filter(Boolean).join(" "));
+    const m = meta[t.url] || {}, x = extra[t.url] || {};
+    // notes and looked-up info count too (the full descriptions don't)
+    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t),
+      t.notes, (x.g || []).join(" "), x.y, x.by, x.up].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -96,6 +98,11 @@ const normTag = (g) => (g || "").replace(/\s+/g, " ").trim().toLowerCase().slice
 const isBase = (t) => t.kind !== "tag";
 function activity(t) {
   if (t.kind === "tag") return t.last;
+  if (t.pos_ts) { // the main post's date was set by hand: only tracks added after that lift the thread
+    let a = t.pos_ts;
+    for (const x of t.tracks) if (x.ts > (t.pos_set || 0) && x.ts > a) a = x.ts;
+    return a;
+  }
   let a = t.ts || 0; // only new tracks count as activity, not edits, tags or moves
   for (const x of t.tracks) if (x.ts > a) a = x.ts;
   return a;
@@ -408,7 +415,7 @@ function threadNode({ t, hits }) {
         el("span", { class: "thread-main" },
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
-          el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
+          el("span", { class: "t-sub t-date" }, [fmtDay(head.shown_date || head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
     side,
     n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
@@ -738,6 +745,7 @@ function closeVol() { $("#volPop").hidden = true; $("#volBtn").setAttribute("ari
 function showVolume() {
   $("#vol").value = volume; $("#volVal").textContent = volume;
   $("#vol").style.setProperty("--p", volume + "%");
+  $("#volNum").textContent = volume; $("#volNum").hidden = volume === 100;
 }
 showVolume();
 $("#volBtn").onclick = (e) => {
@@ -746,6 +754,7 @@ $("#volBtn").onclick = (e) => {
   $("#volPop").hidden = !open; $("#volBtn").setAttribute("aria-expanded", open ? "true" : "false");
 };
 $("#volPop").addEventListener("click", (e) => e.stopPropagation());
+$("#volNum").onclick = (e) => $("#volBtn").onclick(e);
 document.addEventListener("click", closeVol);
 $("#vol").addEventListener("input", () => {
   volume = +$("#vol").value; showVolume();
@@ -891,6 +900,8 @@ function tagEditor(initial, suggested = [], host = null) {
   return {
     box: el("span", { class: "tag-area" }, el("span", { class: "tag-box" }, input, drop), stack),
     input,
+    use: (g) => { g = normTag(g); if (g && !chosen.includes(g)) { chosen.push(g); drawChips(); } },
+    has: (g) => chosen.includes(normTag(g)),
     get: () => { if (input.value.trim()) add(input.value); return [...chosen]; }, // a typed but not yet added tag counts too
     restore: () => { if (host) host.replaceChildren(...original); },
   };
@@ -901,6 +912,9 @@ function addForm(thread, edit, row) {
   const tr = edit ? edit.t.tracks[edit.i] : null;
   const host = row ? row.querySelector(".tag-wrap") : null;
   const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : [], host);
+  const more = moreInfo(tr, edit, tags);
+  const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
+    "aria-label": "More info", onclick: (e) => { const open = more.hidden; more.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); if (open) more.querySelector("textarea").focus(); } }, "▾");
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
       el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
@@ -908,10 +922,13 @@ function addForm(thread, edit, row) {
       el("input", { name: "url", type: "url", required: true, placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
     el("div", { class: "af-actions" },
       tags.box,
+      edit ? arrow : null,
       el("span", { class: "af-msg hint", role: "status" }),
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
       edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false", onclick: (e) => toggleMovePanel(form, edit, e.currentTarget) }, "Move") : null,
-      el("button", { type: "submit", class: "btn" }, "Save")));
+      edit ? null : arrow,
+      el("button", { type: "submit", class: "btn" }, "Save")),
+    more);
   if (tr) { form.title.value = tr.title || info(tr).title; form.url.value = tr.url; }
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
   form.tags = tags;
@@ -921,6 +938,52 @@ function addForm(thread, edit, row) {
     if (ev.key === "Enter" && ev.shiftKey) { ev.preventDefault(); ev.stopPropagation(); form.requestSubmit(); }
   }, true);
   return form;
+}
+/* the panel under the arrow: notes, the main post's date, suggestions from the lookups, and Meta */
+let descriptions = null; // loaded only when a Description is opened
+const loadDescriptions = () => (descriptions ||= fetch("data/descriptions.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+function moreInfo(tr, edit, tags) {
+  const x = (tr && extra[tr.url]) || {};
+  const notes = el("textarea", { name: "notes", rows: "3", placeholder: "Not shown on the site; searches still find them" });
+  notes.value = (tr && tr.notes) || "";
+  const box = el("div", { class: "af-more", hidden: true },
+    el("label", { class: "af-field" }, el("span", {}, "Notes"), notes));
+  if (edit && edit.i === 0) {
+    const date = el("input", { name: "date", type: "date", required: true });
+    date.value = tr.shown_date || tr.date;
+    box.append(el("label", { class: "af-field af-date" },
+      el("span", {}, "Posted", tr.shown_date ? el("span", { class: "hint" }, ` (originally ${fmtDay(tr.date)})`) : null), date,
+      el("span", { class: "hint" }, "Changing it moves the thread in the feed, until a new track is added to it.")));
+  }
+  if (tr) {
+    const sug = el("div", { class: "af-sug" });
+    const chips = () => sug.replaceChildren(
+      el("span", { class: "af-label" }, "Suggested genres"),
+      ...(x.g && x.g.length
+        ? x.g.map((g) => tags.has(g) ? null : el("button", { type: "button", class: "tag-chip suggest", title: "Use as a tag", onclick: () => { tags.use(g); chips(); } }, "+ " + g))
+        : [el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")]).filter(Boolean));
+    chips();
+    box.append(sug,
+      el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
+        el("span", {}, x.y ? String(x.y) : el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")),
+        x.src ? el("span", { class: "hint" }, "from " + x.src.replace("+", " and ")) : null));
+    // Meta: uploader and upload date; inside it, Description
+    const descBox = el("div", { class: "af-desc", hidden: true });
+    const descBtn = el("button", { type: "button", class: "thread-btn", onclick: async () => {
+      if (!descBox.hidden) { descBox.hidden = true; return; }
+      descBox.hidden = false; descBox.textContent = "Loading…";
+      const d = await loadDescriptions();
+      descBox.textContent = d[tr.url] || "No description found.";
+    } }, "Description");
+    const metaBox = el("div", { class: "af-meta", hidden: true },
+      el("div", {}, el("span", { class: "af-label" }, "Uploader"), x.by || el("span", { class: "hint" }, "unknown")),
+      el("div", {}, el("span", { class: "af-label" }, "Uploaded"), x.up ? fmtDay(x.up) : el("span", { class: "hint" }, "unknown")),
+      el("div", {}, descBtn), descBox);
+    box.append(el("div", {}, el("button", { type: "button", class: "thread-btn", onclick: () => (metaBox.hidden = !metaBox.hidden) }, "Meta")), metaBox);
+  } else {
+    box.append(el("p", { class: "hint af-later" }, "Suggested genres, year and the uploader are looked up after saving (every few hours)."));
+  }
+  return box;
 }
 function closeAddForm(form) {
   if (!form) return;
@@ -1017,6 +1080,12 @@ async function saveEdit(form, { t, i }) {
     return;
   }
   const item = { action: "edit", thread: t.id, id: tr.id, title, url, tags: form.tags.get(), ts: Math.floor(Date.now() / 1000) };
+  const notes = form.notes.value.trim();
+  if (notes !== (tr.notes || "")) item.notes = notes;
+  if (form.date && i === 0) {
+    if (!form.date.value) { form.date.reportValidity(); return; }
+    if (form.date.value !== (tr.shown_date || tr.date)) item.date = form.date.value;
+  }
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button"), save = form.querySelector("button[type=submit]");
   btns.forEach((b) => (b.disabled = true)); save.textContent = "Saving…"; msg.textContent = "";
   try { await writeInbox(item, "edit"); }
@@ -1025,6 +1094,12 @@ async function saveEdit(form, { t, i }) {
   if (url !== tr.url) { const p = parseLocal(url); delete tr.yt; delete tr.vimeo; Object.assign(tr, p); if (!p.yt) delete tr.yt; if (!p.vimeo) delete tr.vimeo; }
   if (title) tr.title = title; else delete tr.title;
   applyTags(tr, item.tags, item.ts);
+  if ("notes" in item) { if (notes) tr.notes = notes; else delete tr.notes; }
+  if (item.date) { // option A: the thread takes its place by this date (on the next load of the feed)
+    if (item.date === tr.date) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
+    else { tr.shown_date = item.date; t.pos_ts = Math.floor(Date.parse(item.date + "T12:00:00Z") / 1000); t.pos_set = item.ts; }
+    sortThreads();
+  }
   tr._hay = null;
   rerenderThread(t, i);
   refreshTags();
@@ -1123,6 +1198,7 @@ async function saveTrack(form, thread) {
   }
   const ts = Math.floor(Date.now() / 1000);
   const item = { url, title: form.title.value.trim(), thread: thread ? thread.id : "", tags: form.tags.get(), ts };
+  if (form.notes.value.trim()) item.notes = form.notes.value.trim();
   const msg = form.querySelector(".af-msg"), btn = form.querySelector("button[type=submit]");
   btn.disabled = true; btn.textContent = "Saving…"; msg.textContent = "";
   try { await writeInbox(item, ""); }
@@ -1139,6 +1215,7 @@ function showLocally(item) {
   const tr = { id: `t${item.ts}_0`, date: new Date(item.ts * 1000).toISOString().slice(0, 10), ts: item.ts, platform, url: item.url };
   if (yt) tr.yt = yt;
   if (item.title) tr.title = item.title;
+  if (item.notes) tr.notes = item.notes;
   if (item.tags && item.tags.length) applyTags(tr, item.tags, item.ts);
   let th = item.thread && threads.find((x) => x.id === item.thread);
   if (th) th.tracks.push(tr);
@@ -1239,11 +1316,12 @@ $("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; syncClear(
 
 (async function boot() {
   try {
-    const [d, m] = await Promise.all([
+    const [d, m, x] = await Promise.all([
       fetch("data/tracks.json", { cache: "no-cache" }).then((r) => r.json()),
       fetch("data/meta.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      fetch("data/extra.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
-    threads = d.threads; meta = m;
+    threads = d.threads; meta = m; extra = x;
     threads.push(...makeTagThreads());
     sortThreads();
   } catch (e) {
