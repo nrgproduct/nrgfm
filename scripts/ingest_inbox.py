@@ -109,25 +109,29 @@ def apply_edit(data, item):
         else:
             tr.pop("notes", None)
     if item.get("date") and i == 0:
-        set_thread_date(th, tr, item["date"], ts)
+        set_thread_date(th, tr, item["date"], ts, item.get("pos"))
     tr["edited"] = stamp(ts)
     return "edited"
 
 
-def set_thread_date(th, tr, date, ts):
+def set_thread_date(th, tr, date, ts, pos=None):
     """Option A: the main post's date (YYYY-MM-DD) decides where the thread sits in the feed,
     until a newer track is added to it. The original posting time stays in tr["ts"]."""
     try:
         d = datetime.datetime.strptime(date, "%Y-%m-%d").replace(hour=12, tzinfo=datetime.timezone.utc)
     except ValueError:
         return
-    if date == tr.get("date"):  # back to the original date: undo
+    if date == tr.get("date") and not pos:  # back to the original date: undo
         tr.pop("shown_date", None)
         th.pop("pos_ts", None)
         th.pop("pos_set", None)
         return
-    tr["shown_date"] = date
-    th["pos_ts"] = int(d.timestamp())
+    if date == tr.get("date"):
+        tr.pop("shown_date", None)
+    else:
+        tr["shown_date"] = date
+    # pos: an exact place chosen with the arrows on the site (between two neighbouring threads)
+    th["pos_ts"] = int(pos) if isinstance(pos, (int, float)) and pos > 0 else int(d.timestamp())
     th["pos_set"] = ts
 
 

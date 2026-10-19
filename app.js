@@ -318,7 +318,7 @@ function updateListPos(node) {
   let first = 0, last = 0;
   rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
   const total = rows.length + offset;
-  const text = `${offset && top < 4 ? 1 : (first || 1) + offset}–${last + offset} of ${total}`;
+  const text = `${offset && top < 4 ? 1 : (first || 1) + offset} of ${total}`;
   pos.forEach((p) => (p.textContent = text));
 }
 addEventListener("resize", () => {
@@ -336,7 +336,7 @@ function tagThreadNode({ t, hits }) {
   const rows = (all ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
   const scrolls = many && all;
   const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW }, rows);
-  const pos = () => el("span", { class: "more-pos" }, `1–${Math.min(n, TAG_PREVIEW)} of ${n}`);
+  const pos = () => el("span", { class: "more-pos" }, `1 of ${n}`);
   const node = el("li", { class: "thread tag-thread" + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
@@ -385,7 +385,7 @@ function threadNode({ t, hits }) {
   else { idx = range(1, n); }
   const head = t.tracks[0], hi = info(head);
   const lo = idx.length ? idx[0] + 1 : 1, hiIdx = idx.length ? idx[idx.length - 1] + 1 : 1;
-  const posText = `${!searching || lo === 2 ? 1 : lo}–${hiIdx} of ${n}`;
+  const posText = `${!searching || lo === 2 ? 1 : lo} of ${n}`;
   const pos = () => el("span", { class: "more-pos" }, posText);
   const expandBtn = (cls = "") => btn("tg-expand " + cls, open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
   const scrollBtn = () => el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll");
@@ -393,7 +393,9 @@ function threadNode({ t, hits }) {
 
   // what goes where
   let side = null, foot = null, after = null;
-  const countText = () => el("span", { class: "more-pos" }, `${n} ${n === 1 ? "track" : "tracks"}`);
+  const countText = () => el("span", { class: "foot-count" },
+    el("span", { class: "row-links", "aria-hidden": "true" }, el("span", { class: "linkbtn edit-btn" }, "Edit"), el("span", { class: "src" }, "YouTube")),
+    el("span", { class: "more-pos" }, `${n} ${n === 1 ? "track" : "tracks"}`));
   if (hits && !mobile) {
     // laptop search: "Thread" under the thumbnail; track count and Expand under the tracks
     side = el("div", { class: "thread-more thread-more-search" }, threadBtn());
@@ -415,8 +417,12 @@ function threadNode({ t, hits }) {
         el("span", { class: "thread-main" },
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
-          el("span", { class: "t-sub t-date" }, [fmtDay(head.shown_date || head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
-      el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
+          el("span", { class: "t-sub t-date" + (hi.recovered ? "" : " only-date") },
+            el("span", { class: "t-date-phone" }, fmtDate(head.shown_date || head.date) + (hi.recovered ? " · " : "")),
+            hi.recovered ? RECOVERED : null))),
+      el("span", { class: "head-side" },
+        el("span", { class: "t-month", title: fmtDay(head.shown_date || head.date) }, fmtDate(head.shown_date || head.date)),
+        rowLinks(t, 0, hi))),
     side,
     n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
     foot, after,
@@ -715,6 +721,9 @@ function openThread() {
 }
 $("#threadBtn").onclick = (e) => { e.stopPropagation(); $("#threadPop").hidden ? openThread() : closeThread(); };
 $("#threadPop").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("touchmove", (e) => {
+  if (!$("#threadPop").hidden && !e.target.closest("#threadPop")) e.preventDefault();
+}, { passive: false });
 document.addEventListener("click", closeThread);
 
 /* copy the playing track's original link */
@@ -951,9 +960,30 @@ function moreInfo(tr, edit, tags) {
   if (edit && edit.i === 0) {
     const date = el("input", { name: "date", type: "date", required: true });
     date.value = tr.shown_date || tr.date;
-    box.append(el("label", { class: "af-field af-date" },
-      el("span", {}, "Posted", tr.shown_date ? el("span", { class: "hint" }, ` (originally ${fmtDay(tr.date)})`) : null), date,
-      el("span", { class: "hint" }, "Changing it moves the thread in the feed, until a new track is added to it.")));
+    // the arrows move the thread one place up or down in the feed (saved with Save)
+    const t = edit.t, note = el("span", { class: "hint" });
+    let pos = null;
+    const others = () => threads.filter((o) => isBase(o) && o !== t).sort((a, b) => activity(b) - activity(a));
+    const step = (up) => {
+      const cur = pos ?? activity(t), list = others();
+      let next, beyond;
+      if (up) { const above = list.filter((o) => activity(o) > cur); next = above[above.length - 1]; beyond = above[above.length - 2]; }
+      else { const below = list.filter((o) => activity(o) < cur); next = below[0]; beyond = below[1]; }
+      if (!next) return;
+      const a = activity(next), b = beyond ? activity(beyond) : a + (up ? 7200 : -7200);
+      pos = Math.round((a + b) / 2); // halfway between the next thread and the one after it
+      if (pos === a) pos = a + (up ? 1 : -1);
+      date.value = new Date(pos * 1000).toISOString().slice(0, 10);
+      note.textContent = (up ? "above " : "below ") + info(next.tracks[0]).title;
+    };
+    date.addEventListener("input", () => { pos = null; note.textContent = ""; });
+    box.feedPos = () => pos;
+    box.append(el("div", { class: "af-field af-date" },
+      el("span", {}, "Posted", tr.shown_date ? el("span", { class: "hint" }, ` (originally ${fmtDay(tr.date)})`) : null),
+      el("div", { class: "af-date-row" }, date,
+        el("button", { type: "button", class: "btn ghost", title: "One place up in the feed", "aria-label": "Move up in the feed", onclick: () => step(true) }, "↑"),
+        el("button", { type: "button", class: "btn ghost", title: "One place down in the feed", "aria-label": "Move down in the feed", onclick: () => step(false) }, "↓"),
+        note)));
   }
   if (tr) {
     const sug = el("div", { class: "af-sug" });
@@ -966,7 +996,8 @@ function moreInfo(tr, edit, tags) {
     box.append(sug,
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
         el("span", {}, x.y ? String(x.y) : el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")),
-        x.src ? el("span", { class: "hint" }, "from " + x.src.replace("+", " and ")) : null));
+        x.ys && x.ys.length ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null,
+        x.src ? el("span", { class: "hint" }, "from " + x.src.split("+").join(", ")) : null));
     // Meta: uploader and upload date; inside it, Description
     const descBox = el("div", { class: "af-desc", hidden: true });
     const descBtn = el("button", { type: "button", class: "thread-btn", onclick: async () => {
@@ -1084,7 +1115,9 @@ async function saveEdit(form, { t, i }) {
   if (notes !== (tr.notes || "")) item.notes = notes;
   if (form.date && i === 0) {
     if (!form.date.value) { form.date.reportValidity(); return; }
-    if (form.date.value !== (tr.shown_date || tr.date)) item.date = form.date.value;
+    const pos = form.querySelector(".af-more").feedPos();
+    if (pos) { item.date = form.date.value; item.pos = pos; }
+    else if (form.date.value !== (tr.shown_date || tr.date)) item.date = form.date.value;
   }
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button"), save = form.querySelector("button[type=submit]");
   btns.forEach((b) => (b.disabled = true)); save.textContent = "Saving…"; msg.textContent = "";
@@ -1096,8 +1129,11 @@ async function saveEdit(form, { t, i }) {
   applyTags(tr, item.tags, item.ts);
   if ("notes" in item) { if (notes) tr.notes = notes; else delete tr.notes; }
   if (item.date) { // option A: the thread takes its place by this date (on the next load of the feed)
-    if (item.date === tr.date) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
-    else { tr.shown_date = item.date; t.pos_ts = Math.floor(Date.parse(item.date + "T12:00:00Z") / 1000); t.pos_set = item.ts; }
+    if (item.date === tr.date && !item.pos) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
+    else {
+      if (item.date === tr.date) delete tr.shown_date; else tr.shown_date = item.date;
+      t.pos_ts = item.pos || Math.floor(Date.parse(item.date + "T12:00:00Z") / 1000); t.pos_set = item.ts;
+    }
     sortThreads();
   }
   tr._hay = null;
@@ -1250,10 +1286,20 @@ function copyLink(t, btn) {
 /* Escape: close every add/edit card and leave the search */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  const now = Date.now(), twice = now - lastEsc < 450;
+  lastEsc = twice ? 0 : now;
+  if (twice) { showPlaying(); return; }
   document.querySelectorAll(".add-form").forEach((f) => closeAddForm(f));
   if ($("#q").value) { $("#q").value = ""; syncClear(); runSearch(); }
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 });
+/* Esc twice quickly: bring the playing track to the middle of the screen (when it is on the page) */
+let lastEsc = 0;
+function showPlaying() {
+  if (!playing) return;
+  const row = [...document.querySelectorAll(".playing")].find((r) => r.offsetParent);
+  if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+}
 /* typing a letter or number anywhere starts a search */
 document.addEventListener("keydown", (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.key.length !== 1 || e.key === " ") return;
@@ -1264,6 +1310,11 @@ document.addEventListener("keydown", (e) => {
 
 /* "Source" in the player: the playing track's own thread (when playing from a tag) */
 const homeOf = (tr) => threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
+$("#discogsBtn").onclick = () => {
+  if (!playing) return;
+  const title = info(playing.thread.tracks[playing.index]).title;
+  open("https://www.google.com/search?q=" + encodeURIComponent("discogs " + title), "_blank", "noopener");
+};
 $("#sourceBtn").onclick = () => {
   if (!playing) return;
   const home = homeOf(playing.thread.tracks[playing.index]);
@@ -1273,7 +1324,7 @@ $("#sourceBtn").onclick = () => {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || !playing || !getToken()) return;
   const t = e.target;
-  if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+  if (t.closest && t.closest("input, textarea, select, [contenteditable]") && !t.closest(".edit-form")) return;
   e.preventDefault();
   const tr = playing.thread.tracks[playing.index], home = homeOf(tr);
   if (!home) return;
@@ -1282,7 +1333,12 @@ document.addEventListener("keydown", (e) => {
   if (!row) { goToThread(home); row = document.querySelector(`[data-k="${home.id}:${i}"]`); }
   if (!row) return;
   const next = row.nextElementSibling;
-  if (!(next && next.classList.contains("edit-wrap"))) toggleEditForm(home, i, row);
+  if (next && next.classList.contains("edit-wrap")) { // already open: open (or close) its More info
+    next.querySelector(".more-info-btn")?.click();
+    next.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  toggleEditForm(home, i, row);
   row.scrollIntoView({ block: "nearest" });
 });
 

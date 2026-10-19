@@ -85,7 +85,8 @@ button, input { font: inherit; color: inherit; }
 .tag-drop li.on, .tag-drop li:hover { background: var(--line); }
 .tag-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 /* tags under a title: just a quiet note that the track is tagged */
-.tag { margin-right: 8px; color: color-mix(in srgb, var(--text) 50%, transparent); font-size: 13px; }
+.tag { margin-right: 8px; color: color-mix(in srgb, var(--text) 50%, transparent); font-size: 13px;
+  text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 /* tags in the add/edit card: small boxes like buttons; clicking removes them */
 button.tag-chip {
   display: inline-block; padding: 0 8px; border-radius: var(--radius-sm); cursor: pointer;
@@ -96,10 +97,10 @@ button.tag-chip:hover { border-color: var(--muted); }
 .sub-note { color: var(--muted); }
 .t-sub:empty { display: none; }
 /* tag threads: one frame around the name box and the tracks */
-.thread.tag-thread { padding: 12px 0 18px; }
+.thread.tag-thread { padding: 6px 0; }
 .tag-frame {
   display: grid; grid-template-columns: 160px 1fr; align-items: stretch; margin: 0 -8px; /* as wide as a track thread's rows */
-  border: 2px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm);
+  border: 1px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm);
 }
 .tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; min-height: 90px; }
 .tag-side .tag-collapse-bottom { margin-top: auto; margin-left: -8px; align-self: flex-start; }
@@ -113,11 +114,12 @@ button.tag-chip:hover { border-color: var(--muted); }
 .more-toggle {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center;
   height: 30px; padding: 0 8px; margin-left: -8px; border-radius: var(--radius-sm);
-  font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap;
+  font-size: 14px; font-weight: 400; color: var(--muted); white-space: nowrap;
+  text-decoration: underline; text-underline-offset: 3px; /* looks like "Add a track here" */
 }
-.more-toggle:hover, .more-toggle:active { background: none; color: var(--jade); }
+.more-toggle:hover, .more-toggle:active { background: none; color: var(--text); }
 .more-toggle:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
-.more-pos { color: var(--text); font-size: 13px; }
+.more-pos { color: var(--muted); font-size: 13px; } /* like "Edit" */
 /* an expanded list scrolls inside its own box */
 /* a starting height so a long list is never briefly thousands of pixels tall (the page would jump) */
 html, body { overflow-anchor: none; } /* the site places threads itself when they open or close */
@@ -146,14 +148,18 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .thread-more .more-bottom { order: 3; margin-top: auto; }
 .more-after { display: none; }
 /* search results: Scroll centred under the tracks */
-.search-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 0 18px 176px; }
+.search-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 0 18px; }
+/* "175 tracks" starts where "Edit" starts in the rows above (an invisible copy of the row's links sets the width) */
+.foot-count { justify-self: end; position: relative; }
+.foot-count .row-links { visibility: hidden; }
+.foot-count .more-pos { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); white-space: nowrap; }
 .search-foot .more-pos { visibility: visible; }
 .scroll-link.on { color: var(--jade); }
 .search-foot .more-toggle { margin: 0; }
 .search-foot .foot-right { justify-self: end; margin-right: -8px; }
 .search-foot > .more-pos:last-child { justify-self: end; }
 .thread-more-search { align-items: center; width: 160px; }
-.thread-more-search .more-toggle { margin: 0; font-size: 15px; }
+.thread-more-search .more-toggle { margin: 0; }
 #sourceBtn { margin-left: 10px; }
 #sourceBtn[hidden] { display: none; }
 .thread.searching .thread-more { bottom: auto; }
@@ -233,7 +239,7 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
 .head-row.hit .t-title, .track.hit .tr-title {
-  display: inline; background: var(--jade); color: var(--jade-ink); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
+  display: inline; background: var(--seek, var(--jade)); color: var(--jade-ink); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .head-row.dead .t-title { color: var(--rust); text-decoration: line-through; }
@@ -442,7 +448,7 @@ img.broken { visibility: hidden; }
     position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
   }
   .ctl.close-btn { display: inline-flex; margin-left: auto; }
-  .thread { border-bottom: 2px dotted var(--dots, var(--line-strong)); }
+  .thread { border-bottom: 1px dotted var(--dots, var(--line-strong)); }
   .dock { padding-bottom: 0 !important; }
   .bar { padding-bottom: 10px; }
   /* long track thread on a phone: counter left, Expand/Collapse right; expanded it is a pinned header */
@@ -481,7 +487,9 @@ img.broken { visibility: hidden; }
   .track a.src, .track .row-links { display: none; }
   .tr-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   /* player: title / transport + thread / options */
-  .ctrlrow { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "title title" "transport thread" "opts opts"; gap: 6px 10px; align-items: center; }
+  .ctrlrow { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "title title title" "transport thread source" "opts opts opts"; gap: 6px 10px; align-items: center; }
+  #sourceBtn { grid-area: source; margin-left: 0; }
+  #discogsBtn { display: none; }
   .now { display: contents; }
   #nowTitle { grid-area: title; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .transport { grid-area: transport; }
@@ -496,7 +504,8 @@ img.broken { visibility: hidden; }
 /* search: a result without a track list still needs room for "Thread" under the thumbnail */
 @media (min-width: 641px) { .thread.searching:not(:has(.search-foot)):not(:has(.tracks)) { padding-bottom: 44px; } }
 /* bordered tag threads next to each other: keep the spacing, drop the divider line between them */
-.thread.tag-thread:has(+ .tag-thread) { border-bottom-color: transparent; }
+/* a tag thread has its own frame: no divider line under it, nor above it */
+.thread.tag-thread, .thread:has(+ .tag-thread) { border-bottom-color: transparent; }
 
 /* add/edit cards: the arrow and the More info panel under it */
 .btn.ghost.more-info-btn { width: 40px; padding: 0; font-size: 16px; }
@@ -518,3 +527,19 @@ img.broken { visibility: hidden; }
 }
 .af-more .thread-btn { font-size: 14px; }
 .af-later { margin: 0; font-size: 13px; }
+
+#discogsBtn { margin-left: 10px; }
+#discogsBtn[hidden] { display: none; }
+.thread-pop { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* the main post's date: month and year, top right, ending where "YouTube" ends */
+@media (min-width: 641px) {
+  .head-side { position: relative; align-self: stretch; display: flex; align-items: center; }
+  .t-month { position: absolute; top: 0; right: 4px; color: var(--muted); font-size: 13px; line-height: 23.75px; white-space: nowrap; }
+  .t-date-phone, .t-date.only-date { display: none; }
+}
+@media (max-width: 640px) { .t-month { display: none; } }
+/* move the thread up or down in the feed */
+.af-date-row { display: flex; align-items: center; gap: 6px; }
+.af-date-row .btn.ghost { width: 40px; padding: 0; font-size: 16px; }
+.af-date-row .hint { margin-left: 6px; font-size: 13px; }
+.foot-count .src { padding: 4px; font-size: 13px; }
