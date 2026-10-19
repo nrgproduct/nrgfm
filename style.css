@@ -322,10 +322,10 @@ img.broken { visibility: hidden; }
 }
 .seek::-webkit-slider-runnable-track {
   height: 4px; border-radius: 2px;
-  background: linear-gradient(to right, var(--jade) var(--p), var(--line) var(--p));
+  background: linear-gradient(to right, var(--seek, var(--jade)) var(--p), var(--line) var(--p));
 }
 .seek::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
-.seek::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--jade); }
+.seek::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--seek, var(--jade)); }
 .seek::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: var(--text); }
 .seek::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--text); }
 .seek:disabled { cursor: default; opacity: .4; }
@@ -487,3 +487,5 @@ img.broken { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 /* search: a result without a track list still needs room for "Thread" under the thumbnail */
 @media (min-width: 641px) { .thread.searching:not(:has(.search-foot)):not(:has(.tracks)) { padding-bottom: 44px; } }
+/* bordered tag threads next to each other: keep the spacing, drop the divider line between them */
+.thread.tag-thread:has(+ .tag-thread) { border-bottom-color: transparent; }
