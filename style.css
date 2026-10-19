@@ -423,8 +423,8 @@ img.broken { visibility: hidden; }
   .search-foot { padding: 6px 0 14px; }
   .search-foot .more-pos { visibility: visible; }
   /* a wider clear button, easier to hit */
-  .btn.square { width: 76px; border-color: rgba(228, 238, 232, .7); }
-  .search input { padding-right: 90px; }
+  .btn.square { width: 50px; border-color: var(--text); }
+  .search input { padding-right: 64px; }
   .more-after > .more-toggle:last-child { margin-right: -8px; }
   .tag-label .more-pos { display: block; padding-top: 2px; }
   .tag-more .more-pos { display: none; }

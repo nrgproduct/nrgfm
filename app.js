@@ -334,14 +334,12 @@ function searchRows(t, hits) {
   const n = t.tracks.length, found = [...hits].filter((i) => i > 0).sort((x, y) => x - y);
   if (found.length > SEARCH_AROUND) return found;
   if (!found.length) return range(1, Math.min(n, 1 + SEARCH_AROUND));
-  const pick = new Set(found);
-  let before = found[0] - 1, after = found[found.length - 1] + 1, turn = 0;
-  while (pick.size < Math.min(SEARCH_AROUND, n - 1)) {
-    // alternate above / below so the hits sit in the middle
-    if ((turn++ % 2 === 0 && before >= 1) || after >= n) { if (before >= 1) pick.add(before--); }
-    else if (after < n) pick.add(after++);
-  }
-  return [...pick].sort((x, y) => x - y);
+  // the hits plus the replies closest to them, up to 5 (one pass, no loop that could get stuck)
+  const dist = (i) => Math.min(...found.map((h) => Math.abs(i - h)));
+  return range(1, n)
+    .sort((x, y) => dist(x) - dist(y) || x - y)
+    .slice(0, Math.min(SEARCH_AROUND, n - 1))
+    .sort((x, y) => x - y);
 }
 const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a + k);
 
