@@ -145,6 +145,24 @@ def apply_tag(data, item):
     return "tagged" if n else "tag: no tracks found"
 
 
+def apply_recheck(data, item):
+    """Result of the weekly link check: mark links dead / working again, and tag the tracks."""
+    meta_path = os.path.join(ROOT, "data", "meta.json")
+    meta = json.load(open(meta_path, encoding="utf-8"))
+    for url, v in (item.get("meta_set") or {}).items():
+        meta.setdefault(url, {}).update(v)
+    for url in item.get("meta_clear") or []:
+        m = meta.get(url)
+        if m:
+            m.pop("dead", None)
+            m.pop("status", None)
+    json.dump(meta, open(meta_path, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    for t in item.get("tag") or []:
+        if t.get("ids"):
+            apply_tag(data, {"ids": t["ids"], "add": t.get("add") or [], "remove": t.get("remove") or [], "ts": item.get("ts")})
+    return "rechecked"
+
+
 def apply_move(data, by_id, item):
     """{"action": "move", "id": track id, "to": thread id} -> move a track into another thread."""
     th, i = find(data, item.get("thread"), item.get("id"))
@@ -188,10 +206,12 @@ def main():
             res = apply_move(data, by_id, item)
         elif action == "tag":
             res = apply_tag(data, item)
+        elif action == "recheck":
+            res = apply_recheck(data, item)
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted", "moved", "tagged"):
+        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")

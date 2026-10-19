@@ -69,7 +69,16 @@ button, input { font: inherit; color: inherit; }
 .moved-note a { color: inherit; }
 .af-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
 /* tags */
-.tag-box { position: relative; margin-right: auto; }
+.tag-area { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.tag-box { position: relative; }
+/* tags added in an add card: two rows, filling column by column */
+.tag-stack { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 18px); gap: 4px 6px; align-content: center; }
+.tag-stack:empty { display: none; }
+.tag-stack .tag-chip { font-size: 12px; line-height: 16px; padding: 0 6px; white-space: nowrap; }
+/* editing: the track's tags under its title can be clicked away */
+.tag.tag-x { cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 6px; }
+.tag.tag-x:hover { border-color: var(--muted); }
+.tag.tag-x .x { color: var(--muted); }
 .tag-input {
   width: 200px; height: 40px; padding: 0 12px; color: var(--text); font-size: 14px;
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
@@ -357,6 +366,8 @@ img.broken { visibility: hidden; }
 .ctl:hover:not(:disabled) { background: var(--surface-2); }
 .ctl:disabled { opacity: .35; cursor: default; }
 .ctl[aria-pressed="true"] { background: var(--surface-2); color: var(--jade); }
+.ctl.play:focus-visible { outline: none; }
+.ctl.close-btn { display: none; }
 .ctl.play {
   min-width: 72px; justify-content: center; background: var(--jade); color: var(--jade-ink); font-weight: 700;
   /* a green ring with a thin dark gap inside, drawn inside the button so it doesn't grow */
@@ -417,7 +428,7 @@ img.broken { visibility: hidden; }
   .thread.expanded .tag-side, .thread.expanded .thread-more {
     position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
   }
-  .close-btn { display: inline-flex; margin-left: auto; }
+  .ctl.close-btn { display: inline-flex; margin-left: auto; }
   .thread { border-bottom: 2px solid #5b8571; }
   .dock { padding-bottom: 0 !important; }
   .bar { padding-bottom: 10px; }

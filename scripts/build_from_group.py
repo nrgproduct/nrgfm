@@ -270,6 +270,11 @@ def replay(data, path):
             res = ingest_inbox.apply_move(data, by_id, item)
         elif action == "tag":
             res = ingest_inbox.apply_tag(data, item)
+        elif action == "recheck":  # only its tags matter on a rebuild; meta.json keeps the dead marks
+            for t in item.get("tag") or []:
+                if t.get("ids"):
+                    ingest_inbox.apply_tag(data, {"ids": t["ids"], "add": t.get("add") or [], "remove": t.get("remove") or [], "ts": item.get("ts")})
+            res = "tagged"
         else:
             res = ingest_inbox.apply_add(data, by_id, item)
         n += 1

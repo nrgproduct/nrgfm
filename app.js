@@ -193,11 +193,11 @@ const img = (src, cls) => src
 /* tags under a title; clicking one searches for it */
 function tagLine(tr, extra) {
   const tags = Object.keys(tr.tags || {});
-  return [...tags.map((g) => el("span", { class: "tag" }, g)), extra ? el("span", { class: "sub-note" }, extra) : null];
+  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); scrollTo(0, 0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
-const RECOVERED = "deleted, title recovered from the Internet Archive";
+const RECOVERED = "title recovered from Internet Archive";
 
 function trackRow(t, tr, i, hits) {
   const x = info(tr);
@@ -830,16 +830,31 @@ const LINK_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com
 
 /* Tag field: type, pick a suggestion with Enter (or the arrow keys), keep typing the next one.
    Chosen tags show as chips; clicking a chip removes it. */
-function tagEditor(initial, suggested = []) {
+/* Tag field: type, pick a suggestion with Enter (or the arrow keys), keep typing the next one.
+   Editing a track: its tags under the title get an × and can be clicked away.
+   Adding a track: the tags stack in two rows to the right of the field. */
+function tagEditor(initial, suggested = [], host = null) {
   const chosen = [...initial];
   const input = el("input", { type: "text", class: "tag-input", placeholder: "Add tag", autocomplete: "off", spellcheck: "false", "aria-label": "Add tag" });
   const drop = el("ul", { class: "tag-drop", hidden: true });
-  const chips = el("span", { class: "tag-chips" });
+  const stack = host ? null : el("span", { class: "tag-stack" });
+  const original = host ? [...host.childNodes] : null;
   let opts = [], active = 0;
-  const drawChips = () => chips.replaceChildren(
-    ...chosen.map((g) => el("button", { type: "button", class: "tag-chip", title: "Remove tag", onclick: () => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); } }, g, el("span", { "aria-hidden": "true" }, " ×"))),
-    // the main track's tags, offered with a dotted outline; click to use one
-    ...suggested.filter((g) => !chosen.includes(g)).map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag", onclick: () => { chosen.push(g); drawChips(); } }, "+ " + g)));
+  const remove = (g) => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); };
+  const drawChips = () => {
+    if (host) {
+      host.replaceChildren(...chosen.map((g) => el("span", {
+        class: "tag tag-x", role: "button", tabindex: "0", title: "Remove tag",
+        onclick: (e) => { e.preventDefault(); e.stopPropagation(); remove(g); },
+        onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); remove(g); } },
+      }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+      return;
+    }
+    stack.replaceChildren(
+      ...chosen.map((g) => el("button", { type: "button", class: "tag-chip", title: "Remove tag", onclick: () => remove(g) }, g, el("span", { "aria-hidden": "true" }, " ×"))),
+      // the main track's tags, offered with a dotted outline; click to use one
+      ...suggested.filter((g) => !chosen.includes(g)).map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag", onclick: () => { chosen.push(g); drawChips(); } }, "+ " + g)));
+  };
   const drawDrop = () => {
     const q = fold(input.value);
     opts = q ? allTags().filter((g) => !chosen.includes(g) && fold(g).includes(q)).sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q)).slice(0, 6) : [];
@@ -851,6 +866,7 @@ function tagEditor(initial, suggested = []) {
   input.addEventListener("input", drawDrop);
   input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
   input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.shiftKey) return; // Shift+Enter saves the card (handled by the form)
     if (e.key === "Enter" || (e.key === "," && input.value.trim())) {
       e.preventDefault();
       if (!drop.hidden && opts[active]) add(opts[active]); else if (input.value.trim()) add(input.value);
@@ -862,13 +878,19 @@ function tagEditor(initial, suggested = []) {
     else if (e.key === "Backspace" && !input.value && chosen.length) { chosen.pop(); drawChips(); }
   });
   drawChips();
-  return { box: el("span", { class: "tag-box" }, input, drop), chips, get: () => [...chosen] };
+  return {
+    box: el("span", { class: "tag-area" }, el("span", { class: "tag-box" }, input, drop), stack),
+    input,
+    get: () => { if (input.value.trim()) add(input.value); return [...chosen]; }, // a typed but not yet added tag counts too
+    restore: () => { if (host) host.replaceChildren(...original); },
+  };
 }
 
-function addForm(thread, edit) {
-  // edit = { t, i } when editing an existing track
+function addForm(thread, edit, row) {
+  // edit = { t, i } when editing an existing track; row = that track's row (its tags become removable)
   const tr = edit ? edit.t.tracks[edit.i] : null;
-  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : []);
+  const host = row ? row.querySelector(".tag-wrap") : null;
+  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : [], host);
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
       el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
@@ -877,7 +899,6 @@ function addForm(thread, edit) {
     el("div", { class: "af-actions" },
       tags.box,
       el("span", { class: "af-msg hint", role: "status" }),
-      tags.chips,
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
       edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false", onclick: (e) => toggleMovePanel(form, edit, e.currentTarget) }, "Move") : null,
       el("button", { type: "submit", class: "btn" }, "Save")));
@@ -885,11 +906,15 @@ function addForm(thread, edit) {
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
   form.tags = tags;
   form.addEventListener("submit", (ev) => { ev.preventDefault(); edit ? saveEdit(form, edit) : saveTrack(form, thread); });
-  form.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeAddForm(form); });
+  // Shift+Enter saves from any field, the tag field included
+  form.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" && ev.shiftKey) { ev.preventDefault(); ev.stopPropagation(); form.requestSubmit(); }
+  }, true);
   return form;
 }
 function closeAddForm(form) {
   if (!form) return;
+  if (form.tags) form.tags.restore();
   if (form.parentElement && form.parentElement.classList.contains("edit-li")) { const th = form.closest(".thread"); form.parentElement.remove(); fitList(th); return; }
   if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
   form.remove();
@@ -921,18 +946,18 @@ $("#addBtn").onclick = toggleHeaderForm;
 function toggleEditForm(t, i, row) {
   if (!getToken()) { openSetup(); return; }
   const next = row.nextElementSibling;
-  if (next && next.classList.contains("edit-wrap")) { next.remove(); fitList(row.closest(".thread")); return; }
+  if (next && next.classList.contains("edit-wrap")) { closeAddForm(next.querySelector(".add-form")); return; }
   if (t.kind === "tag") { // the track lives in its own thread; edit it there
     const tr = t.tracks[i], home = threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
     if (!home) return;
     t = home; i = home.tracks.indexOf(tr);
   }
-  const form = addForm(null, { t, i });
+  const form = addForm(null, { t, i }, row);
   const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
   row.after(wrap);
   const box = wrap.closest(".scroll-list"); // inside a scrolling box: make room for the card
   if (box) { box.style.maxHeight = box.clientHeight + wrap.offsetHeight + "px"; wrap.scrollIntoView({ block: "nearest" }); }
-  form.title.focus(); form.title.select();
+  form.tags.input.focus(); // editing usually means tagging: start in the tag field
 }
 
 async function writeInbox(item, kind) {
@@ -1129,6 +1154,21 @@ async function copyText(text, btn, done) {
 function copyLink(t, btn) {
   copyText(`${location.origin}${location.pathname}#t/${t.id}`, btn, "Copied");
 }
+
+/* Escape: close every add/edit card and leave the search */
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  document.querySelectorAll(".add-form").forEach((f) => closeAddForm(f));
+  if ($("#q").value) { $("#q").value = ""; syncClear(); runSearch(); }
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+});
+/* typing a letter or number anywhere starts a search */
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.key.length !== 1 || e.key === " ") return;
+  const t = e.target;
+  if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+  $("#q").focus(); // the key itself then lands in the search field
+});
 
 /* keyboard (laptop): Space plays/pauses, Left/Right jump 5 seconds back/forward */
 document.addEventListener("keydown", (e) => {

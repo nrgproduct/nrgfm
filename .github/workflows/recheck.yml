@@ -1,0 +1,41 @@
+name: Weekly link check
+
+# Every Monday morning: look up all links again and mark the ones that broke since they were added
+# (tag "broken link") or that only play on YouTube now. The result goes to inbox/ and the normal
+# "Update and publish" run applies it. Can also be started by hand from the Actions tab.
+on:
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: recheck
+  cancel-in-progress: false
+
+jobs:
+  recheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check all links
+        run: python3 scripts/recheck_links.py
+      - name: Hand the result to the update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "nrgproduct"
+          git config user.email "nrgproduct@users.noreply.github.com"
+          git add inbox
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Weekly link check"
+          git pull --rebase origin main
+          git push
+          gh workflow run update.yml --ref main
