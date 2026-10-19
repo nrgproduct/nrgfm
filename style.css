@@ -485,3 +485,5 @@ img.broken { visibility: hidden; }
   .time { width: 40px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+/* search: a result without a track list still needs room for "Thread" under the thumbnail */
+@media (min-width: 641px) { .thread.searching:not(:has(.search-foot)):not(:has(.tracks)) { padding-bottom: 44px; } }
