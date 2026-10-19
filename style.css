@@ -285,7 +285,7 @@ img.broken { visibility: hidden; }
 .tr-sub { display: block; color: var(--muted); font-size: 13px; }
 .track.dead .tr-title { text-decoration: line-through; }
 .thread-foot { padding: 4px 0 18px 184px; display: flex; gap: 16px; }
-.linkbtn { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.linkbtn { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .linkbtn:hover { color: var(--text); }
 .more { height: 1px; }
 
@@ -548,7 +548,7 @@ img.broken { visibility: hidden; }
 /* the post date under the thumbnail (outside the post's box); in search results it leads to the thread, centred,
    with the track count under it */
 .thread { position: relative; }
-.t-when { position: absolute; left: 8px; top: 114px; width: 160px; display: grid; justify-items: start; gap: 6px; color: var(--muted); font-size: 13px; line-height: 18px; }
+.t-when { position: absolute; left: 8px; top: 110px; width: 160px; display: grid; justify-items: center; gap: 6px; color: var(--muted); font-size: 13px; line-height: 18px; }
 .t-when.in-search { justify-items: center; }
 .thread.searching { min-height: 168px; }
 .t-date-phone, .t-date.only-date { display: none; }
@@ -572,8 +572,8 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 }
 
 /* a thread whose box scrolls is selected first (click in it, play from it, Expand); the frame lights up */
-.thread.framed.active:not(.searching)::before {
-  border: 1px solid var(--jade); box-shadow: 0 0 0 1px var(--jade), 0 0 18px color-mix(in srgb, var(--jade) 25%, transparent);
-}
+.thread.framed.active:not(.searching)::before { border: 1px dotted var(--jade); }
+/* selected: the box keeps the scroll to itself, also at its ends */
+.thread.active .scroll-list { overscroll-behavior: contain; }
 .thread.framed.active:not(.searching) { background: color-mix(in srgb, var(--jade) 5%, transparent); border-radius: var(--radius-sm); }
 @media (hover: none) { .thread:not(.active) .scroll-list { overflow-y: hidden; } }

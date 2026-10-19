@@ -1072,7 +1072,7 @@ function closeAddForm(form, opts = {}) {
     const wrap = form.parentElement, th = form.closest(".thread"), row = wrap.previousElementSibling, inBox = !!wrap.closest(".scroll-list");
     if (wrap._ro) wrap._ro.disconnect();
     wrap.remove(); fitList(th);
-    if (inBox && row && !opts.quiet) focusRow(row, true); // back to the track that was edited
+    if (row && !opts.quiet) focusRow(row, true, "top", "top"); // back to the track that was edited, at the top
     return;
   }
   if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
@@ -1126,8 +1126,8 @@ function toggleEditForm(t, i, row) {
     const base = box.clientHeight, grow = () => { box.style.maxHeight = base + wrap.offsetHeight + "px"; };
     grow();
     wrap._ro = new ResizeObserver(grow); wrap._ro.observe(wrap);
-    focusRow(row, true, "top");
-  } else revealWhole(form);
+  }
+  focusRow(row, true, "top", "top"); // the track goes to the top, the card under it
 }
 
 async function writeInbox(item, kind) {
@@ -1165,7 +1165,7 @@ function rerenderThread(t, flashIndex) {
 
 async function saveEdit(form, { t, i }) {
   const tr = t.tracks[i];
-  const boxThread = form.closest(".scroll-list") ? form.closest(".thread").id.slice(3) : null; // edited inside a scrolling box
+  const fromThread = form.closest(".thread").id.slice(3); // where the track was edited (a tag thread or its own)
   const url = form.url.value.trim(), title = form.title.value.trim();
   if (!LINK_RE.test(url)) {
     form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
@@ -1201,7 +1201,8 @@ async function saveEdit(form, { t, i }) {
   tr._hay = null;
   rerenderThread(t, i);
   refreshTags();
-  if (boxThread) focusTrack(boxThread, tr); // back to the track, a third of the way down
+  // back to the track, at the top (once the re-drawn boxes above it have their final height)
+  requestAnimationFrame(() => requestAnimationFrame(() => focusTrack(fromThread, tr, "top")));
 }
 function applyTags(tr, list, ts) {
   const old = tr.tags || {}, nu = {};
@@ -1365,17 +1366,18 @@ function showPlaying() {
   if (row) focusRow(row, true);
 }
 /* a track a third of the way down the window (and in view inside its scrolling box) */
-function focusTrack(threadId, tr) {
+function focusTrack(threadId, tr, at = "third") {
   const t = threads.find((x) => x.id === threadId);
   const i = t ? t.tracks.indexOf(tr) : -1;
   const row = i > -1 && document.querySelector(`[data-k="${CSS.escape(threadId)}:${i}"]`);
-  if (row) focusRow(row, true);
+  if (row) focusRow(row, true, "top", at);
 }
-function focusRow(row, smooth, boxAt = "center") {
+function focusRow(row, smooth, boxAt = "center", at = "third") {
   const box = row.closest(".scroll-list"); // inside a scrolling box: first bring it into the box's view
   if (box) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (boxAt === "top" ? 0 : (box.clientHeight - row.offsetHeight) / 2);
   const top = headerBottom(), dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
-  pageScrollBy(row.getBoundingClientRect().top - (top + (innerHeight - dock - top) / 3), smooth); // a third of the way down
+  const y = at === "top" ? top + 8 : top + (innerHeight - dock - top) / 3; // right under the header, or a third of the way down
+  pageScrollBy(row.getBoundingClientRect().top - y, smooth);
 }
 /* typing a letter or number anywhere starts a search */
 document.addEventListener("keydown", (e) => {
