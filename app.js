@@ -110,8 +110,8 @@ function makeTagThreads() {
     }
   }
   return [...by].map(([g, list]) => {
-    list.sort((a, b) => a.ts - b.ts || a.tr.ts - b.tr.ts); // in the order they were tagged
-    return { id: "tag-" + fold(g).replace(/ /g, "-"), name: g, kind: "tag", ts: list[0].ts, last: list[list.length - 1].ts, tracks: list.map((x) => x.tr) };
+    list.sort((a, b) => b.ts - a.ts || b.tr.ts - a.tr.ts); // the most recently tagged first
+    return { id: "tag-" + fold(g).replace(/ /g, "-"), name: g, kind: "tag", ts: list[list.length - 1].ts, last: list[0].ts, tracks: list.map((x) => x.tr) };
   });
 }
 function allTags() {
@@ -222,44 +222,67 @@ function rowLinks(t, i, x) {
 
 /* A tag is shown as its own thread: a blue "tag" box, the tag's name, and its first 8 tracks
    (Expand shows all of them). */
-const TAG_PREVIEW = 8;
-const expandedTags = new Set();
-function tagThreadNode({ t, hits }) {
-  const open = expandedTags.has(t.id), n = t.tracks.length;
-  const rows = (open ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
-  // a search hit further down the list opens it
-  return el("li", { class: "thread tag-thread", id: "th-" + t.id },
-    el("div", { class: "head-row tag-head" },
-      el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play the tag ${t.name}` },
-        el("span", { class: "thumb tag-thumb" }, el("span", {}, "tag")),
-        el("span", { class: "thread-main" },
-          el("span", { class: "t-title tag-title" }, t.name),
-          el("span", { class: "t-sub" }, `${n} ${n === 1 ? "track" : "tracks"}`))),
-      n > TAG_PREVIEW
-        ? el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : `Expand (${n})`)
-        : null),
-    el("ol", { class: "tracks tag-tracks" }, rows),
-    el("div", { class: "thread-foot" },
-      el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
+const TAG_PREVIEW = 5;
+const THREAD_PREVIEW = 30;
+const expanded = new Set();   // threads opened with Expand
+const userToggled = new Set(); // threads the visitor opened or closed by hand (search won't override)
+
+/* Expand / Collapse text; it sits under the thumbnail (or under the tag name) */
+function moreToggle(t, hits, n) {
+  const open = expanded.has(t.id);
+  return el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
+    open ? "Collapse" : `Expand (${n})`);
+}
+function toggleExpand(t, hits) {
+  userToggled.add(t.id);
+  const wasOpen = expanded.has(t.id);
+  wasOpen ? expanded.delete(t.id) : expanded.add(t.id);
+  const node = document.getElementById("th-" + t.id);
+  if (!node) return;
+  const fresh = threadNode({ t, hits });
+  node.replaceWith(fresh);
+  markPlaying();
+  // after collapsing a long thread, keep its top in view
+  if (wasOpen && fresh.getBoundingClientRect().top < 0) fresh.scrollIntoView({ block: "start" });
+  if (!wasOpen && t.kind === "tag") updateTagScroll(fresh);
 }
 
-const THREAD_PREVIEW = 30;
-function toggleExpand(t, hits) {
-  expandedTags.has(t.id) ? expandedTags.delete(t.id) : expandedTags.add(t.id);
-  const node = document.getElementById("th-" + t.id);
-  if (node) node.replaceWith(threadNode({ t, hits }));
-  markPlaying();
+/* A tag: its name, track count and Expand on the left (blue), the newest tagged tracks on the right.
+   Expanded, the list scrolls inside a box as tall as the screen allows. */
+function tagThreadNode({ t, hits }) {
+  const open = expanded.has(t.id), n = t.tracks.length;
+  const rows = (open ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
+  const list = el("ol", { class: "tag-list" + (open ? " open" : "") }, rows);
+  const pos = el("span", { class: "tag-pos" });
+  const node = el("li", { class: "thread tag-thread", id: "th-" + t.id },
+    el("div", { class: "tag-side" },
+      el("span", { class: "tag-name" }, t.name),
+      el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
+      n > TAG_PREVIEW ? moreToggle(t, hits, n) : null,
+      open ? pos : null,
+      el("button", { class: "linkbtn tag-copy", onclick: (e) => copyLink(t, e.target) }, "Copy link")),
+    list);
+  if (open) list.addEventListener("scroll", () => updateTagScroll(node), { passive: true });
+  return node;
 }
+/* "41–52 of 299" while scrolling inside an expanded tag */
+function updateTagScroll(node) {
+  const list = node.querySelector(".tag-list"), pos = node.querySelector(".tag-pos");
+  if (!list || !pos) return;
+  const rows = [...list.children], top = list.scrollTop, bottom = top + list.clientHeight;
+  let first = 0, last = 0;
+  rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
+  pos.textContent = `${first || 1}–${last} of ${rows.length}`;
+}
+
 function threadNode({ t, hits }) {
-  if (t.kind === "tag") {
-    if (hits && [...hits].some((i) => i >= TAG_PREVIEW)) expandedTags.add(t.id);
-    return tagThreadNode({ t, hits });
-  }
-  if (hits && [...hits].some((i) => i >= THREAD_PREVIEW)) expandedTags.add(t.id);
-  const long = t.tracks.length > THREAD_PREVIEW, open = expandedTags.has(t.id);
+  const limit = t.kind === "tag" ? TAG_PREVIEW : THREAD_PREVIEW;
+  // a search hit further down opens the thread, unless the visitor closed it by hand
+  if (hits && !userToggled.has(t.id) && [...hits].some((i) => i >= limit)) expanded.add(t.id);
+  if (t.kind === "tag") return tagThreadNode({ t, hits });
+  const long = t.tracks.length > THREAD_PREVIEW, open = expanded.has(t.id);
   const head = t.tracks[0], hi = info(head);
-  const isTag = t.kind === "tag";
-  const li = el("li", { class: "thread", id: "th-" + t.id },
+  const li = el("li", { class: "thread" + (long ? " long" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
@@ -267,13 +290,11 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
-      el("span", { class: "head-side" },
-        rowLinks(t, 0, hi),
-        long ? el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
-          open ? "Collapse" : `Expand (${t.tracks.length})`) : null)),
+      el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
+    long ? el("div", { class: "thread-more" }, moreToggle(t, hits, t.tracks.length)) : null,
     t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
-      isTag ? null : el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
+      el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
       el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
   return li;
 }
@@ -281,7 +302,6 @@ function threadNode({ t, hits }) {
 function markPlaying() {
   document.querySelectorAll(".playing").forEach((n) => n.classList.remove("playing"));
   if (playing) document.querySelectorAll(`[data-k="${playing.thread.id}:${playing.index}"]`).forEach((n) => n.classList.add("playing"));
-  if (playing && playing.thread.kind === "tag") document.querySelector(`#th-${CSS.escape(playing.thread.id)} .tag-head`)?.classList.add("playing");
 }
 
 function renderMore() {
