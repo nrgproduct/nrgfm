@@ -93,41 +93,35 @@ button.tag-chip {
 button.tag-chip:hover { border-color: var(--muted); }
 .sub-note { color: var(--muted); }
 .t-sub:empty { display: none; }
-/* tag threads: name, count and Expand on the left in blue; the tracks to the right */
-.thread.tag-thread { display: grid; grid-template-columns: 160px 1fr; gap: 8px; align-items: stretch; padding: 12px 0 18px; }
-.tag-side {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 90px;
-  padding: 12px 14px; border: 3px solid var(--line); border-radius: var(--radius-sm);
+/* tag threads: one frame around the name box and the tracks */
+.thread.tag-thread { padding: 12px 0 18px; }
+.tag-frame {
+  display: grid; grid-template-columns: 160px 1fr; align-items: stretch;
+  border: 3px solid var(--line); border-radius: var(--radius-sm);
 }
+.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; border-right: 3px solid var(--line); min-height: 90px; }
+.tag-label { display: flex; flex-direction: column; gap: 2px; }
 .tag-name { color: var(--text); font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
 .tag-count { color: var(--muted); font-size: 14px; }
+.tag-more { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.tag-list { list-style: none; margin: 0; padding: 4px; display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
+/* Expand / Collapse and the counter */
 .more-toggle {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center;
-  height: 34px; padding: 0 8px; border-radius: var(--radius-sm);
-  font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap;
+  height: 30px; padding: 0 8px; margin-left: -8px; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap;
 }
 .more-toggle:hover { background: var(--surface-2); }
 .more-toggle:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
-.tag-side .more-toggle { margin: 14px 0 0 -8px; font-weight: 500; }
-
-.tag-pos { color: var(--text); font-size: 13px; padding-top: 2px; }
-.tag-side .tag-copy { margin-top: auto; padding-top: 12px; font-size: 13px; }
-.tag-list {
-  list-style: none; margin: 0; padding: 4px; display: grid; gap: 0; align-content: start; position: relative; min-width: 0;
-  border: 3px solid var(--line); border-radius: var(--radius-sm);
-}
-/* expanded: same width as before, the scrollbar sits just outside on the right */
-.tag-list.open {
-  overflow-y: auto; overscroll-behavior: contain;
-  scrollbar-width: thin; scrollbar-color: var(--muted) transparent;
-}
-.tag-list.open::-webkit-scrollbar { width: 8px; }
-.tag-list.open::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
-.thread.tag-thread .edit-btn { display: none; }
-/* Expand / Collapse under the thumbnail of a long track thread; it stays in view while scrolling */
+.more-pos { color: var(--text); font-size: 13px; }
+/* an expanded list scrolls inside its own box */
+.scroll-list { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
+.scroll-list::-webkit-scrollbar { width: 8px; }
+.scroll-list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+.tracks.scroll-list { position: relative; }
+/* long track threads: Expand and the counter under the thumbnail */
 .thread.long { position: relative; }
-.thread-more { position: absolute; left: 0; top: 112px; bottom: 0; width: 160px; }
-.thread-more .more-toggle { position: sticky; top: 76px; margin-left: -8px; }
+.thread-more { position: absolute; left: 0; top: 116px; width: 160px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 /* search clear button: square, only while searching */
 .btn.square {
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
@@ -384,10 +378,11 @@ img.broken { visibility: hidden; }
   .thread .add-form, .thread .edit-wrap .add-form, .thread > .edit-wrap .add-form { margin-left: 0; }
   .t-title { font-size: 17px; }
   .tracks, .tracks.tag-tracks, .thread-foot { padding-left: 0; }
-  .thread.tag-thread { grid-template-columns: 1fr; }
-  .tag-side { min-height: 0; }
-  .thread-more { position: static; width: auto; margin: 0 0 4px; }
-  .thread-more .more-toggle { position: static; }
+  .tag-frame { grid-template-columns: 1fr; }
+  .tag-side { min-height: 0; flex-direction: row; justify-content: space-between; align-items: flex-start; border-right: 0; border-bottom: 3px solid var(--line); }
+  .tag-more { align-items: flex-end; }
+  .tag-more .more-toggle { margin: 0 -8px 0 0; }
+  .thread-more { position: static; width: auto; flex-direction: row; align-items: center; gap: 12px; margin: 0 0 4px; }
   /* phone: transport bar on top, full-width video underneath */
   .dock { display: flex; flex-direction: column; background: var(--surface); padding-bottom: env(safe-area-inset-bottom); }
   .bar { order: 1; border-top: 1px solid var(--line); padding-bottom: 10px; }

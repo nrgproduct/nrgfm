@@ -223,15 +223,17 @@ function rowLinks(t, i, x) {
 /* A tag is shown as its own thread: a blue "tag" box, the tag's name, and its first 8 tracks
    (Expand shows all of them). */
 const TAG_PREVIEW = 5;
-const THREAD_PREVIEW = 30;
+const THREAD_PREVIEW = 12;
 const expanded = new Set();   // threads opened with Expand
 const userToggled = new Set(); // threads the visitor opened or closed by hand (search won't override)
 
-/* Expand / Collapse text; it sits under the thumbnail (or under the tag name) */
-function moreToggle(t, hits, n) {
-  const open = expanded.has(t.id);
-  return el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) },
-    open ? "Collapse" : t.kind === "tag" ? "Expand" : `Expand (${n})`);
+/* Expand / Collapse text with a "1–12 of 175" counter under it */
+function moreBox(t, hits, shownN) {
+  const open = expanded.has(t.id), n = t.tracks.length;
+  return [
+    el("button", { class: "more-toggle", "aria-expanded": String(open), onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : "Expand"),
+    el("span", { class: "more-pos" }, `1–${Math.min(n, shownN)} of ${n}`),
+  ];
 }
 function toggleExpand(t, hits) {
   userToggled.add(t.id);
@@ -242,51 +244,51 @@ function toggleExpand(t, hits) {
   const fresh = threadNode({ t, hits });
   node.replaceWith(fresh);
   markPlaying();
-  // after collapsing a long thread, keep its top in view
   if (wasOpen && fresh.getBoundingClientRect().top < 0) fresh.scrollIntoView({ block: "start" });
-  if (t.kind === "tag") fitTagList(fresh, !wasOpen);
+  fitList(fresh);
 }
-addEventListener("resize", () => document.querySelectorAll(".tag-thread").forEach((n) => fitTagList(n)));
 
-/* A tag: its name, track count and Expand on the left (blue), the newest tagged tracks on the right.
-   Expanded, the list scrolls inside a box as tall as the screen allows. */
+/* An expanded thread grows downwards only: its list fills the window from where it is
+   down to the player, and scrolls inside. The counter follows the scrolling. */
+function fitList(node) {
+  const list = node.querySelector(".scroll-list");
+  if (!list || !list.children.length) return;
+  const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  const room = innerHeight - dock - list.getBoundingClientRect().top - 16;
+  list.style.maxHeight = Math.max(240, room) + "px";
+  updateListPos(node);
+}
+function updateListPos(node) {
+  const list = node.querySelector(".scroll-list"), pos = node.querySelector(".more-pos");
+  if (!list || !pos) return;
+  const offset = list.classList.contains("tracks") ? 1 : 0; // a track thread's main post is number 1
+  const rows = [...list.children].filter((r) => r.matches("li.track")), top = list.scrollTop, bottom = top + list.clientHeight;
+  let first = 0, last = 0;
+  rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
+  const total = rows.length + offset;
+  pos.textContent = `${offset && top < 4 ? 1 : (first || 1) + offset}–${last + offset} of ${total}`;
+}
+addEventListener("resize", () => document.querySelectorAll(".scroll-list").forEach((l) => fitList(l.closest(".thread"))));
+
+/* A tag: its name, track count, Expand and counter on the left, the newest tagged tracks on the right,
+   all inside one frame. */
 function tagThreadNode({ t, hits }) {
   const open = expanded.has(t.id), n = t.tracks.length;
   const rows = (open ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
-  const list = el("ol", { class: "tag-list" + (open ? " open" : "") }, rows);
+  const list = el("ol", { class: "tag-list" + (open ? " scroll-list" : "") }, rows);
   const node = el("li", { class: "thread tag-thread", id: "th-" + t.id },
-    el("div", { class: "tag-side" },
-      el("span", { class: "tag-name" }, t.name),
-      el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
-      n > TAG_PREVIEW ? moreToggle(t, hits, n) : null,
-      n > TAG_PREVIEW ? el("span", { class: "tag-pos" }, `1–${Math.min(n, TAG_PREVIEW)} of ${n}`) : null,
-      el("button", { class: "linkbtn tag-copy", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")),
-    list);
+    el("div", { class: "tag-frame" },
+      el("div", { class: "tag-side" },
+        el("div", { class: "tag-label" },
+          el("span", { class: "tag-name" }, t.name),
+          el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
+        n > TAG_PREVIEW ? el("div", { class: "tag-more" }, moreBox(t, hits, TAG_PREVIEW)) : null),
+      list));
   if (open) {
-    list.addEventListener("scroll", () => updateTagScroll(node), { passive: true });
-    requestAnimationFrame(() => fitTagList(node));
+    list.addEventListener("scroll", () => updateListPos(node), { passive: true });
+    requestAnimationFrame(() => fitList(node));
   }
   return node;
-}
-/* an expanded tag fills the window below its top edge (above the player) and scrolls inside */
-function fitTagList(node, scroll) {
-  const list = node.querySelector(".tag-list.open");
-  if (!list || !list.children.length) return;
-  const header = $(".top").getBoundingClientRect().bottom;
-  if (scroll) scrollBy(0, node.getBoundingClientRect().top - header - 8); // bring the tag to the top of the window
-  const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
-  const room = innerHeight - dock - list.getBoundingClientRect().top - 16;
-  list.style.maxHeight = Math.max(200, room) + "px";
-  updateTagScroll(node);
-}
-/* "41–52 of 299" while scrolling inside an expanded tag */
-function updateTagScroll(node) {
-  const list = node.querySelector(".tag-list"), pos = node.querySelector(".tag-pos");
-  if (!list || !pos) return;
-  const rows = [...list.children], top = list.scrollTop, bottom = top + list.clientHeight;
-  let first = 0, last = 0;
-  rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
-  pos.textContent = `${first || 1}–${last} of ${rows.length}`;
 }
 
 function threadNode({ t, hits }) {
@@ -294,7 +296,7 @@ function threadNode({ t, hits }) {
   // a search hit further down opens the thread, unless the visitor closed it by hand
   if (hits && !userToggled.has(t.id) && [...hits].some((i) => i >= limit)) expanded.add(t.id);
   if (t.kind === "tag") return tagThreadNode({ t, hits });
-  const long = t.tracks.length > THREAD_PREVIEW, open = expanded.has(t.id);
+  const long = t.tracks.length > THREAD_PREVIEW, open = long && expanded.has(t.id);
   const head = t.tracks[0], hi = info(head);
   const li = el("li", { class: "thread" + (long ? " long" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
@@ -305,11 +307,15 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
-    long ? el("div", { class: "thread-more" }, moreToggle(t, hits, t.tracks.length)) : null,
-    t.tracks.length > 1 ? el("ol", { class: "tracks" }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
+    long ? el("div", { class: "thread-more" }, moreBox(t, hits, THREAD_PREVIEW)) : null,
+    t.tracks.length > 1 ? el("ol", { class: "tracks" + (open ? " scroll-list" : "") }, t.tracks.slice(1, open ? undefined : THREAD_PREVIEW).map((tr, k) => trackRow(t, tr, k + 1, hits))) : null,
     el("div", { class: "thread-foot" },
-      el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here"),
-      el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
+      el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
+  if (open) {
+    const list = li.querySelector(".scroll-list");
+    list.addEventListener("scroll", () => updateListPos(li), { passive: true });
+    requestAnimationFrame(() => fitList(li));
+  }
   return li;
 }
 
@@ -770,6 +776,11 @@ function toggleEditForm(t, i, row) {
   if (!getToken()) { openSetup(); return; }
   const next = row.nextElementSibling;
   if (next && next.classList.contains("edit-wrap")) { next.remove(); return; }
+  if (t.kind === "tag") { // the track lives in its own thread; edit it there
+    const tr = t.tracks[i], home = threads.find((x) => x.kind !== "tag" && x.tracks.includes(tr));
+    if (!home) return;
+    t = home; i = home.tracks.indexOf(tr);
+  }
   const form = addForm(null, { t, i });
   const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
   row.after(wrap);
