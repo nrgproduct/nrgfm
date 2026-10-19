@@ -235,6 +235,7 @@ function moreBox(t, hits, shownN) {
     el("span", { class: "more-pos" }, `1–${Math.min(n, shownN)} of ${n}`),
   ];
 }
+const phone = () => window.matchMedia("(max-width: 640px)").matches;
 function toggleExpand(t, hits) {
   userToggled.add(t.id);
   const wasOpen = expanded.has(t.id);
@@ -244,17 +245,29 @@ function toggleExpand(t, hits) {
   const fresh = threadNode({ t, hits });
   node.replaceWith(fresh);
   markPlaying();
-  if (wasOpen && fresh.getBoundingClientRect().top < 0) fresh.scrollIntoView({ block: "start" });
-  fitList(fresh);
+  if (wasOpen && fresh.getBoundingClientRect().top < headerBottom()) fresh.scrollIntoView({ block: "start" });
+  fitList(fresh, !wasOpen);
 }
+const headerBottom = () => $(".top").getBoundingClientRect().bottom;
 
-/* An expanded thread grows downwards only: its list fills the window from where it is
-   down to the player, and scrolls inside. The counter follows the scrolling. */
-function fitList(node) {
+/* Expanded: the thread moves to the top of the window and its list fills the rest of it
+   (down to the player) and scrolls inside. A collapsed tag on a laptop shows 5 tracks
+   but can be scrolled too. The counter follows the scrolling. */
+function fitList(node, scroll) {
   const list = node.querySelector(".scroll-list");
   if (!list || !list.children.length) return;
+  if (!list.classList.contains("open")) { // collapsed tag: 5 tracks high
+    const rows = [...list.children], last = rows[Math.min(rows.length, TAG_PREVIEW) - 1];
+    list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
+    updateListPos(node);
+    return;
+  }
+  if (scroll) {
+    const anchor = phone() ? node.querySelector(".tag-side, .thread-more") || node : node;
+    scrollBy(0, anchor.getBoundingClientRect().top - headerBottom() - 8);
+  }
   const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
-  const room = innerHeight - dock - list.getBoundingClientRect().top - 16;
+  const room = innerHeight - dock - list.getBoundingClientRect().top - 12;
   list.style.maxHeight = Math.max(240, room) + "px";
   updateListPos(node);
 }
@@ -268,23 +281,31 @@ function updateListPos(node) {
   const total = rows.length + offset;
   pos.textContent = `${offset && top < 4 ? 1 : (first || 1) + offset}–${last + offset} of ${total}`;
 }
-addEventListener("resize", () => document.querySelectorAll(".scroll-list").forEach((l) => fitList(l.closest(".thread"))));
+addEventListener("resize", () => {
+  document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
+  document.querySelectorAll(".scroll-list").forEach((l) => fitList(l.closest(".thread")));
+});
+document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
 
 /* A tag: its name, track count, Expand and counter on the left, the newest tagged tracks on the right,
    all inside one frame. */
 function tagThreadNode({ t, hits }) {
-  const open = expanded.has(t.id), n = t.tracks.length;
-  const rows = (open ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
-  const list = el("ol", { class: "tag-list" + (open ? " scroll-list" : "") }, rows);
-  const node = el("li", { class: "thread tag-thread", id: "th-" + t.id },
+  const open = expanded.has(t.id), n = t.tracks.length, many = n > TAG_PREVIEW;
+  // on a laptop every track is in the list (5 visible, scroll for more); on a phone only 5 until Expand
+  const all = open || !phone();
+  const rows = (all ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
+  const scrolls = many && all;
+  const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : "") }, rows);
+  const node = el("li", { class: "thread tag-thread" + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
           el("span", { class: "tag-name" }, t.name),
           el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
-        n > TAG_PREVIEW ? el("div", { class: "tag-more" }, moreBox(t, hits, TAG_PREVIEW)) : null),
+        many ? el("div", { class: "tag-more" }, moreBox(t, hits, TAG_PREVIEW)) : null,
+        many && open ? el("button", { class: "more-toggle tag-collapse-bottom", onclick: () => toggleExpand(t, hits) }, "Collapse") : null),
       list));
-  if (open) {
+  if (scrolls) {
     list.addEventListener("scroll", () => updateListPos(node), { passive: true });
     requestAnimationFrame(() => fitList(node));
   }
@@ -298,7 +319,7 @@ function threadNode({ t, hits }) {
   if (t.kind === "tag") return tagThreadNode({ t, hits });
   const long = t.tracks.length > THREAD_PREVIEW, open = long && expanded.has(t.id);
   const head = t.tracks[0], hi = info(head);
-  const li = el("li", { class: "thread" + (long ? " long" : ""), id: "th-" + t.id },
+  const li = el("li", { class: "thread" + (long ? " long" : "") + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
@@ -622,6 +643,19 @@ $("#autoBtn").onclick = () => {
 
 
 /* keep the end of the list reachable above the dock */
+function closeDock() {
+  try { adapter && adapter.pause(); } catch {}
+  if (adapter) adapter.destroy();
+  adapter = null;
+  $("#otherSlot").replaceChildren();
+  playing = null;
+  setPlayState(false);
+  $("#dock").hidden = true;
+  markPlaying();
+  syncDockSpace();
+}
+$("#closeBtn").onclick = closeDock;
+
 function syncDockSpace() {
   const d = $("#dock");
   document.body.style.setProperty("--dock-h", d.hidden ? "0px" : d.offsetHeight + "px");

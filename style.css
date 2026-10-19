@@ -99,7 +99,8 @@ button.tag-chip:hover { border-color: var(--muted); }
   display: grid; grid-template-columns: 160px 1fr; align-items: stretch;
   border: 3px solid var(--line); border-radius: var(--radius-sm);
 }
-.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; border-right: 3px solid var(--line); min-height: 90px; }
+.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; min-height: 90px; }
+.tag-side .tag-collapse-bottom { margin-top: auto; margin-left: -8px; align-self: flex-start; }
 .tag-label { display: flex; flex-direction: column; gap: 2px; }
 .tag-name { color: var(--text); font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
 .tag-count { color: var(--muted); font-size: 14px; }
@@ -122,6 +123,7 @@ button.tag-chip:hover { border-color: var(--muted); }
 /* long track threads: Expand and the counter under the thumbnail */
 .thread.long { position: relative; }
 .thread-more { position: absolute; left: 0; top: 116px; width: 160px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.close-btn { display: none; }
 /* search clear button: square, only while searching */
 .btn.square {
   position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
@@ -379,7 +381,13 @@ img.broken { visibility: hidden; }
   .t-title { font-size: 17px; }
   .tracks, .tracks.tag-tracks, .thread-foot { padding-left: 0; }
   .tag-frame { grid-template-columns: 1fr; }
-  .tag-side { min-height: 0; flex-direction: row; justify-content: space-between; align-items: flex-start; border-right: 0; border-bottom: 3px solid var(--line); }
+  .tag-side { min-height: 0; flex-direction: row; justify-content: space-between; align-items: flex-start; }
+  .tag-collapse-bottom { display: none; }
+  /* expanded on a phone: the box with Collapse stays pinned under the header */
+  .thread.expanded .tag-side, .thread.expanded .thread-more {
+    position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
+  }
+  .close-btn { display: inline-flex; margin-left: auto; }
   .tag-more { align-items: flex-end; }
   .tag-more .more-toggle { margin: 0 -8px 0 0; }
   .thread-more { position: static; width: auto; flex-direction: row; align-items: center; gap: 12px; margin: 0 0 4px; }
