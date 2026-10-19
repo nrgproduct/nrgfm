@@ -26,7 +26,8 @@ YTKEY = os.environ.get("YT_API_KEY", "").strip()
 START = time.time()
 
 SEP = re.compile(r"\s+[-–—]\s+|\s*[-–—]\s+|\s+[-–—]\s*")
-NOISE = re.compile(r"\s*[\(\[](official|lyric|lyrics|audio|video|hd|hq|4k|remaster|remastered|full album|visuali[sz]er|explicit|clip|music video|mv|pv)[^\)\]]*[\)\]]", re.I)
+NOISE = re.compile(r"\s*[\(\[][^\)\]]*\b(official|lyric|lyrics|audio|video|hd|hq|4k|remaster|remastered|full album|visuali[sz]er|explicit|clip|music video|mv|pv|cd audio)\b[^\)\]]*[\)\]]", re.I)
+TRAIL = re.compile(r"\s*(\|.*|\b(19|20)\d\d\s*$|\bHQ\s*$|\bHD\s*$)", re.I)
 
 
 def get_json(url, headers=None, timeout=20):
@@ -39,8 +40,10 @@ def clean(s):
     s = html.unescape(s or "")
     s = re.sub(r"[\u200b-\u200f\u202a-\u202e\ufeff]", "", s)
     s = re.sub(r"^\s*(premiere|exclusive|free download|free dl)\s*[:|]\s*", "", s, flags=re.I)
+    s = s.replace("’", "'").replace("‘", "'")
     s = NOISE.sub("", s)
     s = re.sub(r"\s*\((19|20)\d\d\)\s*$", "", s)
+    s = TRAIL.sub("", s).strip() or s  # a song called "1999" stays "1999"
     return re.sub(r"\s+", " ", s).strip(" -–—\"'")
 
 
