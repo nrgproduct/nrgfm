@@ -31,10 +31,10 @@ button, input { font: inherit; color: inherit; }
   padding: 14px; background: var(--surface); border-radius: var(--radius-lg);
 }
 .add-panel .add-form { margin: 4px 0 2px; }
-.thread .add-form { margin: 0 0 18px 176px; }
+.thread .add-form { margin: 0 0 18px 184px; }
 .thread .edit-wrap { list-style: none; }
 .thread .edit-wrap .add-form { margin: 4px 0 10px 56px; }
-.thread > .edit-wrap .add-form { margin: -4px 0 12px 176px; }
+.thread > .edit-wrap .add-form { margin: -4px 0 12px 184px; }
 .af-field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
 .af-field input {
   height: 40px; padding: 0 12px; color: var(--text);
@@ -58,7 +58,7 @@ button, input { font: inherit; color: inherit; }
 .mh-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mh-thread { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btn.ghost.move-btn[aria-expanded="true"] { border-color: var(--jade); color: var(--jade); }
-.moved-note { margin: 0 0 8px 176px; color: var(--jade); font-size: 14px; }
+.moved-note { margin: 0 0 8px 184px; color: var(--jade); font-size: 14px; }
 .moved-note a { color: inherit; }
 .af-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
 /* tags */
@@ -97,25 +97,24 @@ button.tag-chip:hover { border-color: var(--muted); }
 .sub-note { color: var(--muted); }
 .t-sub:empty { display: none; }
 /* tag threads: one frame around the name box and the tracks */
-.thread.tag-thread { padding: 6px 0; }
+.thread.tag-thread { padding: 0; }
 .tag-frame {
-  display: grid; grid-template-columns: 160px 1fr; align-items: stretch; margin: 0 -8px; /* as wide as a track thread's rows */
-  border: 1px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm);
+  display: grid; grid-template-columns: 168px 1fr; align-items: stretch;
 }
-.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; min-height: 90px; }
+.tag-side { display: flex; flex-direction: column; gap: 14px; padding: 12px 8px; min-height: 90px; }
 .tag-side .tag-collapse-bottom { margin-top: auto; margin-left: -8px; align-self: flex-start; }
 .tag-label { display: flex; flex-direction: column; gap: 2px; }
 .tag-name { color: var(--text); font-size: 19px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
 .tag-count { color: var(--muted); font-size: 14px; }
 .tag-more { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: auto; }
 .tag-more .more-toggle { margin: 0 -8px 0 0; }
-.tag-list { list-style: none; margin: 0; padding: 4px 4px 4px 13px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
+.tag-list { list-style: none; margin: 0; padding: 4px 0 4px 8px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
 /* Expand / Collapse and the counter */
 .more-toggle {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center;
   height: 30px; padding: 0 8px; margin-left: -8px; border-radius: var(--radius-sm);
   font-size: 14px; font-weight: 400; color: var(--muted); white-space: nowrap;
-  text-decoration: underline; text-underline-offset: 3px; /* looks like "Add a track here" */
+  text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; /* like "Add a track here", dotted */
 }
 .more-toggle:hover, .more-toggle:active { background: none; color: var(--text); }
 .more-toggle:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
@@ -132,7 +131,7 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .tracks.scroll-list { position: relative; }
 /* long track threads: Expand and the counter under the thumbnail */
 .thread.long { position: relative; }
-.thread-more { position: absolute; z-index: 2; left: 0; top: 116px; bottom: 44px; width: 152px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.thread-more { position: absolute; z-index: 2; left: 8px; top: 146px; bottom: 44px; width: 152px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .thread-more .more-info { order: 2; }
 /* laptop, long thread: counter and Expand/Collapse at the bottom right of the left column */
 @media (min-width: 641px) {
@@ -234,15 +233,16 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 /* main track: same box treatment as the replies (hover, playing) */
 .head-row {
   display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
-  margin: 10px -8px; padding: 8px; border-radius: var(--radius-sm);
+  margin: 10px 0; padding: 8px; border-radius: var(--radius-sm); position: relative;
 }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
 .head-row.hit .t-title, .track.hit .tr-title {
-  display: inline; background: var(--seek, var(--jade)); color: var(--jade-ink); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
+  display: inline; background: var(--hit, var(--seek)); color: var(--text); padding: 2px 7px; margin: 0 -3px; border-radius: 4px; line-height: 1.55;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .head-row.dead .t-title { color: var(--rust); text-decoration: line-through; }
+.head-row.dead.hit .t-title, .track.dead.hit .tr-title { color: var(--text); }
 .thread-head {
   display: grid; grid-template-columns: 160px 1fr; gap: 16px; align-items: start;
   width: 100%; padding: 0; text-align: left; color: inherit;
@@ -269,7 +269,7 @@ img.broken { visibility: hidden; }
 .t-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; }
 
 /* expanded */
-.tracks { list-style: none; margin: 0 -8px 6px 0; padding: 0 0 0 168px; }
+.tracks { list-style: none; margin: 0 0 6px 0; padding: 0 0 0 176px; }
 .track {
   display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center;
   padding: 6px 8px; border-radius: var(--radius-sm);
@@ -284,7 +284,7 @@ img.broken { visibility: hidden; }
 .tr-title { display: block; font-weight: 500; overflow-wrap: anywhere; }
 .tr-sub { display: block; color: var(--muted); font-size: 13px; }
 .track.dead .tr-title { color: var(--rust); text-decoration: line-through; }
-.thread-foot { padding: 4px 0 18px 176px; display: flex; gap: 16px; }
+.thread-foot { padding: 4px 0 18px 184px; display: flex; gap: 16px; }
 .linkbtn { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 .linkbtn:hover { color: var(--text); }
 .more { height: 1px; }
@@ -502,10 +502,16 @@ img.broken { visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 /* search: a result without a track list still needs room for "Thread" under the thumbnail */
-@media (min-width: 641px) { .thread.searching:not(:has(.search-foot)):not(:has(.tracks)) { padding-bottom: 44px; } }
+
 /* bordered tag threads next to each other: keep the spacing, drop the divider line between them */
-/* a tag thread has its own frame: no divider line under it, nor above it */
-.thread.tag-thread, .thread:has(+ .tag-thread) { border-bottom-color: transparent; }
+/* tag threads and long threads: a dotted frame exactly as wide as the divider lines, no divider next to it */
+.thread.framed:not(.searching) { position: relative; margin: 8px 0; }
+.thread.framed:not(.searching)::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  border: 1px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm);
+}
+.thread.framed:not(.searching), .thread:has(+ .framed:not(.searching)) { border-bottom-color: transparent; }
+.thread.long.framed:not(.searching) .thread-foot { padding-bottom: 12px; }
 
 /* add/edit cards: the arrow and the More info panel under it */
 .btn.ghost.more-info-btn { width: 40px; padding: 0; font-size: 16px; }
@@ -532,14 +538,30 @@ img.broken { visibility: hidden; }
 #discogsBtn[hidden] { display: none; }
 .thread-pop { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* the main post's date: month and year, top right, ending where "YouTube" ends */
-@media (min-width: 641px) {
-  .head-side { position: relative; align-self: stretch; display: flex; align-items: center; }
-  .t-month { position: absolute; top: 0; right: 4px; color: var(--muted); font-size: 13px; line-height: 23.75px; white-space: nowrap; }
-  .t-date-phone, .t-date.only-date { display: none; }
-}
-@media (max-width: 640px) { .t-month { display: none; } }
+
 /* move the thread up or down in the feed */
 .af-date-row { display: flex; align-items: center; gap: 6px; }
 .af-date-row .btn.ghost { width: 40px; padding: 0; font-size: 16px; }
 .af-date-row .hint { margin-left: 6px; font-size: 13px; }
 .foot-count .src { padding: 4px; font-size: 13px; }
+
+/* the post date under the thumbnail; in search results it leads to the thread, with the track count under it */
+.head-row .thumb { margin-bottom: 26px; }
+.head-row.two-lines .thumb { margin-bottom: 44px; }
+.t-when { position: absolute; left: 8px; bottom: 8px; display: grid; gap: 2px; color: var(--muted); font-size: 13px; line-height: 18px; }
+.when-link { all: unset; cursor: pointer; color: var(--muted); text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.when-link:hover { color: var(--text); }
+/* the list is as wide as the space left of the video player (laptop) */
+@media (min-width: 641px) {
+  main { max-width: max(600px, calc(100% - 366px)); }
+  .top { padding-right: max(24px, min(calc(100% - 576px), 390px)); }
+}
+/* iPhone: the body scrolls instead of the window, so the browser's bars stay put */
+html.inner-scroll, html.inner-scroll body { height: 100%; overflow: hidden; }
+html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; }
+@media (max-width: 640px) {
+  .thread.framed:not(.searching) { padding: 0 8px; }
+  .head-row .thumb { margin-bottom: 24px; }
+  .head-row.two-lines .thumb { margin-bottom: 42px; }
+  .t-when { left: 0; bottom: 6px; }
+}

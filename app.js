@@ -189,7 +189,7 @@ function runSearch() {
   }
   rendered = 0;
   $("#threads").replaceChildren();
-  if (terms.length) scrollTo(0, 0); // results start at the top, wherever you were in the feed
+  if (terms.length) pageScrollTo(0); // results start at the top, wherever you were in the feed
   renderMore();
 }
 
@@ -203,7 +203,7 @@ function tagLine(tr, extra) {
   const tags = Object.keys(tr.tags || {});
   return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
-function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); scrollTo(0, 0); }
+function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
 const RECOVERED = "title recovered from Internet Archive";
 
@@ -240,6 +240,21 @@ const fixedRows = new Map();   // phone: the window kept after playing from a sc
 const userToggled = new Set();
 
 const phone = () => window.matchMedia("(max-width: 640px)").matches;
+/* iPhone: the page scrolls inside the body instead of the window, so the browser's bars don't pop up and down */
+const INNER_SCROLL = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) && phone();
+if (INNER_SCROLL) document.documentElement.classList.add("inner-scroll");
+const scroller = () => (INNER_SCROLL ? document.body : window);
+const pageScrollBy = (y, smooth) => scroller().scrollBy({ top: y, behavior: smooth ? "smooth" : "instant" });
+const pageScrollTo = (y) => scroller().scrollTo({ top: y, behavior: "instant" });
+/* bring an element fully into view (between the header and the player), moving as little as possible */
+function revealWhole(node, smooth = true) {
+  const r = node.getBoundingClientRect(), top = headerBottom() + 8;
+  const bottom = innerHeight - ($("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height) - 8;
+  let dy = 0;
+  if (r.bottom > bottom) dy = r.bottom - bottom;
+  if (r.top - dy < top) dy = r.top - top; // too tall: show its top
+  if (dy) pageScrollBy(dy, smooth);
+}
 const headerBottom = () => $(".top").getBoundingClientRect().bottom;
 const btn = (cls, label, fn) => el("button", { class: "more-toggle " + cls, onclick: fn }, label);
 
@@ -258,7 +273,7 @@ function toggleExpand(t, hits) {
   wasOpen ? expanded.delete(t.id) : expanded.add(t.id);
   const fresh = rerenderKeep(t, hits);
   if (!fresh) return;
-  if (wasOpen && fresh.getBoundingClientRect().top < headerBottom()) fresh.scrollIntoView({ block: "start" });
+  if (wasOpen) pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 6); // collapsed: the thread at the top
   fitList(fresh, !wasOpen);
   const list = fresh.querySelector(".scroll-list"); // carry on from where you were in the list
   if (list && keep) { list.scrollTop = keep; fresh.querySelector(".scroll-list").dataset.centred = "1"; updateListPos(fresh); }
@@ -300,9 +315,10 @@ function fitList(node, scroll) {
     const anchor = phone() ? node.querySelector(".tag-side, .thread-more") || node : node;
     const above = list.getBoundingClientRect().top - anchor.getBoundingClientRect().top;
     list.style.maxHeight = Math.max(240, innerHeight - dock - headerBottom() - 8 - above - 12) + "px";
-    document.body.style.minHeight = document.documentElement.scrollHeight + innerHeight + "px"; // room to scroll even near the end
-    scrollBy(0, anchor.getBoundingClientRect().top - headerBottom() - 8);
-    document.body.style.minHeight = "";
+    const room = INNER_SCROLL ? $("main") : document.body;
+    room.style.minHeight = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) + innerHeight + "px"; // room to scroll even near the end
+    pageScrollBy(anchor.getBoundingClientRect().top - headerBottom() - 8);
+    room.style.minHeight = "";
     updateListPos(node);
     return;
   }
@@ -337,7 +353,7 @@ function tagThreadNode({ t, hits }) {
   const scrolls = many && all;
   const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW }, rows);
   const pos = () => el("span", { class: "more-pos" }, `1 of ${n}`);
-  const node = el("li", { class: "thread tag-thread" + (open ? " expanded" : ""), id: "th-" + t.id },
+  const node = el("li", { class: "thread tag-thread framed" + (open ? " expanded" : ""), id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
@@ -374,14 +390,14 @@ function threadNode({ t, hits }) {
   const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
   const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
   const scrolling = searching && scrollOn.has(t.id);
-  let idx, listCls = "tracks", show = limit - 1;
+  let idx, listCls = "tracks", show = long ? TAG_PREVIEW : limit - 1; // long threads show 5, like tags
   if (open && hits && mobile) { idx = range(1, n); }                     // phone search: the whole thread
   else if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
   else if (open) { idx = range(1, n); }                                 // short thread: simply all of it
   else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = Math.max(SEARCH_AROUND, searchRows(t, hits).length); }
   else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
   else if (long && !mobile) { idx = range(1, n); listCls += " scroll-list"; }
-  else if (long) { idx = range(1, limit); }
+  else if (long) { idx = range(1, 1 + TAG_PREVIEW); }
   else { idx = range(1, n); }
   const head = t.tracks[0], hi = info(head);
   const lo = idx.length ? idx[0] + 1 : 1, hiIdx = idx.length ? idx[idx.length - 1] + 1 : 1;
@@ -389,17 +405,17 @@ function threadNode({ t, hits }) {
   const pos = () => el("span", { class: "more-pos" }, posText);
   const expandBtn = (cls = "") => btn("tg-expand " + cls, open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
   const scrollBtn = () => el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll");
-  const threadBtn = () => btn("thread-link", "Thread", () => goToThread(t));
+  const day = fmtDay(head.shown_date || head.date);
 
   // what goes where
   let side = null, foot = null, after = null;
-  const countText = () => el("span", { class: "foot-count" },
-    el("span", { class: "row-links", "aria-hidden": "true" }, el("span", { class: "linkbtn edit-btn" }, "Edit"), el("span", { class: "src" }, "YouTube")),
-    el("span", { class: "more-pos" }, `${n} ${n === 1 ? "track" : "tracks"}`));
+  // under the thumbnail: the post date; in search results it leads to the thread, with the track count under it
+  const when = el("div", { class: "t-when" },
+    hits ? el("button", { class: "when-link", title: "Show this thread in the feed", onclick: () => goToThread(t) }, day) : el("span", {}, day),
+    hits && n > 1 ? el("span", { class: "more-pos" }, `${n} ${n === 1 ? "track" : "tracks"}`) : null);
   if (hits && !mobile) {
-    // laptop search: "Thread" under the thumbnail; track count and Expand under the tracks
-    side = el("div", { class: "thread-more thread-more-search" }, threadBtn());
-    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), countText());
+    // laptop search: Expand under the tracks
+    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {}));
     else if (open && long) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
@@ -410,19 +426,16 @@ function threadNode({ t, hits }) {
       el("div", { class: "more-btns" }, expandBtn()));
     if (!open) after = el("div", { class: "more-after" }, pos(), expandBtn()); // phone: again under the list
   }
-  const li = el("li", { class: "thread" + (side ? " long" : "") + (open ? " expanded" : "") + (hits ? " searching" : ""), id: "th-" + t.id },
-    el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
+  const li = el("li", { class: "thread" + (side ? " long framed" : "") + (open ? " expanded" : "") + (hits ? " searching" : ""), id: "th-" + t.id },
+    el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit", hits && n > 1 && "two-lines"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
         el("span", { class: "thread-main" },
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
-          el("span", { class: "t-sub t-date" + (hi.recovered ? "" : " only-date") },
-            el("span", { class: "t-date-phone" }, fmtDate(head.shown_date || head.date) + (hi.recovered ? " · " : "")),
-            hi.recovered ? RECOVERED : null))),
-      el("span", { class: "head-side" },
-        el("span", { class: "t-month", title: fmtDay(head.shown_date || head.date) }, fmtDate(head.shown_date || head.date)),
-        rowLinks(t, 0, hi))),
+          hi.recovered ? el("span", { class: "t-sub t-date" }, RECOVERED) : null)),
+      when,
+      el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
     side,
     n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
     foot, after,
@@ -446,7 +459,7 @@ function goToThread(t) {
   while (rendered <= at && rendered < shown.length) renderMore();
   const node = document.getElementById("th-" + t.id);
   if (!node) return;
-  const place = () => scrollBy(0, node.getBoundingClientRect().top - headerBottom() - 8);
+  const place = () => pageScrollBy(node.getBoundingClientRect().top - headerBottom() - 8);
   place();
   // long threads above size their boxes a moment later; place it again once they have
   requestAnimationFrame(() => requestAnimationFrame(() => { place(); setTimeout(place, 150); }));
@@ -923,7 +936,10 @@ function addForm(thread, edit, row) {
   const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : [], host);
   const more = moreInfo(tr, edit, tags);
   const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
-    "aria-label": "More info", onclick: (e) => { const open = more.hidden; more.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); if (open) more.querySelector("textarea").focus(); } }, "▾");
+    "aria-label": "More info", onclick: (e) => {
+      const open = more.hidden; more.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open));
+      if (open) { more.querySelector("textarea").focus({ preventScroll: true }); revealWhole(form); }
+    } }, "▾");
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
       el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
@@ -1066,7 +1082,8 @@ function toggleEditForm(t, i, row) {
   row.after(wrap);
   const box = wrap.closest(".scroll-list"); // inside a scrolling box: make room for the card
   if (box) { box.style.maxHeight = box.clientHeight + wrap.offsetHeight + "px"; wrap.scrollIntoView({ block: "nearest" }); }
-  form.tags.input.focus(); // editing usually means tagging: start in the tag field
+  form.tags.input.focus({ preventScroll: true }); // editing usually means tagging: start in the tag field
+  revealWhole(form);
 }
 
 async function writeInbox(item, kind) {
@@ -1204,7 +1221,7 @@ async function moveTrack(form, { t, i }, dest) {
   // say where it went, on the spot where the track was
   const src = document.getElementById("th-" + t.id);
   if (src) {
-    const note = el("p", { class: "moved-note" }, "Moved to: ", el("a", { href: "#th-" + dest.id, onclick: (e) => { e.preventDefault(); const n = document.getElementById("th-" + dest.id); if (n) n.scrollIntoView({ behavior: "smooth", block: "center" }); else { history.replaceState(null, "", `#t/${dest.id}`); threads.unshift(threads.splice(threads.indexOf(dest), 1)[0]); runSearch(); scrollTo(0, 0); } } }, threadLabel(dest)));
+    const note = el("p", { class: "moved-note" }, "Moved to: ", el("a", { href: "#th-" + dest.id, onclick: (e) => { e.preventDefault(); const n = document.getElementById("th-" + dest.id); if (n) n.scrollIntoView({ behavior: "smooth", block: "center" }); else { history.replaceState(null, "", `#t/${dest.id}`); threads.unshift(threads.splice(threads.indexOf(dest), 1)[0]); runSearch(); pageScrollTo(0); } } }, threadLabel(dest)));
     src.querySelector(".thread-foot").before(note);
     setTimeout(() => note.remove(), 8000);
   }
@@ -1298,7 +1315,11 @@ let lastEsc = 0;
 function showPlaying() {
   if (!playing) return;
   const row = [...document.querySelectorAll(".playing")].find((r) => r.offsetParent);
-  if (row) row.scrollIntoView({ block: "center", behavior: "smooth" });
+  if (!row) return;
+  const box = row.closest(".scroll-list"); // inside a scrolling box: first bring it into the box's view
+  if (box) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - row.offsetHeight) / 2;
+  const top = headerBottom(), dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  pageScrollBy(row.getBoundingClientRect().top - (top + (innerHeight - dock - top) / 3), true); // a third of the way down
 }
 /* typing a letter or number anywhere starts a search */
 document.addEventListener("keydown", (e) => {
@@ -1368,7 +1389,7 @@ $("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if 
 // phones: Enter, or touching anywhere outside the search field, puts the keyboard away
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
 document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
-$("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; syncClear(); history.replaceState(null, "", location.pathname); runSearch(); scrollTo(0, 0); };
+$("#home").onclick = (e) => { e.preventDefault(); $("#q").value = ""; syncClear(); history.replaceState(null, "", location.pathname); runSearch(); pageScrollTo(0); };
 
 (async function boot() {
   try {

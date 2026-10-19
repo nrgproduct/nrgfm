@@ -12,6 +12,7 @@
   --jade-ink: #0c1a14;      /* text on the accent */
   --accent-dim: #4f9e7a;     /* Add track, Expand buttons */
   --seek: #6fcb9f;         /* the playhead fill */
+  --hit: #3f8c69;          /* search highlight */
   --dots: #7fae96;         /* dotted frames and dividers */
   --accent-dim-hover: #5ab087;
 }
