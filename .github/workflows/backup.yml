@@ -1,0 +1,36 @@
+name: Weekly backup
+
+# Every Sunday night (and whenever started by hand): saves the whole site as a GitHub Release
+# called "Backup YYYY-MM-DD" with two files:
+#   nrgfm-files-<date>.zip   every file of the site as it is now (code, data, tags, change log)
+#   nrgfm-history-<date>.bundle  the full history of every change (can be restored with git clone)
+# Releases stay until deleted. Find them under "Releases" on the repository page.
+on:
+  schedule:
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Make the backup files
+        run: |
+          d=$(date -u +%F)
+          echo "D=$d" >> $GITHUB_ENV
+          git archive --format=zip -o "nrgfm-files-$d.zip" HEAD
+          git bundle create "nrgfm-history-$d.bundle" --all
+          ls -la nrgfm-*
+      - name: Publish as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "backup-$D" "nrgfm-files-$D.zip" "nrgfm-history-$D.bundle" \
+            --title "Backup $D" --notes "Weekly backup: all site files plus the full change history." --latest=false \
+          || gh release upload "backup-$D" "nrgfm-files-$D.zip" "nrgfm-history-$D.bundle" --clobber

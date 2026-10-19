@@ -637,7 +637,8 @@ function play(t, i) {
     adapter = makeVimeo(box, tr);
   } else if (tr.platform === "bandcamp" && m.bandcamp_embed) {
     kind = "bandcamp"; // Bandcamp's player is 120px high
-    adapter = makePlain(box, `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=182c24/linkcol=6fcb9f/artwork=small/tracklist=false/transparent=true/`, x.title);
+    const css = getComputedStyle(document.documentElement), hex = (v) => css.getPropertyValue(v).trim().replace("#", "");
+    adapter = makePlain(box, `https://bandcamp.com/EmbeddedPlayer/${m.bandcamp_embed}/size=large/bgcol=${hex("--surface")}/linkcol=${hex("--jade")}/artwork=small/tracklist=false/transparent=true/`, x.title);
   } else if (tr.platform === "mixcloud") {
     kind = "audio";
     adapter = makePlain(box, `https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&autoplay=1&feed=${encodeURIComponent(new URL(tr.url).pathname)}`, x.title);

@@ -1,0 +1,15 @@
+/* nrgfm colour theme: blue (same brightness as green, muted slate blue)
+   To switch theme, change the theme file linked in index.html. */
+:root {
+  --bg: #101720;
+  --surface: #18212c;
+  --surface-2: #212c3a;
+  --line: #2b3846;
+  --line-strong: #5b7085;      /* thread dividers on phones */
+  --text: #e4eaee;
+  --muted: #8e9ca8;
+  --jade: #6f9ecb;          /* accent (name kept from the first theme) */
+  --jade-ink: #0c121a;      /* text on the accent */
+  --accent-dim: #4f769e;     /* Add track, Expand buttons */
+  --accent-dim-hover: #5a86b0;
+}
