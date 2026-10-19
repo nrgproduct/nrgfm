@@ -224,7 +224,7 @@ function rowLinks(t, i, x) {
    (Expand shows all of them). */
 const TAG_PREVIEW = 5;
 const SEARCH_AROUND = 5;       // in search results: 5 replies, the hit in the middle
-const threadLimit = () => (phone() ? 12 : 30); // tracks shown before Expand appears
+const threadLimit = () => (phone() ? 20 : 30); // tracks shown before Expand appears
 const expanded = new Set();    // threads opened with Expand
 const scrollOn = new Set();    // search results whose list was switched to scrolling
 const userToggled = new Set();
@@ -328,28 +328,42 @@ function tagThreadNode({ t, hits }) {
   return node;
 }
 
+/* Search results: the hits next to each other, padded with the tracks around them to 5 replies.
+   More than 5 hits: all hits, no padding. Returns reply indices (1 = first reply). */
+function searchRows(t, hits) {
+  const n = t.tracks.length, found = [...hits].filter((i) => i > 0).sort((x, y) => x - y);
+  if (found.length > SEARCH_AROUND) return found;
+  if (!found.length) return range(1, Math.min(n, 1 + SEARCH_AROUND));
+  const pick = new Set(found);
+  let before = found[0] - 1, after = found[found.length - 1] + 1, turn = 0;
+  while (pick.size < Math.min(SEARCH_AROUND, n - 1)) {
+    // alternate above / below so the hits sit in the middle
+    if ((turn++ % 2 === 0 && before >= 1) || after >= n) { if (before >= 1) pick.add(before--); }
+    else if (after < n) pick.add(after++);
+  }
+  return [...pick].sort((x, y) => x - y);
+}
+const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a + k);
+
 function threadNode({ t, hits }) {
   if (t.kind === "tag") return tagThreadNode({ t, hits });
   const n = t.tracks.length, limit = threadLimit();
-  const long = n > limit, open = long && expanded.has(t.id);
-  const firstHit = hits ? [...hits].sort((x, y) => x - y).find((i) => i > 0) : undefined;
-  const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // show the hit with 2 tracks above and below
+  const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
+  const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
   const scrolling = searching && scrollOn.has(t.id);
-  let from = 1, to = n, list = null, listCls = "tracks", show = limit - 1;
-  if (open) { listCls += " scroll-list open"; }
-  else if (searching && !scrolling) {
-    const h = firstHit || 1;
-    from = Math.max(1, Math.min(h - 2, n - SEARCH_AROUND)); to = from + SEARCH_AROUND;
-  } else if (scrolling) { listCls += " scroll-list"; show = SEARCH_AROUND; }
-  else if (long && !phone()) { listCls += " scroll-list"; }
-  else if (long) { to = limit; }
+  let idx, listCls = "tracks", show = limit - 1;
+  if (open) { idx = range(1, n); listCls += " scroll-list open"; }
+  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = SEARCH_AROUND; }
+  else if (searching) { idx = searchRows(t, hits); }
+  else if (long && !phone()) { idx = range(1, n); listCls += " scroll-list"; }
+  else if (long) { idx = range(1, limit); }
+  else { idx = range(1, n); }
   const controls = long || searching;
   const head = t.tracks[0], hi = info(head);
-  const posText = `${from === 1 ? 1 : from + 1}–${Math.min(n, to)} of ${n}`;
-  const buttons = (where) => [
-    (where === "top" || !open) ? btn("tg-expand", open ? "Collapse" : "Expand", () => toggleExpand(t, hits)) : null,
-    searching ? btn("tg-scroll" + (scrolling ? " on" : ""), scrolling ? "Stop" : "Scroll", () => toggleScroll(t, hits)) : null,
-  ];
+  const lo = idx.length ? idx[0] + 1 : 1, hiIdx = idx.length ? idx[idx.length - 1] + 1 : 1;
+  const posText = `${!searching || lo === 2 ? 1 : lo}–${hiIdx} of ${n}`;
+  const pos = () => el("span", { class: "more-pos" }, posText);
+  const expandBtn = () => btn("tg-expand", open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
   const li = el("li", { class: "thread" + (controls ? " long" : "") + (open ? " expanded" : "") + (searching ? " searching" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
@@ -360,16 +374,21 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
     controls ? el("div", { class: "thread-more" },
-      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), el("span", { class: "more-pos" }, posText)),
-      el("div", { class: "more-btns" }, buttons("top")),
-      // laptop: the same buttons again at the bottom of the left column
-      (open || searching) ? el("div", { class: "more-btns more-bottom" }, open ? btn("", "Collapse", () => toggleExpand(t, hits)) : buttons("bottom")) : null) : null,
-    n > 1 ? (list = el("ol", { class: listCls, "data-show": show }, t.tracks.slice(from, to).map((tr, k) => trackRow(t, tr, k + from, hits)))) : null,
-    // phone: Expand (and Scroll) again under the list while collapsed
-    controls && !open ? el("div", { class: "more-after" }, buttons("bottom")) : null,
-    el("div", { class: "thread-foot" },
+      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
+      el("div", { class: "more-btns" }, expandBtn()),
+      // laptop: Collapse again at the bottom of the left column
+      open ? el("div", { class: "more-btns more-bottom" }, btn("", "Collapse", () => toggleExpand(t, hits))) : null) : null,
+    n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
+    // search results: "Scroll" centred under the tracks (green while on); the counter again on phones
+    searching ? el("div", { class: "search-foot" }, pos(),
+      el("button", { class: "linkbtn scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll"),
+      el("span", {})) : null,
+    // phone: counter and Expand again under a long list
+    long && !open && !searching ? el("div", { class: "more-after" }, pos(), expandBtn()) : null,
+    searching ? null : el("div", { class: "thread-foot" },
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
-  if (list && list.classList.contains("scroll-list")) {
+  const list = li.querySelector(".scroll-list");
+  if (list) {
     list.addEventListener("scroll", () => updateListPos(li), { passive: true });
     requestAnimationFrame(() => fitList(li));
   }
