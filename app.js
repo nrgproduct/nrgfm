@@ -244,8 +244,9 @@ function toggleExpand(t, hits) {
   markPlaying();
   // after collapsing a long thread, keep its top in view
   if (wasOpen && fresh.getBoundingClientRect().top < 0) fresh.scrollIntoView({ block: "start" });
-  if (t.kind === "tag") fitTagList(fresh);
+  if (t.kind === "tag") fitTagList(fresh, !wasOpen);
 }
+addEventListener("resize", () => document.querySelectorAll(".tag-thread").forEach((n) => fitTagList(n)));
 
 /* A tag: its name, track count and Expand on the left (blue), the newest tagged tracks on the right.
    Expanded, the list scrolls inside a box as tall as the screen allows. */
@@ -258,27 +259,24 @@ function tagThreadNode({ t, hits }) {
       el("span", { class: "tag-name" }, t.name),
       el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
       n > TAG_PREVIEW ? moreToggle(t, hits, n) : null,
-      n > TAG_PREVIEW ? el("span", { class: "tag-pos" }, `1–${Math.min(n, TAG_PREVIEW)} of ${n}`) : null),
-    list,
-    el("div", { class: "thread-foot tag-foot" },
-      el("button", { class: "linkbtn", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")));
+      n > TAG_PREVIEW ? el("span", { class: "tag-pos" }, `1–${Math.min(n, TAG_PREVIEW)} of ${n}`) : null,
+      el("button", { class: "linkbtn tag-copy", onclick: (e) => copyLink(t, e.target) }, "Copy thread link")),
+    list);
   if (open) {
     list.addEventListener("scroll", () => updateTagScroll(node), { passive: true });
     requestAnimationFrame(() => fitTagList(node));
   }
   return node;
 }
-/* an expanded tag shows 12 tracks at a time and scrolls through the rest */
-const TAG_VISIBLE = 12;
-function fitTagList(node) {
+/* an expanded tag fills the window below its top edge (above the player) and scrolls inside */
+function fitTagList(node, scroll) {
   const list = node.querySelector(".tag-list.open");
   if (!list || !list.children.length) return;
-  const rows = [...list.children].slice(0, TAG_VISIBLE), last = rows[rows.length - 1];
-  list.style.maxHeight = last.offsetTop + last.offsetHeight + "px";
-  // keep the rows as wide as when collapsed: the scrollbar goes just outside on the right
-  list.style.marginRight = "0px"; list.style.paddingRight = "0px";
-  const bar = list.offsetWidth - list.clientWidth;
-  if (bar > 0 && innerWidth > 640) { list.style.marginRight = -(bar + 6) + "px"; list.style.paddingRight = "6px"; }
+  const header = $(".top").getBoundingClientRect().bottom;
+  if (scroll) scrollBy(0, node.getBoundingClientRect().top - header - 8); // bring the tag to the top of the window
+  const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  const room = innerHeight - dock - list.getBoundingClientRect().top - 16;
+  list.style.maxHeight = Math.max(200, room) + "px";
   updateTagScroll(node);
 }
 /* "41–52 of 299" while scrolling inside an expanded tag */
