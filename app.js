@@ -170,7 +170,7 @@ function runSearch() {
       if (hits.size) shown.push({ t, hits });
     }
     // searching a tag's name: its playlist comes first
-    shown.sort((x, y) => (y.tag ? 1 : 0) - (x.tag ? 1 : 0)); // matching tags first
+    shown.sort((x, y) => (y.tag ? 1 : 0) - (x.tag ? 1 : 0) || activity(y.t) - activity(x.t)); // tags first, then like the feed
     const tagHits = shown.filter((s) => s.tag).length, trackThreads = shown.length - tagHits;
     const n = shown.reduce((a, s) => a + (s.hits ? s.hits.size : 0), 0);
     const parts = [];
@@ -358,7 +358,8 @@ function threadNode({ t, hits }) {
   const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
   const scrolling = searching && scrollOn.has(t.id);
   let idx, listCls = "tracks", show = limit - 1;
-  if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
+  if (open && hits && mobile) { idx = range(1, n); }                     // phone search: the whole thread
+  else if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
   else if (open) { idx = range(1, n); }                                 // short thread: simply all of it
   else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = Math.max(SEARCH_AROUND, searchRows(t, hits).length); }
   else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
@@ -375,14 +376,15 @@ function threadNode({ t, hits }) {
 
   // what goes where
   let side = null, foot = null, after = null;
+  const countText = () => el("span", { class: "more-pos" }, `${n} ${n === 1 ? "track" : "tracks"}`);
   if (hits && !mobile) {
-    // laptop search: "Thread" under the thumbnail; counter, Scroll and Expand under the tracks
-    side = el("div", { class: "thread-more" }, el("div", { class: "more-btns" }, threadBtn()));
-    if (searching) foot = el("div", { class: "search-foot" }, pos(), scrollBtn(), expandBtn("foot-right"));
+    // laptop search: "Thread" under the thumbnail; track count and Expand under the tracks
+    side = el("div", { class: "thread-more thread-more-search" }, threadBtn());
+    if (searching) foot = el("div", { class: "search-foot" }, countText(), expandBtn(), el("span", {}));
     else if (open && long) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
   } else if (hits && mobile) {
-    if (searching || open) side = el("div", { class: "thread-more" }, el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()), el("div", { class: "more-btns" }, expandBtn()));
-    if (searching) foot = el("div", { class: "search-foot" }, pos(), scrollBtn(), el("span", {}));
+    // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
+    if (searching) foot = el("div", { class: "search-foot" }, pos(), scrollBtn(), expandBtn("foot-right"));
   } else if (long) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
@@ -426,8 +428,6 @@ function goToThread(t) {
   place();
   // long threads above size their boxes a moment later; place it again once they have
   requestAnimationFrame(() => requestAnimationFrame(() => { place(); setTimeout(place, 150); }));
-  node.classList.add("just-saved");
-  setTimeout(() => node.classList.remove("just-saved"), 2500);
 }
 
 function markPlaying() {
@@ -479,7 +479,9 @@ function setPlayState(isPlaying) {
   $("#playBtn").textContent = isPlaying ? "Pause" : "Play";
   $("#playBtn").setAttribute("aria-pressed", isPlaying ? "true" : "false");
 }
+let lastTime = 0;
 function setTime(cur, dur) {
+  lastTime = cur || 0;
   if (seeking) return;
   $("#tCur").textContent = fmtTime(cur);
   $("#tDur").textContent = fmtTime(dur);
@@ -975,10 +977,10 @@ async function saveEdit(form, { t, i }) {
     return;
   }
   const item = { action: "edit", thread: t.id, id: tr.id, title, url, tags: form.tags.get(), ts: Math.floor(Date.now() / 1000) };
-  const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
-  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Saving…";
+  const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button"), save = form.querySelector("button[type=submit]");
+  btns.forEach((b) => (b.disabled = true)); save.textContent = "Saving…"; msg.textContent = "";
   try { await writeInbox(item, "edit"); }
-  catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  catch (e) { msg.textContent = netMsg(e); save.textContent = "Save"; btns.forEach((b) => (b.disabled = false)); return; }
   // apply on screen right away
   if (url !== tr.url) { const p = parseLocal(url); delete tr.yt; delete tr.vimeo; Object.assign(tr, p); if (!p.yt) delete tr.yt; if (!p.vimeo) delete tr.vimeo; }
   if (title) tr.title = title; else delete tr.title;
@@ -1034,7 +1036,7 @@ function toggleMovePanel(form, edit, btn) {
 async function moveTrack(form, { t, i }, dest) {
   const tr = t.tracks[i];
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
-  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Moving…";
+  btns.forEach((b) => (b.disabled = true)); form.querySelector(".move-btn").textContent = "Moving…"; msg.textContent = "";
   try { await writeInbox({ action: "move", thread: t.id, id: tr.id, to: dest.id, ts: Math.floor(Date.now() / 1000) }, "move"); }
   catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
   if (playing && playing.thread === t) playing = null;
@@ -1061,9 +1063,9 @@ async function deleteTrack(form, { t, i }, btn) {
   if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Click again to delete"; return; }
   const tr = t.tracks[i];
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
-  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Deleting…";
+  btns.forEach((b) => (b.disabled = true)); btn.textContent = "Deleting…"; msg.textContent = "";
   try { await writeInbox({ action: "delete", thread: t.id, id: tr.id, ts: Math.floor(Date.now() / 1000) }, "delete"); }
-  catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  catch (e) { msg.textContent = netMsg(e); btn.textContent = "Delete"; btn.dataset.confirm = ""; btns.forEach((b) => (b.disabled = false)); return; }
   if (playing && playing.thread === t && playing.index === i) playing = null;
   t.tracks.splice(i, 1);
   if (t.tracks[0]) t.tracks[0].main = true;
@@ -1082,9 +1084,9 @@ async function saveTrack(form, thread) {
   const ts = Math.floor(Date.now() / 1000);
   const item = { url, title: form.title.value.trim(), thread: thread ? thread.id : "", tags: form.tags.get(), ts };
   const msg = form.querySelector(".af-msg"), btn = form.querySelector("button[type=submit]");
-  btn.disabled = true; msg.textContent = "Saving…";
+  btn.disabled = true; btn.textContent = "Saving…"; msg.textContent = "";
   try { await writeInbox(item, ""); }
-  catch (e) { msg.textContent = netMsg(e); btn.disabled = false; return; }
+  catch (e) { msg.textContent = netMsg(e); btn.textContent = "Save"; btn.disabled = false; return; }
   closeAddForm(form);
   showLocally(item);
 }
@@ -1127,6 +1129,19 @@ async function copyText(text, btn, done) {
 function copyLink(t, btn) {
   copyText(`${location.origin}${location.pathname}#t/${t.id}`, btn, "Copied");
 }
+
+/* keyboard (laptop): Space plays/pauses, Left/Right jump 5 seconds back/forward */
+document.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target;
+  if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+  if ($("#dock").hidden) return;
+  if (e.code === "Space") { e.preventDefault(); if (!$("#playBtn").disabled) $("#playBtn").click(); }
+  else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && adapter && adapter.controllable) {
+    e.preventDefault();
+    adapter.seek(Math.max(0, lastTime + (e.key === "ArrowRight" ? 5 : -5)));
+  }
+});
 
 /* ---------- boot ---------- */
 let timer;

@@ -112,7 +112,7 @@ button.tag-chip:hover { border-color: var(--muted); }
   height: 30px; padding: 0 8px; margin-left: -8px; border-radius: var(--radius-sm);
   font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap;
 }
-.more-toggle:hover { background: var(--surface-2); }
+.more-toggle:hover, .more-toggle:active { background: none; color: var(--jade); }
 .more-toggle:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
 .more-pos { color: var(--text); font-size: 13px; }
 /* an expanded list scrolls inside its own box */
@@ -141,6 +141,8 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .scroll-link.on { color: var(--jade); }
 .search-foot .more-toggle { margin: 0; }
 .search-foot .foot-right { justify-self: end; margin-right: -8px; }
+.thread-more-search { align-items: center; width: 160px; }
+.thread-more-search .more-toggle { margin: 0; }
 .thread.searching .thread-more { bottom: auto; }
 .thread.searching:not(:has(.search-foot)) , .thread:not(:has(.thread-foot)):not(:has(.search-foot)) { padding-bottom: 14px; }
 .tag-label .more-pos { display: none; }
@@ -355,7 +357,11 @@ img.broken { visibility: hidden; }
 .ctl:hover:not(:disabled) { background: var(--surface-2); }
 .ctl:disabled { opacity: .35; cursor: default; }
 .ctl[aria-pressed="true"] { background: var(--surface-2); color: var(--jade); }
-.ctl.play { min-width: 72px; justify-content: center; background: var(--jade); color: var(--jade-ink); font-weight: 700; }
+.ctl.play {
+  min-width: 72px; justify-content: center; background: var(--jade); color: var(--jade-ink); font-weight: 700;
+  /* a green ring with a thin dark gap inside, drawn inside the button so it doesn't grow */
+  box-shadow: inset 0 0 0 2px var(--jade), inset 0 0 0 4px var(--surface);
+}
 .ctl.play:hover:not(:disabled) { background: var(--jade); filter: brightness(1.08); }
 .ctl.play[aria-pressed="true"] { background: var(--jade); color: var(--jade-ink); }
 .dock.no-transport .seekrow .time { visibility: hidden; }
