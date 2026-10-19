@@ -137,9 +137,11 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 .more-after { display: none; }
 /* search results: Scroll centred under the tracks */
 .search-foot { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px 0 18px 168px; }
-.search-foot .more-pos { visibility: hidden; }
+.search-foot .more-pos { visibility: visible; }
 .scroll-link.on { color: var(--jade); }
 .search-foot .more-toggle { margin: 0; }
+.search-foot .foot-right { justify-self: end; margin-right: -8px; }
+.thread.searching .thread-more { bottom: auto; }
 .thread.searching:not(:has(.search-foot)) , .thread:not(:has(.thread-foot)):not(:has(.search-foot)) { padding-bottom: 14px; }
 .tag-label .more-pos { display: none; }
 .tag-chip.suggest { border-style: dashed; color: var(--muted); }
@@ -424,6 +426,7 @@ img.broken { visibility: hidden; }
   .more-after { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 2px 0 0; }
   .search-foot { padding: 6px 0 14px; }
   .search-foot .more-pos { visibility: visible; }
+  .tag-label:has(.more-pos) .tag-count { display: none; }
   /* a wider clear button, easier to hit */
   .btn.square { width: 50px; border-color: var(--text); }
   .search input { padding-right: 64px; }

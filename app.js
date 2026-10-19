@@ -150,6 +150,7 @@ function refreshTags() {
 /* ---------- search ---------- */
 function runSearch() {
   query = fold($("#q").value);
+  fixedRows.clear(); scrollOn.clear(); keptHeight.clear();
   const terms = query.split(" ").filter(Boolean);
   if (!terms.length) {
     shown = threads.map((t) => ({ t, hits: null }));
@@ -227,6 +228,7 @@ const SEARCH_AROUND = 5;       // in search results: 5 replies, the hit in the m
 const threadLimit = () => (phone() ? 20 : 30); // tracks shown before Expand appears
 const expanded = new Set();    // threads opened with Expand
 const scrollOn = new Set();    // search results whose list was switched to scrolling
+const fixedRows = new Map();   // phone: the window kept after playing from a scrolled result
 const userToggled = new Set();
 
 const phone = () => window.matchMedia("(max-width: 640px)").matches;
@@ -255,6 +257,7 @@ function toggleScroll(t, hits) {
   const old = document.querySelector(`#th-${CSS.escape(t.id)} .tracks`);
   if (old && !scrollOn.has(t.id)) keptHeight.set(t.id, old.getBoundingClientRect().height);
   scrollOn.has(t.id) ? scrollOn.delete(t.id) : scrollOn.add(t.id);
+  fixedRows.delete(t.id);
   const fresh = rerenderKeep(t, hits);
   if (fresh) fitList(fresh);
 }
@@ -350,24 +353,44 @@ const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a +
 
 function threadNode({ t, hits }) {
   if (t.kind === "tag") return tagThreadNode({ t, hits });
-  const n = t.tracks.length, limit = threadLimit();
+  const n = t.tracks.length, limit = threadLimit(), mobile = phone();
   const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
   const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
   const scrolling = searching && scrollOn.has(t.id);
   let idx, listCls = "tracks", show = limit - 1;
-  if (open) { idx = range(1, n); listCls += " scroll-list open"; }
-  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = Math.max(SEARCH_AROUND, searchRows(t, hits).length); } // keep the box as tall as the results were
-  else if (searching) { idx = searchRows(t, hits); }
-  else if (long && !phone()) { idx = range(1, n); listCls += " scroll-list"; }
+  if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
+  else if (open) { idx = range(1, n); }                                 // short thread: simply all of it
+  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = Math.max(SEARCH_AROUND, searchRows(t, hits).length); }
+  else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
+  else if (long && !mobile) { idx = range(1, n); listCls += " scroll-list"; }
   else if (long) { idx = range(1, limit); }
   else { idx = range(1, n); }
-  const controls = long || searching;
   const head = t.tracks[0], hi = info(head);
   const lo = idx.length ? idx[0] + 1 : 1, hiIdx = idx.length ? idx[idx.length - 1] + 1 : 1;
   const posText = `${!searching || lo === 2 ? 1 : lo}–${hiIdx} of ${n}`;
   const pos = () => el("span", { class: "more-pos" }, posText);
-  const expandBtn = () => btn("tg-expand", open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
-  const li = el("li", { class: "thread" + (controls ? " long" : "") + (open ? " expanded" : "") + (searching ? " searching" : ""), id: "th-" + t.id },
+  const expandBtn = (cls = "") => btn("tg-expand " + cls, open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
+  const scrollBtn = () => el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll");
+  const threadBtn = () => btn("thread-link", "Thread", () => goToThread(t));
+
+  // what goes where
+  let side = null, foot = null, after = null;
+  if (hits && !mobile) {
+    // laptop search: "Thread" under the thumbnail; counter, Scroll and Expand under the tracks
+    side = el("div", { class: "thread-more" }, el("div", { class: "more-btns" }, threadBtn()));
+    if (searching) foot = el("div", { class: "search-foot" }, pos(), scrollBtn(), expandBtn("foot-right"));
+    else if (open && long) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
+  } else if (hits && mobile) {
+    if (searching || open) side = el("div", { class: "thread-more" }, el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()), el("div", { class: "more-btns" }, expandBtn()));
+    if (searching) foot = el("div", { class: "search-foot" }, pos(), scrollBtn(), el("span", {}));
+  } else if (long) {
+    side = el("div", { class: "thread-more" },
+      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
+      el("div", { class: "more-btns" }, expandBtn()),
+      open ? el("div", { class: "more-btns more-bottom" }, btn("", "Collapse", () => toggleExpand(t, hits))) : null);
+    if (!open) after = el("div", { class: "more-after" }, pos(), expandBtn()); // phone: again under the list
+  }
+  const li = el("li", { class: "thread" + (side ? " long" : "") + (open ? " expanded" : "") + (hits ? " searching" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
       el("button", { class: "thread-head", onclick: () => play(t, 0), "aria-label": `Play ${hi.title}` },
         el("span", { class: "thumb" }, img(hi.thumb, "thumb-img"), hi.thumb ? null : el("span", { class: "ph" }, PLATFORM[head.platform] || "")),
@@ -376,18 +399,9 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" }, [fmtDay(head.date), hi.recovered ? RECOVERED : null].filter(Boolean).join(" · ")))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
-    controls ? el("div", { class: "thread-more" },
-      el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
-      el("div", { class: "more-btns" }, expandBtn()),
-      // laptop: Collapse again at the bottom of the left column
-      open ? el("div", { class: "more-btns more-bottom" }, btn("", "Collapse", () => toggleExpand(t, hits))) : null) : null,
+    side,
     n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
-    // search results: "Scroll" centred under the tracks (green while on); the counter again on phones
-    searching ? el("div", { class: "search-foot" }, pos(),
-      el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll"),
-      el("span", {})) : null,
-    // phone: counter and Expand again under a long list
-    long && !open && !searching ? el("div", { class: "more-after" }, pos(), expandBtn()) : null,
+    foot, after,
     hits ? null : el("div", { class: "thread-foot" }, // no "Add a track here" in search results
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
   const list = li.querySelector(".scroll-list");
@@ -396,6 +410,24 @@ function threadNode({ t, hits }) {
     requestAnimationFrame(() => fitList(li));
   }
   return li;
+}
+
+/* "Thread": leave the search and show this thread where it sits in the feed */
+function goToThread(t) {
+  $("#q").value = ""; syncClear();
+  expanded.delete(t.id);
+  runSearch();
+  const at = shown.findIndex((x) => x.t === t);
+  if (at < 0) return;
+  while (rendered <= at && rendered < shown.length) renderMore();
+  const node = document.getElementById("th-" + t.id);
+  if (!node) return;
+  const place = () => scrollBy(0, node.getBoundingClientRect().top - headerBottom() - 8);
+  place();
+  // long threads above size their boxes a moment later; place it again once they have
+  requestAnimationFrame(() => requestAnimationFrame(() => { place(); setTimeout(place, 150); }));
+  node.classList.add("just-saved");
+  setTimeout(() => node.classList.remove("just-saved"), 2500);
 }
 
 function markPlaying() {
@@ -614,6 +646,23 @@ function play(t, i) {
   });
   markPlaying();
   syncDockSpace();
+  freezeScrolledResult(t);
+}
+/* phone, search results with Scroll on: playing a track switches Scroll off and keeps
+   the tracks that were on screen as the result window */
+function freezeScrolledResult(t) {
+  if (!phone() || !scrollOn.has(t.id)) return;
+  const node = document.getElementById("th-" + t.id), list = node && node.querySelector(".scroll-list");
+  const entry = shown.find((x) => x.t === t);
+  if (!list || !entry) return;
+  const box = list.getBoundingClientRect();
+  const seen = [...list.querySelectorAll(":scope > li.track")]
+    .filter((r) => { const q = r.getBoundingClientRect(); return q.bottom > box.top + 4 && q.top < box.bottom - 4; })
+    .map((r) => +r.dataset.k.split(":").pop());
+  if (!seen.length) return;
+  fixedRows.set(t.id, seen);
+  scrollOn.delete(t.id);
+  rerenderKeep(t, entry.hits);
 }
 
 $("#prevBtn").onclick = () => playing && play(playing.thread, playing.index - 1);
