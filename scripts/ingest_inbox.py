@@ -217,6 +217,39 @@ def apply_move(data, by_id, item):
     return "moved"
 
 
+def apply_split(data, by_id, item):
+    """{"action": "split", "thread": id, "groups": [[track ids], ...]} -> break an over-long thread into the threads
+    the tracks probably came from. Each group becomes its own thread, dated by its first track."""
+    th = by_id.get(item.get("thread") or "")
+    if th is None:
+        return "split: thread not found"
+    by_tr = {t["id"]: t for t in th["tracks"]}
+    made = 0
+    for ids in item.get("groups") or []:
+        trs = sorted([by_tr.pop(i) for i in ids if i in by_tr], key=lambda x: x["ts"])
+        if not trs:
+            continue
+        for k, x in enumerate(trs):
+            x.pop("main", None)
+            if k == 0:
+                x["main"] = True
+        nt = {"id": "x" + trs[0]["id"], "date": trs[0]["date"], "ts": trs[0]["ts"], "kind": "thread", "tracks": trs}
+        data["threads"].append(nt)
+        by_id[nt["id"]] = nt
+        made += 1
+    left = [t for t in th["tracks"] if t["id"] in by_tr]  # tracks not in any group stay where they were
+    if left:
+        th["tracks"] = left
+        for k, x in enumerate(left):
+            x.pop("main", None)
+            if k == 0:
+                x["main"] = True
+    else:
+        data["threads"].remove(th)
+        by_id.pop(th["id"], None)
+    return "split" if made else "split: nothing to do"
+
+
 def main():
     files = sorted(glob.glob(os.path.join(ROOT, "inbox", "*.json")))
     if not files:
@@ -237,6 +270,8 @@ def main():
             res = apply_delete(data, by_id, item)
         elif action == "move":
             res = apply_move(data, by_id, item)
+        elif action == "split":
+            res = apply_split(data, by_id, item)
         elif action == "tag":
             res = apply_tag(data, item)
         elif action == "recheck":
@@ -244,7 +279,7 @@ def main():
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked"):
+        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")
