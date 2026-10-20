@@ -618,7 +618,11 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 
 /* the menu under the logo: one line across the page */
 .brand a { cursor: pointer; }
-.menu { flex-basis: 100%; display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 6px 10px; padding: 2px 0 0; }
+/* the menu lies over the page under the header, so opening and closing it moves nothing */
+.menu {
+  position: absolute; top: 100%; left: 0; right: 0; display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 6px 10px;
+  padding: 8px 24px 10px; padding-right: inherit; background: var(--bg); border-bottom: 1px solid var(--line);
+}
 .menu[hidden] { display: none; }
 .menu button {
   all: unset; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1.4;
@@ -737,3 +741,8 @@ body:not(.can-add) #editBtn { display: none; }
 .menu button[data-view="ublock"][data-confirm] { color: var(--jade); font-weight: 700; }
 .add-form { grid-template-columns: minmax(0, 1fr); } .add-form > * { min-width: 0; } /* a long tag field scrolls instead of widening the card */
 .af-actions > .btn { flex: none; }
+
+#volBtn .vol-n { display: inline-block; width: 3ch; text-align: left; } /* the number never changes the button's width */
+#autoBtn, #infoBtn, #copyBtn { justify-content: center; }
+html.ios .menu button[data-view="ublock"] { display: none; }
+@media (max-width: 640px) { .menu { padding: 8px 16px 10px; } }

@@ -202,7 +202,7 @@ function runSearch() {
   rendered = 0;
   $("#threads").replaceChildren();
   if (terms.length) pageScrollTo(0); // results start at the top, wherever you were in the feed
-  renderMore();
+  renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
 }
 
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
@@ -373,7 +373,7 @@ addEventListener("hashchange", () => { // back/forward and links between pages
 $("#menu").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-view]");
   if (!b) return;
-  if (VIEW_NAMES[b.dataset.view]) toggleMenu(false); // a page closes the menu; Random and uBlock leave it open
+  if (VIEW_NAMES[b.dataset.view] || (phone() && b.dataset.view === "random")) toggleMenu(false); // a page closes the menu (phone: Random too)
   setView(b.dataset.view);
 });
 /* scrolling the page closes the menu; the page is moved back by the menu's height, so nothing jumps */
@@ -439,6 +439,7 @@ const phone = () => window.matchMedia("(max-width: 640px)").matches;
 /* iPhone: the page scrolls inside the body instead of the window, so the browser's bars don't pop up and down */
 const INNER_SCROLL = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) && phone();
 if (INNER_SCROLL) document.documentElement.classList.add("inner-scroll");
+if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) document.documentElement.classList.add("ios");
 if (window.matchMedia("(max-width: 400px)").matches) $("#q").placeholder = "Artist, title or tag"; // small phones: it all fits
 const scroller = () => (INNER_SCROLL ? document.body : window);
 const pageScrollBy = (y, smooth) => scroller().scrollBy({ top: y, behavior: smooth ? "smooth" : "auto" });
@@ -756,9 +757,9 @@ function markPlaying() {
   if (playing) document.querySelectorAll(`[data-k="${playing.thread.id}:${playing.index}"]`).forEach((n) => n.classList.add("playing"));
 }
 
-function renderMore() {
+function renderMore(count = PAGE) {
   const frag = document.createDocumentFragment();
-  const end = Math.min(shown.length, rendered + PAGE);
+  const end = Math.min(shown.length, rendered + count);
   for (; rendered < end; rendered++) frag.append(threadNode(shown[rendered]));
   $("#threads").append(frag);
   markPlaying();
@@ -942,7 +943,7 @@ function play(t, i) {
   if (x.dead) {
     kind = "note";
     box.append(el("p", { class: "nolink" }, x.archive
-      ? "This track was deleted. “Archive” next to it shows the archived page; “Search” looks for a re-upload on YouTube."
+      ? "This track was deleted."
       : "This track was deleted and no archived copy of its page was found."));
   } else if (tr.platform === "youtube" && tr.yt && m.status !== 401) {
     adapter = makeYouTube(tr);
@@ -960,7 +961,7 @@ function play(t, i) {
     adapter = makePlain(box, `https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&autoplay=1&feed=${encodeURIComponent(new URL(tr.url).pathname)}`, x.title);
   } else {
     kind = "note";
-    box.append(el("p", { class: "nolink" }, `This ${PLATFORM[tr.platform] || "link"} can't play here.`));
+    box.append(el("p", { class: "nolink" }, `${PLATFORM[tr.platform] || "These"} links can't play in the player.`));
   }
   $("#media").dataset.kind = kind;
   const controllable = !!(adapter && adapter.controllable);
@@ -970,7 +971,7 @@ function play(t, i) {
   if (adapter) adapter.ready.catch(() => {
     if (token !== loadToken) return;
     ytSlot().hidden = true;
-    box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load. The link next to the track opens it on the original site."));
+    box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load."));
   });
   markPlaying();
   syncDockSpace();
@@ -1472,7 +1473,7 @@ function rerenderThread(t, flashIndex) {
 
 async function saveEdit(form, { t, i }) {
   const tr = t.tracks[i];
-  const fromThread = form.closest(".thread").id.slice(3); // where the track was edited (a tag thread or its own)
+  const fromThread = form.closest(".thread") ? form.closest(".thread").id.slice(3) : t.id; // where the track was edited (a tag thread or its own)
   const url = form.url.value.trim(), title = form.title.value.trim();
   if (!LINK_RE.test(url)) {
     form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
@@ -1508,6 +1509,7 @@ async function saveEdit(form, { t, i }) {
   tr._hay = null;
   rerenderThread(t, i);
   refreshTags();
+  refreshHistory();
   // back to the track, at the top (once the re-drawn boxes above it have their final height)
   requestAnimationFrame(() => requestAnimationFrame(() => focusTrack(fromThread, tr, "top")));
 }
@@ -1590,6 +1592,19 @@ async function deleteTrack(form, { t, i }, btn) {
   if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
   rerenderThread(t, null);
   if (tr.tags) refreshTags();
+  refreshHistory();
+}
+/* History: draw the months on screen again after an edit (fold-outs that were open stay open) */
+function refreshHistory() {
+  if (view !== "history" || $("#q").value.trim()) return;
+  const open = new Set([...document.querySelectorAll(".month-tracks:not([hidden])")].map((o) => o.closest(".month-row").querySelector(".month-line").dataset.k));
+  const items = new Map(historyMonths().map((m) => [m.id, m]));
+  shown.forEach((x) => {
+    const nm = items.get(x.t.id), node = document.getElementById("th-" + x.t.id);
+    if (nm) { x.t = nm; if (node) node.replaceWith(monthNode({ t: nm })); } else if (node) node.remove();
+  });
+  document.querySelectorAll(".month-line").forEach((l) => { if (open.has(l.dataset.k)) l.querySelector(".month-n")?.click(); });
+  markPlaying();
 }
 
 async function saveTrack(form, thread) {
@@ -1680,7 +1695,8 @@ function focusRow(row, smooth, boxAt = "center", at = "third") {
   const box = row.closest(".scroll-list"); // inside a scrolling box: first bring it into the box's view
   if (box) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (boxAt === "top" ? 0 : (box.clientHeight - row.offsetHeight) / 2);
   const top = headerBottom(), dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
-  const y = at === "top" ? top + 8 : top + (innerHeight - dock - top) / 3; // right under the header, or a third of the way down
+  const under = contentTop();
+  const y = at === "top" ? under + 8 : top + (innerHeight - dock - top) / 3; // right under the header (and History's bar), or a third of the way down
   pageScrollBy(row.getBoundingClientRect().top - y, smooth);
 }
 /* typing a letter or number anywhere starts a search */
@@ -1722,7 +1738,9 @@ function editPlaying(more) {
   if (!home) return;
   const i = home.tracks.indexOf(tr);
   let t = playing.thread, k = playing.index;
-  const rowOf = (id, n) => document.querySelector(`.track[data-k="${CSS.escape(id)}:${n}"], .head-row[data-k="${CSS.escape(id)}:${n}"]`);
+  const rowOf = (id, n) => document.querySelector(view === "history" && !$("#q").value.trim()
+    ? `.month-line[data-k="${CSS.escape(id)}:${n}"], .month-tracks li[data-k="${CSS.escape(id)}:${n}"]`
+    : `.track[data-k="${CSS.escape(id)}:${n}"], .head-row[data-k="${CSS.escape(id)}:${n}"]`);
   let row = rowOf(t.id, k);
   if (!row) { t = home; k = i; row = rowOf(home.id, i); }
   if (!row) { goToThread(home); row = rowOf(home.id, i); }
@@ -1756,12 +1774,22 @@ document.addEventListener("keydown", (e) => {
 /* ---------- boot ---------- */
 let timer;
 function syncClear() { $("#clearQ").hidden = !$("#q").value; }
-$("#q").addEventListener("input", () => { syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 150); });
+$("#q").addEventListener("input", () => { syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 70); });
 $("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if (phone()) $("#q").blur(); else $("#q").focus(); };
 // phones: Enter, or touching anywhere outside the search field, puts the keyboard away
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
 document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
 $("#home").onclick = (e) => { e.preventDefault(); toggleMenu(); };
+/* laptop: the menu also opens when the pointer rests on the logo and closes a moment after it leaves
+   (opening after ~150 ms avoids passing-by openings; closing after ~400 ms forgives small slips) */
+if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+  let tOpen, tClose;
+  const zone = [$("#home"), $("#menu")];
+  zone.forEach((z) => {
+    z.addEventListener("mouseenter", () => { clearTimeout(tClose); if ($("#menu").hidden && z === $("#home")) tOpen = setTimeout(() => toggleMenu(true), 150); });
+    z.addEventListener("mouseleave", () => { clearTimeout(tOpen); tClose = setTimeout(() => { if (!zone.some((x) => x.matches(":hover"))) toggleMenu(false); }, 400); });
+  });
+}
 $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
 
 (async function boot() {
