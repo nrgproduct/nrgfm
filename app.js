@@ -447,12 +447,12 @@ document.addEventListener("click", (e) => {
 document.addEventListener("wheel", (e) => {
   // inside a selected box but not over its list (the name, the thumbnail, the counter): scroll the list anyway
   const sel = e.target.closest && e.target.closest(".thread.active");
-  if (sel && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
+  if (sel && !sel.querySelector(".edit-wrap") && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
     const list = sel.querySelector(".scroll-list");
     if (list) { e.preventDefault(); list.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY); return; }
   }
   const box = e.target.closest && e.target.closest(".scroll-list");
-  if (!box || box.closest(".thread").classList.contains("active")) return;
+  if (!box || box.closest(".thread").classList.contains("active") || box.querySelector(".edit-wrap")) return; // selected, or editing in it
   e.preventDefault();
   scroller().scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY);
 }, { passive: false });
@@ -465,10 +465,12 @@ function rerenderKeep(t, hits) {
   markPlaying();
   return fresh;
 }
+const keepDrawn = new Map();
 function toggleExpand(t, hits) {
   userToggled.add(t.id);
   const wasOpen = expanded.has(t.id);
   const oldList = document.querySelector(`#th-${CSS.escape(t.id)} .scroll-list`), keep = oldList ? oldList.scrollTop : 0;
+  if (oldList) keepDrawn.set(t.id, oldList.children.length); // playlists drawn in batches: draw as far again
   wasOpen ? expanded.delete(t.id) : expanded.add(t.id);
   const fresh = rerenderKeep(t, hits);
   if (!fresh) return;
@@ -571,7 +573,7 @@ function tagThreadNode({ t, hits }) {
   const all = open || !phone();
   // big playlists (Genres) draw their rows a batch at a time while you scroll, so the page stays quick
   const BATCH = 50;
-  let drawn = all ? Math.min(n, BATCH) : Math.min(n, TAG_PREVIEW);
+  let drawn = all ? Math.min(n, Math.max(BATCH, keepDrawn.get(t.id) || 0)) : Math.min(n, TAG_PREVIEW);
   const rows = t.tracks.slice(0, drawn).map((tr, i) => trackRow(t, tr, i, hits));
   const scrolls = many && all;
   const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW, "data-total": n }, rows);
@@ -1200,9 +1202,9 @@ function addForm(thread, edit, row) {
     el("div", { class: "af-actions" },
       tags.box,
       // a mix (DJ mix, full album…): it gets the "mix" tag and shows up on the Mixes page
-      el("label", { class: "mix-check", title: "A DJ mix, full album or other long recording: shows up under Mixes" },
-        el("input", { type: "checkbox", name: "mix", checked: tags.has("mix") || null,
-          onchange: (e) => (e.target.checked ? tags.use("mix") : tags.drop("mix")) }), " Mix"),
+      el("button", { type: "button", class: "btn ghost mix-btn", "aria-pressed": String(tags.has("mix")),
+        title: "A DJ mix, full album or other long recording: shows up under Mixes",
+        onclick: (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", String(on)); on ? tags.use("mix") : tags.drop("mix"); } }, "Mix"),
       edit ? arrow : null,
       el("span", { class: "af-msg hint", role: "status" }),
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
@@ -1291,7 +1293,7 @@ function moreInfo(tr, edit, tags) {
   }
   return box;
 }
-const mixTags = (form) => { const g = form.tags.get().filter((x) => x !== "mix"); return form.mix.checked ? [...g, "mix"] : g; };
+const mixTags = (form) => { const g = form.tags.get().filter((x) => x !== "mix"); return form.querySelector(".mix-btn").getAttribute("aria-pressed") === "true" ? [...g, "mix"] : g; };
 function closeAddForm(form, opts = {}) {
   if (!form) return;
   if (form.tags) form.tags.restore();
@@ -1334,15 +1336,10 @@ function toggleAddForm(thread, li) {
   const open = li.querySelector(":scope > .add-form");
   if (open) { closeAddForm(open); return; }
   closeAllCards();
-  // the thread becomes the selected box with the card in it, its main track at the top
-  addingId = thread.id;
-  const fresh = rerenderKeep(thread, null) || li;
-  setActive(thread.id);
   const form = addForm(thread);
-  fresh.querySelector(".thread-foot").after(form);
+  li.querySelector(".thread-foot").after(form);
   form.querySelector("input").focus({ preventScroll: true });
-  fitList(fresh);
-  pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8, true);
+  revealWhole(form); // the card in view
 }
 $("#addBtn").onclick = toggleHeaderForm;
 

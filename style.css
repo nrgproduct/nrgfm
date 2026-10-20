@@ -62,14 +62,18 @@ button, input { font: inherit; color: inherit; }
 .moved-note a { color: inherit; }
 .af-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
 /* tags */
-.tag-area { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.tag-area { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
+.af-actions { flex-wrap: nowrap; }
+.af-actions > .mix-btn { margin-right: auto; }
+.btn.ghost.mix-btn[aria-pressed="true"] { border-color: var(--jade); color: var(--jade); }
 .tag-box { position: relative; }
 /* tags added in an add card: two rows, filling column by column */
 .tag-stack { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, 18px); gap: 4px 6px; align-content: center; }
 .tag-stack:empty { display: none; }
 .tag-stack .tag-chip { font-size: 12px; line-height: 16px; padding: 0 6px; white-space: nowrap; }
 /* editing: the track's tags under its title can be clicked away */
-.tag.tag-x { cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 6px; }
+.tag.tag-x { cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 6px; text-decoration: none; }
+.editing .tr-sub, .editing .t-tags { min-height: 22px; } /* room for the tags you add, so the card doesn't move */
 .tag.tag-x:hover { border-color: var(--muted); }
 .tag.tag-x .x { color: var(--muted); }
 .tag-input {
@@ -594,15 +598,16 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
   content: ""; position: absolute; inset: 4px 0 8px; border-radius: var(--radius-sm); pointer-events: none;
 }
 .thread.active:not(.framed):not(.searching)::before { border: 1px dotted var(--jade); z-index: 4; }
-.thread.active:not(.framed):not(.searching)::after { background: color-mix(in srgb, var(--jade) 5%, transparent); z-index: -1; }
+
 
 /* editing a track: a dotted box around the track and its card */
 .track.editing, .head-row.editing { isolation: isolate; position: relative; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .track.editing { position: relative; }
 .editing::before, .edit-wrap::before {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
-  border: 1px dotted var(--jade); background: color-mix(in srgb, var(--jade) 6%, transparent);
+  border: 1px dotted var(--jade); background: var(--surface);
 }
+.track.editing.playing::before, .head-row.editing.playing::before { background: var(--surface-2); }
 .editing::before { border-bottom: 0; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .edit-wrap { position: relative; isolation: isolate; }
 .edit-wrap::before { border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
@@ -660,3 +665,6 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
   .month-row { grid-template-columns: 56px 1fr; padding: 4px 0; }
   .month-n { display: none; }
 }
+.af-actions .tag-box { flex: 0 1 200px; min-width: 90px; }
+.af-actions .tag-input { width: 100%; box-sizing: border-box; }
+@media (max-width: 640px) { .af-actions { flex-wrap: wrap; } }
