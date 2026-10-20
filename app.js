@@ -78,15 +78,27 @@ function info(t) {
   return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, recovered, archive: m.wb_url || "", untitled: !t.title && !m.title };
 }
 
+/* What search looks in, field by field (the filters next to the result count switch fields off) */
+const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["genres", "Genres"], ["year", "Year"], ["release", "Release"], ["uploader", "Uploader"]];
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {}, x = extra[t.url] || {};
-    // notes and looked-up info count too (the full descriptions don't)
-    t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t),
-      t.notes, (x.g || []).join(" "), x.y, (x.rl || []).join(" "), x.by].filter(Boolean).join(" "));
+    const j = (a) => fold(a.filter(Boolean).join(" "));
+    t._f = {
+      title: j([t.title, m.title, m.wb_title, slugTitle(t)]),
+      notes: j([t.notes]),
+      genres: j(x.g || []),
+      year: j([x.y]),
+      release: j(x.rl || []),
+      uploader: j([m.author_name, channelArtist(m.author_name), m.wb_author, x.by]),
+    };
+    t._hay = Object.values(t._f).join(" ");
   }
   return t._hay;
 }
+const fieldsOf = (t) => (haystack(t), t._f);
+let searchOff = new Set((() => { try { return JSON.parse(localStorage.getItem("nrgfm-search-off") || "[]"); } catch { return []; } })());
+const matches = (tr, terms) => { const f = fieldsOf(tr); return terms.every((w) => FIELDS.some(([k]) => !searchOff.has(k) && f[k].includes(w))); };
 
 const fmtDate = (d) => {
   const [y, mo] = d.split("-");
@@ -182,10 +194,7 @@ function runSearch() {
         continue;
       }
       const hits = new Set();
-      t.tracks.forEach((tr, i) => {
-        const h = haystack(tr);
-        if (terms.every((w) => h.includes(w))) hits.add(i);
-      });
+      t.tracks.forEach((tr, i) => { if (matches(tr, terms)) hits.add(i); });
       if (hits.size) shown.push({ t, hits });
     }
     // searching a tag's name: its playlist comes first
@@ -196,13 +205,59 @@ function runSearch() {
     if (tagHits) parts.push(`${tagHits} ${tagHits === 1 ? "tag" : "tags"}`);
     if (n) parts.push(`${n} ${n === 1 ? "track" : "tracks"} in ${trackThreads} ${trackThreads === 1 ? "thread" : "threads"}`);
     $("#resultInfo").hidden = false;
-    $("#resultInfo").textContent = parts.length ? parts.join(", ")
-      : `Nothing matches “${$("#q").value.trim()}”. Many old links have no title yet; try fewer words.`;
+    $("#resultInfo").replaceChildren(
+      el("span", {}, parts.length ? parts.join(", ") : `Nothing matches “${$("#q").value.trim()}”. Many old links have no title yet; try fewer words.`),
+      el("span", { class: "search-fields" }, FIELDS.map(([k, name]) => el("button", {
+        class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
+        title: searchOff.has(k) ? `Search ${name.toLowerCase()} again` : `Leave out ${name.toLowerCase()}`,
+        onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k);
+          try { localStorage.setItem("nrgfm-search-off", JSON.stringify([...searchOff])); } catch {}
+          runSearch(); } }, name))));
   }
   rendered = 0;
   $("#threads").replaceChildren();
   if (terms.length) pageScrollTo(0); // results start at the top, wherever you were in the feed
   renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
+}
+
+/* Search results: rest the pointer on a found track for a moment and a small note says where the words
+   were found ("Title", "Uploader: …"). 0.6 s: long enough not to pop up while just moving past. */
+const whyBox = el("div", { class: "why", hidden: true });
+document.body.append(whyBox);
+let whyTimer = 0, whyRow = null, whyXY = [0, 0];
+document.addEventListener("mousemove", (e) => {
+  whyXY = [e.clientX, e.clientY];
+  const row = e.target.closest && e.target.closest(".thread.searching .track.hit, .thread.searching .head-row.hit");
+  if (row === whyRow) return;
+  whyRow = row; clearTimeout(whyTimer); whyBox.hidden = true;
+  if (row) whyTimer = setTimeout(() => showWhy(row), 600);
+}, { passive: true });
+addEventListener("scroll", () => { whyBox.hidden = true; }, { passive: true, capture: true });
+function showWhy(row) {
+  const [id, i] = row.dataset.k.split(":"), t = threads.find((x) => x.id === id), tr = t && t.tracks[+i];
+  if (!tr) return;
+  const terms = query.split(" ").filter(Boolean), f = fieldsOf(tr), m = meta[tr.url] || {}, x = extra[tr.url] || {};
+  const hit = (s) => terms.some((w) => fold(s).includes(w));
+  const cut = (s, n = 70) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+  const note = () => { // the part of the notes around the first word found
+    const n = tr.notes || "", k = Math.max(0, fold(n).indexOf(terms.find((w) => fold(n).includes(w)) || "") - 20);
+    return (k ? "…" : "") + cut(n.slice(k), 70);
+  };
+  const say = {
+    title: () => "Title",
+    notes: () => "Notes: " + note(),
+    genres: () => "Genres: " + (x.g || []).filter(hit).join(", "),
+    year: () => "Year: " + x.y,
+    release: () => "Release: " + cut((x.rl || []).filter(hit).join(", ")),
+    uploader: () => "Uploader: " + ([m.author_name, m.wb_author, x.by].filter(Boolean).find(hit) || m.author_name || x.by),
+  };
+  const lines = FIELDS.filter(([k]) => !searchOff.has(k) && terms.some((w) => f[k].includes(w))).map(([k]) => say[k]());
+  if (!lines.length) return;
+  whyBox.replaceChildren(...lines.map((l) => el("div", {}, l)));
+  whyBox.hidden = false;
+  const r = whyBox.getBoundingClientRect();
+  whyBox.style.left = Math.min(whyXY[0] + 14, innerWidth - r.width - 8) + "px";
+  whyBox.style.top = Math.min(whyXY[1] + 18, innerHeight - r.height - 8) + "px";
 }
 
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
@@ -1525,7 +1580,16 @@ const threadLabel = (t) => t.name || info(t.tracks[0]).title;
 function movePanel(formOf, edit) {
   const input = el("input", { type: "search", placeholder: "Search a track in the thread you want to move it to", autocomplete: "off", spellcheck: "false" });
   const list = el("ul", { class: "move-results" });
-  const panel = el("div", { class: "move-panel" }, el("label", { class: "af-field" }, el("span", {}, "Move to the thread of…"), input), list);
+  // Promote (replies only): the track becomes its own thread, at the top of the feed or at its own date
+  const promote = edit.i > 0 ? el("span", { class: "promote" }) : null;
+  const drawPromote = (ask) => promote && promote.replaceChildren(...(ask
+    ? [el("button", { type: "button", class: "btn ghost move-btn", title: "Its own thread, at the top of the feed (dated today)", onclick: () => promoteTrack(formOf(), edit, "top") }, "To the top"),
+       el("button", { type: "button", class: "btn ghost move-btn", title: "Its own thread, at the date it was posted", onclick: () => promoteTrack(formOf(), edit, "original") }, "At its own date"),
+       el("button", { type: "button", class: "btn ghost move-btn", title: "Cancel", onclick: () => drawPromote(false) }, "×")]
+    : [el("button", { type: "button", class: "btn ghost move-btn", title: "Make this track a thread of its own", onclick: () => drawPromote(true) }, "Promote")]));
+  drawPromote(false);
+  const panel = el("div", { class: "move-panel" }, el("span", { class: "af-label-line" }, "Move to the thread of…"),
+    el("div", { class: "move-row" }, input, promote), list);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); const first = list.querySelector("button"); if (first) first.click(); } });
   input.addEventListener("input", () => {
     const terms = fold(input.value).split(" ").filter(Boolean);
@@ -1553,6 +1617,23 @@ function movePanel(formOf, edit) {
   return panel;
 }
 
+async function promoteTrack(form, { t, i }, to) {
+  const tr = t.tracks[i], ts = Math.floor(Date.now() / 1000);
+  const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
+  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Promoting…";
+  try { await writeInbox({ action: "promote", thread: t.id, id: tr.id, to, ts }, "promote"); }
+  catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  // on screen right away: its own thread
+  t.tracks.splice(i, 1);
+  tr.main = true;
+  const nt = { id: "x" + tr.id, kind: "thread", tracks: [tr], date: tr.date, ts: tr.ts };
+  if (to === "top") { tr.shown_date = new Date(ts * 1000).toISOString().slice(0, 10); nt.pos_ts = ts; nt.pos_set = ts; }
+  threads.push(nt); sortThreads();
+  closeAddForm(form, { quiet: true });
+  rerenderThread(t, null);
+  if (view === "threads" && !$("#q").value.trim() && to === "top") { $("#threads").prepend(threadNode({ t: nt, hits: null })); shown.unshift({ t: nt, hits: null }); rendered++; }
+  refreshHistory();
+}
 async function moveTrack(form, { t, i }, dest) {
   const tr = t.tracks[i];
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
@@ -1779,16 +1860,16 @@ $("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if 
 // phones: Enter, or touching anywhere outside the search field, puts the keyboard away
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
 document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
-$("#home").onclick = (e) => { e.preventDefault(); toggleMenu(); };
-/* laptop: the menu also opens when the pointer rests on the logo and closes a moment after it leaves
-   (opening after ~150 ms avoids passing-by openings; closing after ~400 ms forgives small slips) */
-if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
-  let tOpen, tClose;
-  const zone = [$("#home"), $("#menu")];
-  zone.forEach((z) => {
-    z.addEventListener("mouseenter", () => { clearTimeout(tClose); if ($("#menu").hidden && z === $("#home")) tOpen = setTimeout(() => toggleMenu(true), 150); });
-    z.addEventListener("mouseleave", () => { clearTimeout(tOpen); tClose = setTimeout(() => { if (!zone.some((x) => x.matches(":hover"))) toggleMenu(false); }, 400); });
-  });
+$("#home").onclick = (e) => { e.preventDefault(); HOVER_MENU ? toggleMenu(true) : toggleMenu(); };
+/* laptop: the menu opens as soon as the pointer is on the logo and stays open while the pointer is anywhere in
+   the header (search, Add track, the menu itself); it closes ~0.4 s after leaving the header. A click on the
+   logo only opens it. */
+const HOVER_MENU = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+if (HOVER_MENU) {
+  let tClose;
+  $("#home").addEventListener("mouseenter", () => { clearTimeout(tClose); if ($("#menu").hidden) toggleMenu(true); });
+  $(".top").addEventListener("mouseenter", () => clearTimeout(tClose));
+  $(".top").addEventListener("mouseleave", () => { clearTimeout(tClose); tClose = setTimeout(() => toggleMenu(false), 400); });
 }
 $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
 

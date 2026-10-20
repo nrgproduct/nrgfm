@@ -250,6 +250,26 @@ def apply_split(data, by_id, item):
     return "split" if made else "split: nothing to do"
 
 
+def apply_promote(data, by_id, item):
+    """{"action": "promote", "thread": id, "id": track id, "to": "top" | "original"} -> the track leaves its thread
+    and becomes a thread of its own: at the top of the feed (dated by the promote) or at its own posting time."""
+    th, i = find(data, item.get("thread"), item.get("id"))
+    if th is None or i == 0:
+        return "promote: track not found (or it is already a main post)"
+    tr = th["tracks"].pop(i)
+    tr["main"] = True
+    ts = int(item.get("ts") or time.time())
+    nt = {"id": "x" + tr["id"], "kind": "thread", "tracks": [tr], "date": tr["date"], "ts": tr["ts"]}
+    if item.get("to") == "top":
+        day = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")
+        tr["shown_date"] = day
+        nt["pos_ts"] = ts
+        nt["pos_set"] = ts
+    data["threads"].append(nt)
+    by_id[nt["id"]] = nt
+    return "promoted"
+
+
 def apply_regroup(data, by_id, item):
     """{"action": "regroup", "threads": [thread ids], "groups": [[track ids], ...]} -> take all tracks out of the
     listed threads and put them together again as the given groups (each group one thread, dated by its first
@@ -304,6 +324,8 @@ def main():
             res = apply_split(data, by_id, item)
         elif action == "regroup":
             res = apply_regroup(data, by_id, item)
+        elif action == "promote":
+            res = apply_promote(data, by_id, item)
         elif action == "tag":
             res = apply_tag(data, item)
         elif action == "recheck":
@@ -311,7 +333,7 @@ def main():
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split", "regrouped"):
+        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split", "regrouped", "promoted"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")

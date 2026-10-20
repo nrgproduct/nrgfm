@@ -746,3 +746,25 @@ body:not(.can-add) #editBtn { display: none; }
 #autoBtn, #infoBtn, #copyBtn { justify-content: center; }
 html.ios .menu button[data-view="ublock"] { display: none; }
 @media (max-width: 640px) { .menu { padding: 8px 16px 10px; } }
+
+/* move and promote */
+.af-label-line { font-size: 14px; color: var(--muted); }
+.move-row { display: flex; gap: 8px; align-items: center; }
+.move-row input { flex: 1 1 auto; min-width: 0; }
+.promote { display: flex; gap: 8px; flex: none; }
+.promote .btn { flex: none; }
+/* History: the Thumbnails switch, quieter when on */
+.view-head .when-link.hist-thumbs.on { color: color-mix(in srgb, var(--jade) 55%, var(--muted)); }
+/* search: which parts are searched (click to leave one out) */
+#resultInfo:not([hidden]) { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; }
+.search-fields { display: flex; gap: 12px; flex-wrap: wrap; margin-left: auto; }
+.sf { all: unset; cursor: pointer; color: inherit; font: inherit; }
+.sf:hover { color: var(--text); }
+.sf.off { text-decoration: line-through; opacity: .55; }
+/* why a track was found */
+.why {
+  position: fixed; z-index: 50; max-width: 340px; padding: 6px 10px; pointer-events: none;
+  background: var(--surface-2); color: var(--muted); font-size: 13px; line-height: 1.45;
+  border: 1px dotted var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.why[hidden] { display: none; }

@@ -272,6 +272,8 @@ def replay(data, path):
             res = ingest_inbox.apply_split(data, by_id, item)
         elif action == "regroup":
             res = ingest_inbox.apply_regroup(data, by_id, item)
+        elif action == "promote":
+            res = ingest_inbox.apply_promote(data, by_id, item)
         elif action == "tag":
             res = ingest_inbox.apply_tag(data, item)
         elif action == "recheck":  # only its tags matter on a rebuild; meta.json keeps the dead marks
@@ -282,7 +284,7 @@ def replay(data, path):
         else:
             res = ingest_inbox.apply_add(data, by_id, item)
         n += 1
-        if res not in ("added", "edited", "deleted", "moved", "tagged", "split", "regrouped"):
+        if res not in ("added", "edited", "deleted", "moved", "tagged", "split", "regrouped", "promoted"):
             print("change not applied:", res, item)
     return n
 
