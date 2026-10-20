@@ -471,15 +471,12 @@ function threadNode({ t, hits }) {
   // under the thumbnail: the post date; in search results it leads to the thread, with the track count under it
   const when = el("div", { class: "t-when" + (hits ? " in-search" : "") },
     hits ? el("button", { class: "when-link", title: "Show this thread in the feed", onclick: () => goToThread(t) }, day) : el("span", {}, day),
-    hits && n > 1 ? ((searching || open) && !mobile
-      ? el("button", { class: "when-link when-expand" + (open ? " on" : ""), "aria-expanded": String(open), title: open ? "Collapse" : "Show the whole thread",
-          onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : `${n} ${n === 1 ? "track" : "tracks"}`)
-      : el("span", { class: "when-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)) : null,
-    hits && hits.size > 1 ? (scrolling
-      ? el("button", { class: "when-link on", title: "Next match", onclick: (e) => nextMatch(e.currentTarget.closest(".thread")) }, `${hits.size} matches`)
-      : el("span", { class: "when-count" }, `${hits.size} matches`)) : null);
+    // "4 matches": selects the result, then each press brings the next match to the top of its box
+    hits && hits.size > 1 ? el("button", { class: "when-link", title: "Next match", onclick: (e) => nextMatch(e.currentTarget.closest(".thread")) }, `${hits.size} matches`) : null);
   if (hits && !mobile) {
-    // laptop search: the track count under the thumbnail expands (and collapses) the thread
+    // laptop search: "175 tracks" under the tracks, centred, shows the whole thread (no Collapse)
+    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}),
+      btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}));
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
     if (searching) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
@@ -712,7 +709,7 @@ function play(t, i) {
   const box = $("#otherSlot"); box.replaceChildren();
   const dock = $("#dock"); dock.hidden = false;
   $("#nowTitle").textContent = x.title;
-  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : " in this thread");
+  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
   closeThread();
   fitTitle();
   $("#prevBtn").disabled = i === 0;
