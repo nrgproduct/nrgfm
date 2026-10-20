@@ -587,3 +587,76 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 }
 .when-link.on { color: var(--jade); }
 .thread.searching:not(:has(.search-foot)) { padding-bottom: 20px; }
+
+/* a selected track thread (playing from it, adding a track to it): a lit dotted box that stays clear of the dividers */
+.thread { isolation: isolate; }
+.thread.active:not(.framed):not(.searching)::before, .thread.active:not(.framed):not(.searching)::after {
+  content: ""; position: absolute; inset: 4px 0 8px; border-radius: var(--radius-sm); pointer-events: none;
+}
+.thread.active:not(.framed):not(.searching)::before { border: 1px dotted var(--jade); z-index: 4; }
+.thread.active:not(.framed):not(.searching)::after { background: color-mix(in srgb, var(--jade) 5%, transparent); z-index: -1; }
+
+/* editing a track: a dotted box around the track and its card */
+.track.editing, .head-row.editing { isolation: isolate; position: relative; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.track.editing { position: relative; }
+.editing::before, .edit-wrap::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  border: 1px dotted var(--jade); background: color-mix(in srgb, var(--jade) 6%, transparent);
+}
+.editing::before { border-bottom: 0; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.edit-wrap { position: relative; isolation: isolate; }
+.edit-wrap::before { border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.edit-wrap > .add-form { position: relative; }
+.track.editing, .head-row.editing, .head-row.editing:hover, .track.editing:hover { background: none; }
+
+/* mix checkbox in the add/edit card */
+.mix-check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; cursor: pointer; white-space: nowrap; }
+.mix-check input { accent-color: var(--jade); width: 16px; height: 16px; margin: 0; }
+
+/* the menu under the logo: one line across the page */
+.brand a { cursor: pointer; }
+.menu { flex-basis: 100%; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 4px 0 2px; }
+.menu[hidden] { display: none; }
+.menu button {
+  all: unset; cursor: pointer; color: var(--jade); font-size: 19px; font-weight: 500; line-height: 1.25;
+  text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 4px;
+}
+.menu button:hover { color: var(--text); }
+.menu button[aria-current="true"] { text-decoration-style: solid; }
+.menu button:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+
+/* page intro, genre index, history jumps */
+.view-head { padding: 14px 0 4px; }
+.view-head[hidden] { display: none; }
+.view-note { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.genre-index { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; margin-bottom: 10px; }
+.genre-index .gi-n { color: var(--muted); font-size: 12px; margin-left: 4px; display: inline-block; }
+.genre-index .gi-all { height: auto; margin: 0; font-size: 14px; }
+.view-history { position: sticky; top: var(--top-h, 60px); z-index: 4; background: var(--bg); border-bottom: 1px dotted var(--dots, var(--line-strong)); padding-bottom: 10px; }
+.hist-years, .hist-months { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.hist-years { font-size: 17px; margin-bottom: 8px; }
+.hist-months { font-size: 14px; }
+.view-head .when-link { color: var(--muted); }
+.view-head .when-link:hover, .view-head .when-link.on { color: var(--jade); }
+.view-head .when-link.none { opacity: .35; cursor: default; text-decoration: none; }
+/* history: a month, then one short row per post */
+.month { list-style: none; padding: 14px 0 6px; border-bottom: 1px dotted var(--dots, var(--line-strong)); }
+.month-name { margin: 0 0 6px; color: var(--jade); font-size: 19px; font-weight: 500; }
+.month-count { color: var(--muted); font-size: 14px; font-weight: 400; }
+.month-list { list-style: none; margin: 0; padding: 0; }
+.month-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: baseline; padding: 4px 8px; border-radius: var(--radius-sm); }
+.month-row:hover { background: var(--surface); }
+.month-row.playing { background: var(--surface-2); }
+.month-row .when-link { font-size: 13px; justify-self: start; }
+.month-play { all: unset; cursor: pointer; min-width: 0; }
+.month-play .tr-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.month-row.dead .tr-title { text-decoration: line-through; }
+.month-n { color: var(--muted); font-size: 13px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .menu { flex-wrap: nowrap; gap: 0 8px; }
+  .menu button { font-size: 15px; }
+  .hist-years, .hist-months { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 0 14px; padding-bottom: 2px; }
+  .hist-years { font-size: 15px; margin-bottom: 6px; }
+  .month-row { grid-template-columns: 56px 1fr; padding: 4px 0; }
+  .month-n { display: none; }
+}

@@ -20,7 +20,7 @@
 </head>
 <body>
 <header class="top">
-  <h1 class="brand"><a href="#" id="home">nrgfm</a></h1>
+  <h1 class="brand"><a href="#" id="home" aria-expanded="false" aria-controls="menu" title="Menu">nrgfm</a></h1>
   <label class="search">
     <span class="sr">Search tracks</span>
     <input id="q" type="search" placeholder="Search artist, title or tag" autocomplete="off" spellcheck="false">
@@ -28,9 +28,18 @@
   </label>
   <button id="addBtn" class="btn" aria-expanded="false" aria-controls="addPanel">Add track</button>
   <div id="addPanel" class="add-panel" hidden></div>
+  <nav id="menu" class="menu" hidden>
+    <button data-view="threads">Threads</button>
+    <button data-view="tags">Tags</button>
+    <button data-view="mixes">Mixes</button>
+    <button data-view="genres">Genres</button>
+    <button data-view="history">History</button>
+    <button data-view="random">Random</button>
+  </nav>
 </header>
 
 <main>
+  <div id="viewHead" class="view-head" hidden></div>
   <p id="resultInfo" class="result-info" hidden></p>
   <ol id="threads" class="threads"></ol>
   <div id="more" class="more"></div>
