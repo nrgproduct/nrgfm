@@ -563,11 +563,8 @@ img.broken { visibility: hidden; }
 .when-link:hover { color: var(--text); }
 /* the list is as wide as the space left of the video player (laptop) */
 @media (min-width: 641px) {
-  /* no player: the list uses the whole width; with the player it ends just left of the video */
-  main { max-width: none; }
-  .top { padding-right: 24px; }
-  body.has-player main { max-width: max(600px, calc(100% - 366px)); }
-  body.has-player .top { padding-right: max(24px, min(calc(100% - 576px), 390px)); }
+  main { max-width: max(600px, calc(100% - 366px)); }
+  .top { padding-right: max(24px, min(calc(100% - 576px), 390px)); }
 }
 /* iPhone: the body scrolls instead of the window, so the browser's bars stay put */
 html.inner-scroll, html.inner-scroll body { height: 100%; overflow: hidden; }

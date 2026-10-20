@@ -1062,7 +1062,6 @@ $("#closeBtn").onclick = closeDock;
 function syncDockSpace() {
   const d = $("#dock");
   document.body.style.setProperty("--dock-h", d.hidden ? "0px" : d.offsetHeight + "px");
-  document.body.classList.toggle("has-player", !d.hidden); // the list makes room for the video
   document.querySelectorAll(".scroll-list.open").forEach((l) => { // an open box at the top ends above the player
     const th = l.closest(".thread"), top = th.getBoundingClientRect().top - headerBottom();
     if (top > -4 && top < 40) fitList(th);
