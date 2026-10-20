@@ -900,7 +900,7 @@ function play(t, i) {
   playing = { thread: t, index: i };
   const pn = document.getElementById("th-" + t.id);
   // the thread you play from gets the selected frame (in search results only the ones that scroll)
-  if (pn && activeId !== t.id && !addingId && (selectable(pn) || !$("#q").value.trim())) setActive(t.id, `${t.id}:${i}`);
+  if (pn && activeId !== t.id && !addingId && selectable(pn)) setActive(t.id, `${t.id}:${i}`); // only boxes that scroll
   const token = ++loadToken;
   const tr = t.tracks[i], x = info(tr), m = meta[tr.url] || {};
   if (adapter) adapter.destroy();
@@ -1381,7 +1381,6 @@ function toggleEditForm(t, i, row) {
   const form = addForm(null, { t, i }, row);
   const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
   row.after(wrap);
-  if (!row.closest(".tag-thread")) { row.classList.add("editing"); wrap.classList.add("boxed"); } // a dotted box around the track and its card (not in tag playlists)
   const box = wrap.closest(".scroll-list");
   form.tags.input.focus({ preventScroll: true }); // editing usually means tagging: start in the tag field
   if (box) {

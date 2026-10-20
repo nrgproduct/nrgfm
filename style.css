@@ -74,7 +74,7 @@ button, input { font: inherit; color: inherit; }
 .tag-stack .tag-chip { font-size: 12px; line-height: 16px; padding: 0 6px; white-space: nowrap; }
 /* editing: the track's tags under its title can be clicked away */
 .tag.tag-x { cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 6px; text-decoration: none; }
-.editing .tr-sub, .editing .t-tags { min-height: 22px; } /* room for the tags you add, so the card doesn't move */
+
 .tag.tag-x:hover { border-color: var(--muted); }
 .tag.tag-x .x { color: var(--muted); }
 .tag-input {
@@ -595,11 +595,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 
 /* a selected track thread (playing from it, adding a track to it): a lit dotted box that stays clear of the dividers */
 .thread { isolation: isolate; }
-.thread.active:not(.framed):not(.searching)::before, .thread.active:not(.framed):not(.searching)::after {
-  content: ""; position: absolute; inset: 4px 0 8px; border-radius: var(--radius-sm); pointer-events: none;
-}
-.thread.active:not(.framed):not(.searching)::before { border: 1px dotted var(--jade); z-index: 4; }
-.thread.active:not(.framed):not(.searching)::after { background: color-mix(in srgb, var(--jade) 5%, transparent); z-index: -1; }
+
 
 
 /* editing a track: a dotted box around the track and its card */
@@ -682,7 +678,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .head-row.editing { margin-bottom: 0; } /* the box around the main track and its card has no gap */
 
 /* edit card: inside its dotted box (the box sits 4px in), drop-downs above the rows below */
-.edit-wrap > .add-form { margin-right: 8px !important; }
+
 .edit-wrap { z-index: 5; }
 .af-move-row { display: flex; justify-content: flex-end; }
 .af-date-row .btn.ghost.move-btn { margin-left: auto; width: auto; padding: 0 16px; font-size: inherit; }
@@ -697,11 +693,11 @@ body.hist-thumbs-on .mini { display: block; }
 .thread:has(.edit-wrap), .thread:has(> .add-form) { z-index: 6; } /* its tag suggestions go over the threads below */
 .top { z-index: 20; } /* above a thread that is being edited */
 
-/* the playing thread's frame goes around the main track's box (the box's margin stays inside the thread) */
-.thread { display: flow-root; }
+
 /* menu: Random at the right */
 .menu .menu-right { margin-left: auto; }
 /* grey hint text in the add/edit card: the colour of the tags under titles */
 .add-form input::placeholder, .add-form textarea::placeholder { color: color-mix(in srgb, var(--text) 50%, transparent); }
 /* editing in the playing thread: its frame is enough, no second dotted line */
 .thread.active .editing::before, .thread.active .edit-wrap.boxed::before { border-color: transparent; }
+.btn.ghost.move-btn { color: var(--muted); }
