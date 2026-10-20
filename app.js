@@ -321,13 +321,15 @@ function toggleExpand(t, hits) {
     if (hit) pageScrollBy(hit.getBoundingClientRect().top - headerBottom() - 8);
     return;
   }
-  if (!wasOpen && hits) pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8); // the thread at the top
+  if (!wasOpen && hits && t.tracks.length > threadLimit()) pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8); // long thread: at the top
   const list = fresh.querySelector(".scroll-list"); // carry on from where you were in the list
   if (list && keep) { list.scrollTop = keep; fresh.querySelector(".scroll-list").dataset.centred = "1"; updateListPos(fresh); }
 }
 const keptHeight = new Map(); // search results: Scroll keeps the box as tall as it was
 /* "2 matches" in a selected result: the next match goes to the top of the box */
 function nextMatch(node) {
+  node = node && document.getElementById(node.id); // the first press re-draws the result (it gets selected)
+  if (node) pageScrollBy(node.getBoundingClientRect().top - headerBottom() - 8, true); // the thread at the top
   const list = node && node.querySelector(".scroll-list");
   if (!list) return;
   const hs = [...list.querySelectorAll(":scope > li.track.hit")];
@@ -477,6 +479,7 @@ function threadNode({ t, hits }) {
     // laptop search: "175 tracks" under the tracks, centred, shows the whole thread (no Collapse)
     if (searching) foot = el("div", { class: "search-foot" }, el("span", {}),
       btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}));
+    else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
     if (searching) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
