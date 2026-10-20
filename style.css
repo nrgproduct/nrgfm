@@ -690,7 +690,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .hist-months-row { display: flex; align-items: baseline; gap: 14px; }
 .hist-months-row .hist-months { flex: 1; min-width: 0; }
 .hist-thumbs { font-size: 14px; white-space: nowrap; }
-.mini { display: none; width: 44px; height: 25px; border-radius: 2px; object-fit: cover; background: var(--surface-2); flex: none; }
+.mini { display: none; width: var(--mini-w, 44px); height: var(--mini-h, 25px); border-radius: 2px; object-fit: cover; background: var(--surface-2); flex: none; }
 body.hist-thumbs-on .mini { display: block; }
 .month-tracks li:hover { background: var(--surface-2); }
 @media (max-width: 640px) { .month-tracks { margin-left: 56px; } }
@@ -768,3 +768,21 @@ html.ios .menu button[data-view="ublock"] { display: none; }
   border: 1px dotted var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0,0,0,.35);
 }
 .why[hidden] { display: none; }
+
+/* volume: the slider slides out to the left of the speaker and number, in the same row */
+.vol-wrap { align-items: center; }
+.vol-pop {
+  position: static !important; transform: none !important; display: inline-flex !important; align-items: center;
+  width: 0; padding: 0 !important; margin: 0; overflow: hidden; opacity: 0;
+  background: none !important; border: 0 !important; box-shadow: none !important;
+  transition: width .2s ease, opacity .2s ease;
+}
+.vol-wrap.open .vol-pop { width: 110px; opacity: 1; }
+.vol-pop .seek { width: 100px; margin: 0 4px 0 6px; }
+
+.hist-size { display: inline-flex; gap: 12px; font-size: 16px; }
+.hist-size .when-link { color: var(--jade); }
+/* Promote: plain weight, lit on hover */
+.btn.ghost.promote-btn { font-weight: 400; color: var(--muted); }
+.btn.ghost.promote-btn:hover { color: var(--text); border-color: var(--muted); }
+.btn.ghost.promote-btn[aria-expanded="true"] { color: var(--text); border-color: var(--muted); }

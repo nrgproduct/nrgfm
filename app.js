@@ -79,14 +79,17 @@ function info(t) {
 }
 
 /* What search looks in, field by field (the filters next to the result count switch fields off) */
-const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["genres", "Genres"], ["year", "Year"], ["release", "Release"], ["uploader", "Uploader"]];
+// in order of importance: a match in an earlier field ranks a result higher
+const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["tags", "Tags"], ["release", "Release"], ["year", "Year"], ["genres", "Genres"], ["uploader", "Uploader"]];
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {}, x = extra[t.url] || {};
-    const j = (a) => fold(a.filter(Boolean).join(" "));
+    const j = (a) => " " + fold(a.filter(Boolean).join(" ")); // words start after a space: matching is by word start
+    const named = t.title || m.title || m.wb_title;
     t._f = {
-      title: j([t.title, m.title, m.wb_title, slugTitle(t)]),
+      title: j([t.title, m.title, m.wb_title, named ? "" : slugTitle(t)]), // the link's words only when there is no title
       notes: j([t.notes]),
+      tags: j(shownTags(t)),
       genres: j(x.g || []),
       year: j([x.y]),
       release: j(x.rl || []),
@@ -98,7 +101,18 @@ function haystack(t) {
 }
 const fieldsOf = (t) => (haystack(t), t._f);
 let searchOff = new Set((() => { try { return JSON.parse(localStorage.getItem("nrgfm-search-off") || "[]"); } catch { return []; } })());
-const matches = (tr, terms) => { const f = fieldsOf(tr); return terms.every((w) => FIELDS.some(([k]) => !searchOff.has(k) && f[k].includes(w))); };
+/* a word you type matches the start of a word ("sear" finds "Search", not "Research") */
+const has = (field, w) => field.includes(" " + w);
+const matches = (tr, terms, off = searchOff) => { const f = fieldsOf(tr); return terms.every((w) => FIELDS.some(([k]) => !off.has(k) && has(f[k], w))); };
+/* how well a track matches: the first field (in order of importance) holding all the words, else any of them */
+function matchRank(tr, terms) {
+  const f = fieldsOf(tr), on = FIELDS.filter(([k]) => !searchOff.has(k));
+  const all = on.findIndex(([k]) => terms.every((w) => has(f[k], w)));
+  if (all > -1) return all;
+  const any = on.findIndex(([k]) => terms.some((w) => has(f[k], w)));
+  return any > -1 ? any + 0.5 : 99;
+}
+let byNewest = (() => { try { return localStorage.getItem("nrgfm-search-newest") === "1"; } catch { return false; } })();
 
 const fmtDate = (d) => {
   const [y, mo] = d.split("-");
@@ -188,17 +202,21 @@ function runSearch() {
     drawViewHead();
   } else {
     shown = [];
+    const used = new Set(), none = new Set();
     for (const t of threads) {
-      if (t.kind === "tag") { // a tag shows up when its name matches; its tracks are found in their own threads
-        if (terms.every((w) => fold(t.name).includes(w))) shown.push({ t, hits: null, tag: true });
-        continue;
-      }
+      if (t.kind === "tag") continue; // tags are searched on the tracks themselves
       const hits = new Set();
-      t.tracks.forEach((tr, i) => { if (matches(tr, terms)) hits.add(i); });
-      if (hits.size) shown.push({ t, hits });
+      let rank = 99;
+      t.tracks.forEach((tr, i) => {
+        if (!matches(tr, terms, none)) return;
+        const f = fieldsOf(tr);
+        for (const [k] of FIELDS) if (terms.some((w) => has(f[k], w))) used.add(k); // which filters are worth showing
+        if (matches(tr, terms)) { hits.add(i); rank = Math.min(rank, matchRank(tr, terms)); }
+      });
+      if (hits.size) shown.push({ t, hits, rank });
     }
-    // searching a tag's name: its playlist comes first
-    shown.sort((x, y) => (y.tag ? 1 : 0) - (x.tag ? 1 : 0) || activity(y.t) - activity(x.t)); // tags first, then like the feed
+    // best matches first (title, then notes, tags…), newest first within each; or simply newest first
+    shown.sort((x, y) => (byNewest ? 0 : x.rank - y.rank) || activity(y.t) - activity(x.t));
     const tagHits = shown.filter((s) => s.tag).length, trackThreads = shown.length - tagHits;
     const n = shown.reduce((a, s) => a + (s.hits ? s.hits.size : 0), 0);
     const parts = [];
@@ -207,7 +225,11 @@ function runSearch() {
     $("#resultInfo").hidden = false;
     $("#resultInfo").replaceChildren(
       el("span", {}, parts.length ? parts.join(", ") : `Nothing matches “${$("#q").value.trim()}”. Many old links have no title yet; try fewer words.`),
-      el("span", { class: "search-fields" }, FIELDS.map(([k, name]) => el("button", {
+      el("span", { class: "search-fields" }, el("button", { class: "sf sf-order", "aria-pressed": String(byNewest),
+          title: byNewest ? "Now: newest first. Click for the best matches first" : "Now: best matches first. Click for newest first",
+          onclick: () => { byNewest = !byNewest; try { localStorage.setItem("nrgfm-search-newest", byNewest ? "1" : ""); } catch {} runSearch(); } },
+          byNewest ? "Newest first" : "Best match"),
+        FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
         title: searchOff.has(k) ? `Search ${name.toLowerCase()} again` : `Leave out ${name.toLowerCase()}`,
         onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k);
@@ -237,7 +259,7 @@ function showWhy(row) {
   const [id, i] = row.dataset.k.split(":"), t = threads.find((x) => x.id === id), tr = t && t.tracks[+i];
   if (!tr) return;
   const terms = query.split(" ").filter(Boolean), f = fieldsOf(tr), m = meta[tr.url] || {}, x = extra[tr.url] || {};
-  const hit = (s) => terms.some((w) => fold(s).includes(w));
+  const hit = (s) => terms.some((w) => has(" " + fold(s), w));
   const cut = (s, n = 70) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
   const note = () => { // the part of the notes around the first word found
     const n = tr.notes || "", k = Math.max(0, fold(n).indexOf(terms.find((w) => fold(n).includes(w)) || "") - 20);
@@ -246,12 +268,13 @@ function showWhy(row) {
   const say = {
     title: () => "Title",
     notes: () => "Notes: " + note(),
+    tags: () => "Tags: " + shownTags(tr).filter(hit).join(", "),
     genres: () => "Genres: " + (x.g || []).filter(hit).join(", "),
     year: () => "Year: " + x.y,
     release: () => "Release: " + cut((x.rl || []).filter(hit).join(", ")),
     uploader: () => "Uploader: " + ([m.author_name, m.wb_author, x.by].filter(Boolean).find(hit) || m.author_name || x.by),
   };
-  const lines = FIELDS.filter(([k]) => !searchOff.has(k) && terms.some((w) => f[k].includes(w))).map(([k]) => say[k]());
+  const lines = FIELDS.filter(([k]) => !searchOff.has(k) && terms.some((w) => has(f[k], w))).map(([k]) => say[k]());
   if (!lines.length) return;
   whyBox.replaceChildren(...lines.map((l) => el("div", {}, l)));
   whyBox.hidden = false;
@@ -304,8 +327,16 @@ function historyMonths() {
   return [...by].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([m, list]) => ({
     id: "m-" + m, kind: "month", month: m, threads: list.sort((a, b) => (postDate(a) < postDate(b) ? 1 : -1)) }));
 }
-const histThumbs = () => { try { return localStorage.getItem("nrgfm-hist-thumbs") !== "0"; } catch { return true; } }; // on unless switched off
-document.body.classList.toggle("hist-thumbs-on", histThumbs());
+/* History thumbnails: always on; − and + change their size (remembered) */
+const THUMB_SIZES = [[32, 18], [44, 25], [56, 32], [72, 40], [96, 54]];
+let thumbSize = (() => { try { const v = +localStorage.getItem("nrgfm-thumb-size"); return Number.isFinite(v) && localStorage.getItem("nrgfm-thumb-size") !== null ? v : 1; } catch { return 1; } })();
+function setThumbSize() {
+  const [w, h] = THUMB_SIZES[thumbSize] || THUMB_SIZES[1];
+  document.documentElement.style.setProperty("--mini-w", w + "px"); document.documentElement.style.setProperty("--mini-h", h + "px");
+  try { localStorage.setItem("nrgfm-thumb-size", thumbSize); } catch {}
+}
+setThumbSize();
+document.body.classList.add("hist-thumbs-on");
 function monthNode({ t }) {
   const [y, mo] = t.month.split("-");
   return el("li", { class: "month", id: "th-" + t.id },
@@ -352,10 +383,10 @@ function drawViewHead() {
         return el("button", { class: "when-link" + (has ? "" : " none"), disabled: !has, onclick: () => jumpTo(id) }, name.slice(0, 3));
       }));
     };
-    const thumbsBtn = el("button", { class: "when-link hist-thumbs" + (histThumbs() ? " on" : ""), onclick: (e) => {
-      const on = !histThumbs(); try { localStorage.setItem("nrgfm-hist-thumbs", on ? "1" : "0"); } catch {}
-      document.body.classList.toggle("hist-thumbs-on", on); e.currentTarget.classList.toggle("on", on);
-    } }, "Thumbnails");
+    const size = (d) => { thumbSize = Math.max(0, Math.min(THUMB_SIZES.length - 1, thumbSize + d)); setThumbSize(); };
+    const thumbsBtn = el("span", { class: "hist-size" },
+      el("button", { class: "when-link", title: "Smaller thumbnails", onclick: () => size(-1) }, "−"),
+      el("button", { class: "when-link", title: "Bigger thumbnails", onclick: () => size(1) }, "+"));
     head.replaceChildren(
       el("div", { class: "hist-years" }, years.map((y) => el("button", { class: "when-link", onclick: () => { pickYear(y); jumpTo(months.find((m) => m.month.startsWith(y)).id); } }, y))),
       el("div", { class: "hist-months-row" }, monthRow, thumbsBtn));
@@ -1110,7 +1141,7 @@ window.addEventListener("resize", fitTitle);
 /* volume popup; the level is remembered and applied to every track that loads */
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 if (IOS) $("#volWrap").hidden = true; // iOS only allows the hardware volume buttons
-function closeVol() { $("#volPop").hidden = true; $("#volBtn").setAttribute("aria-expanded", "false"); }
+function closeVol() { $("#volWrap").classList.remove("open"); $("#volBtn").setAttribute("aria-expanded", "false"); }
 const speaker = (v) => {
   const n = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   n.setAttribute("viewBox", "0 0 16 16"); n.setAttribute("class", "spk"); n.setAttribute("aria-hidden", "true");
@@ -1128,8 +1159,8 @@ function showVolume() {
 showVolume();
 $("#volBtn").onclick = (e) => {
   e.stopPropagation();
-  const open = $("#volPop").hidden;
-  $("#volPop").hidden = !open; $("#volBtn").setAttribute("aria-expanded", open ? "true" : "false");
+  const open = !$("#volWrap").classList.contains("open"); // the slider slides out to the left of the number
+  $("#volWrap").classList.toggle("open", open); $("#volBtn").setAttribute("aria-expanded", open ? "true" : "false");
 };
 $("#volPop").addEventListener("click", (e) => e.stopPropagation());
 $("#volNum").onclick = (e) => $("#volBtn").onclick(e);
@@ -1582,11 +1613,11 @@ function movePanel(formOf, edit) {
   const list = el("ul", { class: "move-results" });
   // Promote (replies only): the track becomes its own thread, at the top of the feed or at its own date
   const promote = edit.i > 0 ? el("span", { class: "promote" }) : null;
-  const drawPromote = (ask) => promote && promote.replaceChildren(...(ask
-    ? [el("button", { type: "button", class: "btn ghost move-btn", title: "Its own thread, at the top of the feed (dated today)", onclick: () => promoteTrack(formOf(), edit, "top") }, "To the top"),
-       el("button", { type: "button", class: "btn ghost move-btn", title: "Its own thread, at the date it was posted", onclick: () => promoteTrack(formOf(), edit, "original") }, "At its own date"),
-       el("button", { type: "button", class: "btn ghost move-btn", title: "Cancel", onclick: () => drawPromote(false) }, "×")]
-    : [el("button", { type: "button", class: "btn ghost move-btn", title: "Make this track a thread of its own", onclick: () => drawPromote(true) }, "Promote")]));
+  const drawPromote = (ask) => promote && promote.replaceChildren(
+    el("button", { type: "button", class: "btn ghost promote-btn", "aria-expanded": String(ask), title: "Make this track a thread of its own", onclick: () => drawPromote(!ask) }, "Promote"),
+    ...(ask ? [
+      el("button", { type: "button", class: "btn ghost promote-btn", title: "Its own thread, at the top of the feed (dated today)", onclick: () => promoteTrack(formOf(), edit, "top") }, "To the top"),
+      el("button", { type: "button", class: "btn ghost promote-btn", title: "Its own thread, at the date it was posted", onclick: () => promoteTrack(formOf(), edit, "original") }, "At its own date")] : []));
   drawPromote(false);
   const panel = el("div", { class: "move-panel" }, el("span", { class: "af-label-line" }, "Move to the thread of…"),
     el("div", { class: "move-row" }, input, promote), list);

@@ -74,14 +74,14 @@
       </div>
       <div class="opts">
         <span id="volWrap" class="vol-wrap">
+          <span id="volPop" class="vol-pop">
+            <input id="vol" class="seek" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" tabindex="-1">
+            <span id="volVal" class="time" hidden>100</span>
+          </span>
           <button id="volBtn" class="ctl" aria-expanded="false" aria-controls="volPop" title="Volume">100</button>
           <span id="volNum" class="vol-num" hidden></span>
-          <span id="volPop" class="vol-pop" hidden>
-            <input id="vol" class="seek" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
-            <span id="volVal" class="time">100</span>
-          </span>
-        <button id="autoBtn" class="ctl toggle" aria-pressed="false" title="Play through the rest of the thread">Autoplay off</button>
         </span>
+        <button id="autoBtn" class="ctl toggle" aria-pressed="false" title="Play through the rest of the thread">Autoplay off</button>
         <button id="infoBtn" class="ctl" title="Copy artist and title of the playing track">Copy info</button>
         <button id="copyBtn" class="ctl" title="Copy the link of the playing track">Copy link</button>
         <button id="closeBtn" class="ctl close-btn" title="Hide the player">Close</button>
