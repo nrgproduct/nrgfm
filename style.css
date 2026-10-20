@@ -642,7 +642,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .view-history { position: sticky; top: var(--top-h, 60px); z-index: 4; background: var(--bg); border-bottom: 1px dotted var(--dots, var(--line-strong)); padding-bottom: 10px; }
 .hist-years, .hist-months { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .hist-years { font-size: clamp(11px, 1.5vw, 17px); margin-bottom: 8px; flex-wrap: nowrap; justify-content: space-between; gap: 0 6px; }
-.month-tracks { grid-column: 1 / -1; list-style: none; margin: 2px 0 6px 76px; padding: 0; display: grid; gap: 2px; }
+.month-tracks { grid-column: 1 / -1; list-style: none; margin: 2px 0 6px 108px; padding: 0; display: grid; gap: 2px; }
 .month-tracks[hidden] { display: none; }
 .month-tracks li { display: grid; grid-template-columns: 1fr; padding: 2px 8px; border-radius: var(--radius-sm); }
 .month-tracks li:hover { background: var(--surface); }
@@ -662,7 +662,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .month-row:hover { background: var(--surface); }
 .month-row.playing { background: var(--surface-2); }
 .month-row .when-link { font-size: 13px; justify-self: start; }
-.month-play { all: unset; cursor: pointer; min-width: 0; }
+.month-play { all: unset; cursor: pointer; min-width: 0; display: flex; align-items: center; gap: 8px; }
 .month-play .tr-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .month-row.dead .tr-title { text-decoration: line-through; }
 .month-n { color: var(--muted); font-size: 13px; white-space: nowrap; }
@@ -679,3 +679,19 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 @media (max-width: 640px) { .af-actions { flex-wrap: wrap; } }
 .month-tracks li.dead .tr-title { text-decoration: line-through; }
 .head-row.editing { margin-bottom: 0; } /* the box around the main track and its card has no gap */
+
+/* edit card: inside its dotted box (the box sits 4px in), drop-downs above the rows below */
+.edit-wrap > .add-form { margin-right: 8px !important; }
+.edit-wrap { z-index: 5; }
+.af-move-row { display: flex; justify-content: flex-end; }
+.af-date-row .btn.ghost.move-btn { margin-left: auto; width: auto; padding: 0 16px; font-size: inherit; }
+/* history: thumbnails on request, track lists further in with their own hover */
+.hist-months-row { display: flex; align-items: baseline; gap: 14px; }
+.hist-months-row .hist-months { flex: 1; min-width: 0; }
+.hist-thumbs { font-size: 14px; white-space: nowrap; }
+.mini { display: none; width: 32px; height: 18px; border-radius: 2px; object-fit: cover; background: var(--surface-2); flex: none; }
+body.hist-thumbs-on .mini { display: block; }
+.month-tracks li:hover { background: var(--surface-2); }
+@media (max-width: 640px) { .month-tracks { margin-left: 56px; } }
+.thread:has(.edit-wrap), .thread:has(> .add-form) { z-index: 6; } /* its tag suggestions go over the threads below */
+.top { z-index: 20; } /* above a thread that is being edited */

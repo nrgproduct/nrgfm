@@ -249,6 +249,8 @@ function historyMonths() {
   return [...by].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([m, list]) => ({
     id: "m-" + m, kind: "month", month: m, threads: list.sort((a, b) => (postDate(a) < postDate(b) ? 1 : -1)) }));
 }
+const histThumbs = () => { try { return !!localStorage.getItem("nrgfm-hist-thumbs"); } catch { return false; } };
+document.body.classList.toggle("hist-thumbs-on", histThumbs());
 function monthNode({ t }) {
   const [y, mo] = t.month.split("-");
   return el("li", { class: "month", id: "th-" + t.id },
@@ -257,14 +259,14 @@ function monthNode({ t }) {
       const x = info(th.tracks[0]), n = th.tracks.length;
       return el("li", { class: "month-row" + (x.dead ? " dead" : ""), "data-k": `${th.id}:0` },
         el("button", { class: "when-link", title: "Go to the thread (" + fmtDay(postDate(th)) + ")", onclick: () => goToThread(th) }, fmtDay(postDate(th)).replace(/ \d{4}$/, "")),
-        el("button", { class: "play month-play", onclick: () => play(th, 0), "aria-label": `Play ${x.title}` }, el("span", { class: "tr-title" }, x.title)),
+        el("button", { class: "play month-play", onclick: () => play(th, 0), "aria-label": `Play ${x.title}` }, img(x.thumb, "mini"), el("span", { class: "tr-title" }, x.title)),
         n > 1 ? el("button", { class: "when-link month-n", "aria-expanded": "false", title: "Show the tracks",
           onclick: (e) => { const box = e.currentTarget.parentElement.querySelector(".month-tracks"), open = box.hidden;
             box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); } }, `${n} tracks`) : el("span", { class: "month-n" }),
         n > 1 ? el("ol", { class: "month-tracks", hidden: true }, th.tracks.slice(1).map((tr, k) => {
           const y = info(tr);
           return el("li", { class: y.dead ? "dead" : "", "data-k": `${th.id}:${k + 1}` },
-            el("button", { class: "play month-play", onclick: () => play(th, k + 1), "aria-label": `Play ${y.title}` }, el("span", { class: "tr-title" }, y.title)));
+            el("button", { class: "play month-play", onclick: () => play(th, k + 1), "aria-label": `Play ${y.title}` }, img(y.thumb, "mini"), el("span", { class: "tr-title" }, y.title)));
         })) : null);
     })));
 }
@@ -281,7 +283,6 @@ function drawViewHead() {
   if (view === "genres") {
     const items = shown.map((x) => x.t);
     head.replaceChildren(
-      el("p", { class: "view-note" }, `${items.length} genres suggested by MusicBrainz, Discogs and video descriptions (at least ${GENRE_MIN} tracks each). Click one to jump to it.`),
       genreIndex(items, 40));
   } else if (view === "mixes") {
     head.replaceChildren(el("p", { class: "view-note" }, shown.length
@@ -297,13 +298,17 @@ function drawViewHead() {
         return el("button", { class: "when-link" + (has ? "" : " none"), disabled: !has, onclick: () => jumpTo(id) }, name.slice(0, 3));
       }));
     };
+    const thumbsBtn = el("button", { class: "when-link hist-thumbs" + (histThumbs() ? " on" : ""), onclick: (e) => {
+      const on = !histThumbs(); try { localStorage.setItem("nrgfm-hist-thumbs", on ? "1" : ""); } catch {}
+      document.body.classList.toggle("hist-thumbs-on", on); e.currentTarget.classList.toggle("on", on);
+    } }, "Thumbnails");
     head.replaceChildren(
       el("div", { class: "hist-years" }, years.map((y) => el("button", { class: "when-link", onclick: () => { pickYear(y); jumpTo(months.find((m) => m.month.startsWith(y)).id); } }, y))),
-      monthRow);
+      el("div", { class: "hist-months-row" }, monthRow, thumbsBtn));
     head._pickYear = pickYear;
     if (years.length) pickYear(years[0]);
   } else if (view === "tags") {
-    head.replaceChildren(el("p", { class: "view-note" }, "Every tag as a playlist, the most recently tagged first."));
+    head.hidden = true; return;
   } else { head.hidden = true; return; }
   head.hidden = false;
 }
@@ -351,7 +356,7 @@ addEventListener("hashchange", () => { // back/forward and links between pages
   if (page && VIEW_NAMES[page[1]] && page[1] !== view) setView(page[1], true);
   else if (!location.hash && view !== "threads") setView("threads", true);
 });
-$("#menu").addEventListener("click", (e) => { const b = e.target.closest("button[data-view]"); if (b) { toggleMenu(false); setView(b.dataset.view); } });
+$("#menu").addEventListener("click", (e) => { const b = e.target.closest("button[data-view]"); if (b) setView(b.dataset.view); }); // stays open
 
 /* ---------- rendering: every thread is shown open ---------- */
 const img = (src, cls) => src
@@ -571,6 +576,7 @@ addEventListener("resize", () => {
   document.querySelectorAll(".scroll-list").forEach((l) => fitList(l.closest(".thread")));
 });
 document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
+new ResizeObserver(() => document.documentElement.style.setProperty("--top-h", $(".top").getBoundingClientRect().height + "px")).observe($(".top"));
 
 /* A tag: its name, track count, Expand and counter on the left, the newest tagged tracks on the right,
    all inside one frame. */
@@ -1215,7 +1221,6 @@ function addForm(thread, edit, row) {
       edit ? arrow : null,
       el("span", { class: "af-msg hint", role: "status" }),
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
-      edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false", onclick: (e) => toggleMovePanel(form, edit, e.currentTarget) }, "Move") : null,
       edit ? null : arrow,
       el("button", { type: "submit", class: "btn" }, "Save")),
     more);
@@ -1236,8 +1241,11 @@ function moreInfo(tr, edit, tags) {
   const x = (tr && extra[tr.url]) || {};
   const notes = el("textarea", { name: "notes", rows: "3", placeholder: "Not shown on the site; searches still find them" });
   notes.value = (tr && tr.notes) || "";
+  const moveBtn = edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false",
+    onclick: (e) => toggleMovePanel(e.currentTarget.closest("form"), edit, e.currentTarget) }, "Move") : null;
   const box = el("div", { class: "af-more", hidden: true },
-    el("label", { class: "af-field" }, el("span", {}, "Notes"), notes));
+    el("label", { class: "af-field" }, el("span", {}, "Notes"), notes),
+    moveBtn && edit.i !== 0 ? el("div", { class: "af-move-row" }, moveBtn) : null);
   if (edit && edit.i === 0) {
     const date = el("input", { name: "date", type: "date", required: true });
     date.value = tr.shown_date || tr.date;
@@ -1264,7 +1272,7 @@ function moreInfo(tr, edit, tags) {
       el("div", { class: "af-date-row" }, date,
         el("button", { type: "button", class: "btn ghost", title: "One place up in the feed", "aria-label": "Move up in the feed", onclick: () => step(true) }, "↑"),
         el("button", { type: "button", class: "btn ghost", title: "One place down in the feed", "aria-label": "Move down in the feed", onclick: () => step(false) }, "↓"),
-        note)));
+        note, moveBtn)));
   }
   if (tr) {
     const sug = el("div", { class: "af-sug" });
@@ -1596,6 +1604,7 @@ function copyLink(t, btn) {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (activeId) setActive(null);
+  if (!$("#menu").hidden) toggleMenu(false);
   const now = Date.now(), twice = now - lastEsc < 450;
   lastEsc = twice ? 0 : now;
   if (twice) { showPlaying(); return; }
