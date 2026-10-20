@@ -263,15 +263,32 @@ const btn = (cls, label, fn) => el("button", { class: "more-toggle " + cls, oncl
 /* A box that scrolls inside the page only scrolls once its thread is selected: click anywhere in it, play one
    of its tracks or press Expand. Collapse unselects it. Until then the wheel scrolls the page. */
 let activeId = null;
-function setActive(id) {
+function setActive(id, clickedK) {
+  const before = activeId;
   activeId = id;
   document.querySelectorAll(".thread.active").forEach((n) => n.classList.remove("active"));
   if (id) document.getElementById("th-" + id)?.classList.add("active");
+  // search results: unselected they show the hits grouped (padded to 5); selected, the whole thread in order
+  for (const x of new Set([before, id])) {
+    if (!x || !$("#q").value.trim()) continue;
+    const entry = shown.find((e) => e.t.id === x && e.hits);
+    const node = document.getElementById("th-" + x);
+    if (!entry || !node || expanded.has(x)) continue;
+    const old = node.querySelector(".tracks");
+    if (x === id && old) keptHeight.set(x, old.getBoundingClientRect().height); // the box keeps its height
+    const fresh = rerenderKeep(entry.t, entry.hits);
+    if (fresh) fitList(fresh);
+    const row = x === id && clickedK && fresh && fresh.querySelector(`.scroll-list [data-k="${CSS.escape(clickedK)}"]`);
+    if (row) { const box = row.closest(".scroll-list"); if (row.offsetTop < box.scrollTop || row.offsetTop + row.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = row.offsetTop; }
+  }
 }
+const selectable = (th) => th.querySelector(".scroll-list") || (th.classList.contains("searching") && th.querySelector(".tracks"));
 document.addEventListener("click", (e) => {
   if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap")) return; // the player and editing leave it as it is
   const th = e.target.closest("#threads > .thread");
-  if (th && th.querySelector(".scroll-list") && !th.classList.contains("active")) setActive(th.id.slice(3)); // select (and unselect another)
+  if (th && th.classList.contains("active") && e.target.closest("button, a")) return; // playing, matches, links: stays selected
+  const k = e.target.closest("[data-k]")?.dataset.k;
+  if (th && selectable(th) && !th.classList.contains("active")) setActive(th.id.slice(3), k); // select (and unselect another)
   else if (activeId) setActive(null); // a click in the selected box or anywhere else unselects
 }, true);
 document.addEventListener("wheel", (e) => {
@@ -304,10 +321,19 @@ function toggleExpand(t, hits) {
     if (hit) pageScrollBy(hit.getBoundingClientRect().top - headerBottom() - 8);
     return;
   }
+  if (!wasOpen && hits) pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8); // the thread at the top
   const list = fresh.querySelector(".scroll-list"); // carry on from where you were in the list
   if (list && keep) { list.scrollTop = keep; fresh.querySelector(".scroll-list").dataset.centred = "1"; updateListPos(fresh); }
 }
 const keptHeight = new Map(); // search results: Scroll keeps the box as tall as it was
+/* "2 matches" in a selected result: the next match goes to the top of the box */
+function nextMatch(node) {
+  const list = node && node.querySelector(".scroll-list");
+  if (!list) return;
+  const hs = [...list.querySelectorAll(":scope > li.track.hit")];
+  const next = hs.find((h) => h.offsetTop > list.scrollTop + 2) || hs[0];
+  if (next) list.scrollTo({ top: next.offsetTop, behavior: "smooth" });
+}
 function toggleScroll(t, hits) {
   setActive(t.id);
   const old = document.querySelector(`#th-${CSS.escape(t.id)} .tracks`);
@@ -329,12 +355,12 @@ function fitList(node, scroll) {
     const rows = [...list.querySelectorAll(":scope > li.track")];
     const last = rows[Math.min(rows.length, +list.dataset.show || TAG_PREVIEW) - 1];
     const id = node.id.slice(3);
-    if (scrollOn.has(id) && keptHeight.has(id)) list.style.maxHeight = keptHeight.get(id) + "px";
+    if (keptHeight.has(id) && node.classList.contains("searching")) list.style.maxHeight = keptHeight.get(id) + "px";
     else if (last) list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
-    const focus = list.querySelector(":scope > li.track.hit");
-    if (focus && list.dataset.centred !== "1") { // search: put the hit in the middle
+    const hitsIn = list.querySelectorAll(":scope > li.track.hit"), focus = hitsIn[0];
+    if (focus && list.dataset.centred !== "1") { // search: one hit in the middle, several: the first at the top
       list.dataset.centred = "1";
-      list.scrollTop = focus.offsetTop - (list.clientHeight - focus.offsetHeight) / 2;
+      list.scrollTop = hitsIn.length > 1 ? focus.offsetTop : focus.offsetTop - (list.clientHeight - focus.offsetHeight) / 2;
     }
     updateListPos(node);
     return;
@@ -422,12 +448,13 @@ function threadNode({ t, hits }) {
   const n = t.tracks.length, limit = threadLimit(), mobile = phone();
   const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
   const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
-  const scrolling = searching; // all of the thread in a box of 5 around the first hit; it scrolls once selected
+  const scrolling = searching && activeId === t.id; // selected: the whole thread in a box that scrolls
   let idx, listCls = "tracks", show = long ? TAG_PREVIEW : limit - 1; // long threads show 5, like tags
   if (open && hits && mobile) { idx = range(1, n); }                     // phone search: the whole thread
   else if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
   else if (open) { idx = range(1, n); }                                 // short thread: simply all of it
   else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = SEARCH_AROUND; }
+  else if (searching) { idx = searchRows(t, hits); }
   else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
   else if (long && !mobile) { idx = range(1, n); listCls += " scroll-list"; }
   else if (long) { idx = range(1, 1 + TAG_PREVIEW); }
@@ -444,12 +471,15 @@ function threadNode({ t, hits }) {
   // under the thumbnail: the post date; in search results it leads to the thread, with the track count under it
   const when = el("div", { class: "t-when" + (hits ? " in-search" : "") },
     hits ? el("button", { class: "when-link", title: "Show this thread in the feed", onclick: () => goToThread(t) }, day) : el("span", {}, day),
-    hits && n > 1 ? el("span", { class: "when-count" }, `${n} ${n === 1 ? "track" : "tracks"}`) : null,
-    hits && hits.size > 1 ? el("span", { class: "when-count" }, `${hits.size} matches`) : null);
+    hits && n > 1 ? ((searching || open) && !mobile
+      ? el("button", { class: "when-link when-expand" + (open ? " on" : ""), "aria-expanded": String(open), title: open ? "Collapse" : "Show the whole thread",
+          onclick: () => toggleExpand(t, hits) }, open ? "Collapse" : `${n} ${n === 1 ? "track" : "tracks"}`)
+      : el("span", { class: "when-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)) : null,
+    hits && hits.size > 1 ? (scrolling
+      ? el("button", { class: "when-link on", title: "Next match", onclick: (e) => nextMatch(e.currentTarget.closest(".thread")) }, `${hits.size} matches`)
+      : el("span", { class: "when-count" }, `${hits.size} matches`)) : null);
   if (hits && !mobile) {
-    // laptop search: Expand under the tracks
-    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {}));
-    else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // Collapse where Expand was
+    // laptop search: the track count under the thumbnail expands (and collapses) the thread
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
     if (searching) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
@@ -673,7 +703,8 @@ function makePlain(box, src, title) {
 function play(t, i) {
   if (i < 0 || i >= t.tracks.length) return;
   playing = { thread: t, index: i };
-  if (document.querySelector(`#th-${CSS.escape(t.id)} .scroll-list`)) setActive(t.id);
+  const pn = document.getElementById("th-" + t.id);
+  if (pn && selectable(pn) && activeId !== t.id) setActive(t.id, `${t.id}:${i}`);
   const token = ++loadToken;
   const tr = t.tracks[i], x = info(tr), m = meta[tr.url] || {};
   if (adapter) adapter.destroy();

@@ -108,7 +108,7 @@ button.tag-chip:hover { border-color: var(--muted); }
 .tag-count { color: var(--muted); font-size: 14px; }
 .tag-more { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: auto; }
 .tag-more .more-toggle { margin: 0 -8px 0 0; }
-.tag-list { list-style: none; margin: 0 -12px 0 0; padding: 4px 0 4px 8px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
+.tag-list { list-style: none; margin: 0; padding: 4px 0 4px 8px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
 /* Expand / Collapse and the counter */
 .more-toggle {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center;
@@ -234,7 +234,7 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 /* main track: same box treatment as the replies (hover, playing) */
 .head-row {
   display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
-  margin: 10px -12px 10px 0; padding: 8px; border-radius: var(--radius-sm); position: relative; /* "YouTube" ends where Add track ends */
+  margin: 10px 0; padding: 8px; border-radius: var(--radius-sm); position: relative;
 }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
@@ -270,7 +270,7 @@ img.broken { visibility: hidden; }
 .t-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; }
 
 /* expanded */
-.tracks { list-style: none; margin: 0 -12px 6px 0; padding: 0 0 0 176px; }
+.tracks { list-style: none; margin: 0 0 6px 0; padding: 0 0 0 176px; }
 .track {
   display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center;
   padding: 6px 8px; border-radius: var(--radius-sm);
@@ -550,7 +550,7 @@ img.broken { visibility: hidden; }
 /* the post date under the thumbnail (outside the post's box); in search results it leads to the thread, centred,
    with the track count under it */
 .thread { position: relative; }
-.t-when { position: absolute; left: 8px; top: 110px; width: 160px; display: grid; justify-items: center; gap: 6px; color: var(--muted); font-size: 13px; line-height: 18px; }
+.t-when { position: absolute; z-index: 3; left: 8px; top: 110px; width: 160px; display: grid; justify-items: center; gap: 6px; color: var(--muted); font-size: 13px; line-height: 18px; }
 .t-when.in-search { justify-items: center; }
 .thread.searching { min-height: 168px; }
 .t-date-phone, .t-date.only-date { display: none; }
@@ -582,9 +582,8 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 
 /* search results: a selected result gets the same lit dotted frame and scrolls */
 .thread.searching.active::before {
-  content: ""; position: absolute; inset: 0 -16px 0 -8px; pointer-events: none; z-index: 4; /* room for the links that reach the edge */
+  content: ""; position: absolute; inset: 0 0 8px; pointer-events: none; z-index: 4; /* ends a little above the divider */
   border: 1px dotted var(--jade); border-radius: var(--radius-sm);
 }
-/* inside a dotted frame the rows stay inside it (the links end a little before the frame) */
-.thread.framed:not(.searching) .head-row { margin-right: 0; }
-.thread.framed:not(.searching) .tracks, .thread.framed:not(.searching) .tag-list { margin-right: 0; }
+.when-link.on { color: var(--jade); }
+.thread.searching:not(:has(.search-foot)) { padding-bottom: 20px; }
