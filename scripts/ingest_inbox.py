@@ -207,8 +207,7 @@ def apply_move(data, by_id, item):
         return "move: track or thread not found"
     tr = th["tracks"].pop(i)
     tr.pop("main", None)
-    dest["tracks"].append(tr)
-    dest["tracks"].sort(key=lambda x: x["ts"])
+    dest["tracks"].append(tr)  # the newest reply of its new thread, like "Add a track here"
     for t in (th, dest):
         for k, x in enumerate(t["tracks"]):
             x.pop("main", None)
@@ -253,12 +252,36 @@ def apply_split(data, by_id, item):
     return "split" if made else "split: nothing to do"
 
 
+def fix_main(th):
+    for k, x in enumerate(th["tracks"]):
+        x.pop("main", None)
+        if k == 0:
+            x["main"] = True
+
+
+def apply_reorder(data, item):
+    """{"action": "reorder", "thread": id, "id": track id, "to": new index} -> move a track up or down in its
+    thread (index 0 makes it the main post)."""
+    th, i = find(data, item.get("thread"), item.get("id"))
+    if th is None:
+        return "reorder: track not found"
+    to = max(0, min(len(th["tracks"]) - 1, int(item.get("to", i))))
+    tr = th["tracks"].pop(i)
+    th["tracks"].insert(to, tr)
+    fix_main(th)
+    return "reordered"
+
+
 def apply_promote(data, by_id, item):
     """{"action": "promote", "thread": id, "id": track id, "to": "top" | "original"} -> the track leaves its thread
     and becomes a thread of its own: at the top of the feed (dated by the promote) or at its own posting time."""
     th, i = find(data, item.get("thread"), item.get("id"))
     if th is None or i == 0:
         return "promote: track not found (or it is already a main post)"
+    if item.get("to") == "main":  # the new main post of its thread; the old one becomes the first reply
+        th["tracks"].insert(0, th["tracks"].pop(i))
+        fix_main(th)
+        return "promoted"
     tr = th["tracks"].pop(i)
     tr["main"] = True
     ts = int(item.get("ts") or time.time())
@@ -329,6 +352,8 @@ def main():
             res = apply_regroup(data, by_id, item)
         elif action == "promote":
             res = apply_promote(data, by_id, item)
+        elif action == "reorder":
+            res = apply_reorder(data, item)
         elif action == "tag":
             res = apply_tag(data, item)
         elif action == "recheck":
@@ -336,7 +361,7 @@ def main():
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split", "regrouped", "promoted"):
+        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split", "regrouped", "promoted", "reordered"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")

@@ -873,3 +873,26 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 .gm-empty { list-style: none; padding: 20px 8px; }
 .tag-drop .gi-n { color: var(--muted); font-size: 12px; margin-left: 6px; }
 @media (max-width: 640px) { .gm-pool { height: 18vh; } }
+
+/* Genres page, second round */
+.gm-field { display: block; max-width: none; position: relative; }
+.gm-field .tag-input::placeholder { color: var(--muted); }
+.gm-field .tag-field { padding-right: 44px; }
+.gm-clear.btn.square { right: 5px; }
+.gm-pool { height: auto; min-height: 0; max-height: none; overflow: visible; }
+.gm-names { display: grid; gap: 0; width: 100%; }
+.gm-name { display: block; white-space: nowrap; color: var(--text); font-weight: 500; line-height: 1.05; }
+.gm-order { display: grid; justify-items: end; gap: 2px; margin-top: auto; align-self: stretch; text-align: right; }
+.gm-sort { color: var(--muted); font-size: 13px; }
+.genre-mix .tag-side { overflow: hidden; }
+body:has(#th-genre-mix) main { padding-bottom: calc(var(--dock-h, 0px) + 8px); }
+
+/* Notes with ↑ ↓ (up/down in the thread) on the right, as wide as Promote */
+.notes-row { display: flex; gap: 8px; align-items: stretch; }
+.notes-row textarea { flex: 1 1 auto; min-width: 0; }
+.order-btns { display: grid; grid-template-rows: 1fr 1fr; gap: 6px; flex: 0 0 auto; width: var(--promote-w, 96px); }
+.btn.ghost.order-btn { height: auto; padding: 0; display: grid; place-items: center; color: var(--muted); font-weight: 400; }
+.btn.ghost.order-btn:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+.btn.ghost.order-btn:disabled { opacity: .35; cursor: default; }
+.order-btn svg { width: 14px; height: 14px; }
+.order-btns { width: 82px; } .move-row > .promote > .promote-btn:first-child { min-width: 82px; justify-content: center; }

@@ -288,7 +288,7 @@ const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
   if (view === "tags") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last);
   if (view === "mixes") return mixThreads();
-  if (view === "genres") return [genreMix()];
+  if (view === "genres") return gSel.length ? [genreMix()] : []; // no playlist until a genre is picked
   if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
   if (view === "history") return historyMonths();
   return threads.filter(isBase);
@@ -320,7 +320,15 @@ function genreThreads() {
    tracks also have, each with the number of tracks you would get by adding it. Remove a genre and it widens
    again. Each new mix is shuffled; "Date added" puts the newest first. The choice is kept in the address. */
 let gSel = [], gOrder = "shuffle", gMix = null, gIndex = null;
-const genresOf = (tr) => (extra[tr.url] || {}).g || [];
+/* the same genre spelled differently counts once (drum n bass = drum and bass, synth-pop = synth pop);
+   micro genres stay as they are. Your own tags count as genres here too. */
+const SAME_GENRE = { "drum n bass": "drum and bass", "drum & bass": "drum and bass", "drum'n'bass": "drum and bass", "drumnbass": "drum and bass",
+  "dnb": "drum and bass", "d&b": "drum and bass", "d n b": "drum and bass", "rock n roll": "rock and roll", "rock & roll": "rock and roll",
+  "rock'n'roll": "rock and roll", "rock 'n' roll": "rock and roll", "hiphop": "hip hop", "r'n'b": "r&b", "rnb": "r&b", "lofi": "lo fi",
+  "dub step": "dubstep", "synthpop": "synth pop", "italodisco": "italo disco", "triphop": "trip hop", "kpop": "k pop", "jpop": "j pop", "electropop": "electro pop" };
+const sameGenre = (g) => { g = g.trim().toLowerCase().replace(/\s+/g, " "); g = SAME_GENRE[g] || g; g = g.replace(/\s*-\s*/g, " "); return SAME_GENRE[g] || g; };
+const NOT_GENRES = new Set(["broken link", "plays on youtube only"]); // housekeeping tags
+const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g))])]; };
 function genreIndexAll() {
   if (gIndex) return gIndex;
   gIndex = new Map();
@@ -350,14 +358,16 @@ function setGenres(sel) {
   gSel = sel;
   history.replaceState(null, "", "#/genres" + (gSel.length ? "?g=" + gSel.map(encodeURIComponent).join(",") : ""));
   const t = genreMix(true), node = document.getElementById("th-genre-mix");
-  shown = [{ t, hits: null }];
-  if (node) node.replaceWith(genreMixNode(t));
+  shown = gSel.length ? [{ t, hits: null }] : [];
+  if (!gSel.length) { if (node) node.remove(); rendered = 0; }
+  else if (node) node.replaceWith(genreMixNode(t));
+  else { $("#threads").replaceChildren(genreMixNode(t)); rendered = 1; }
   if (playing && playing.thread.mix) markPlaying();
   const old = $("#viewHead .gm-picker"); if (old) old.replaceWith(genrePicker(true));
 }
 function genrePicker(keepFocus) {
   const counts = genreCounts();
-  const input = el("input", { type: "text", class: "tag-input", placeholder: gSel.length ? "" : "Add genre", autocomplete: "off", spellcheck: "false", "aria-label": "Add genre" });
+  const input = el("input", { type: "text", class: "tag-input", placeholder: gSel.length ? "" : "Combine multiple genres into a playlist", autocomplete: "off", spellcheck: "false", "aria-label": "Add genre" });
   const chips = el("span", { class: "tag-chips-in" }, gSel.map((g) => el("button", { type: "button", class: "tag-chip in",
     onmousedown: (e) => e.preventDefault(), onclick: () => setGenres(gSel.filter((x) => x !== g)) }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
   const field = el("span", { class: "tag-field", onmousedown: (e) => { if (e.target === field || e.target === chips) { e.preventDefault(); input.focus(); } } }, chips, input);
@@ -385,7 +395,8 @@ function genrePicker(keepFocus) {
   const pool = el("div", { class: "gm-pool genre-index" },
     counts.length ? counts.flatMap(([g, n]) => [el("button", { class: "when-link", onclick: () => setGenres([...gSel, g]) }, g, el("span", { class: "gi-n" }, n)), " "])
       : el("span", { class: "hint" }, "No other genres in this mix."));
-  const box = el("div", { class: "gm-picker" }, el("span", { class: "tag-box gm-field" }, field, drop), pool);
+  const clear = el("button", { type: "button", class: "btn ghost square gm-clear", "aria-label": "Clear", hidden: !gSel.length || null, onclick: () => setGenres([]) }, "×");
+  const box = el("div", { class: "gm-picker" + (gSel.length ? " picked" : "") }, el("span", { class: "tag-box gm-field" }, field, clear, drop), pool);
   if (keepFocus) requestAnimationFrame(() => input.focus());
   return box;
 }
@@ -405,19 +416,30 @@ function genreMixNode(t) {
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
-          el("span", { class: "tag-name" }, gSel.length ? gSel.join(" + ") : "Genres"),
+          el("span", { class: "gm-names" }, gSel.map((g) => el("span", { class: "gm-name" }, "+ " + g))),
           el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
-        el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added"))),
+        el("div", { class: "gm-order" }, el("span", { class: "gm-sort" }, "Sort by"), order("shuffle", "Shuffle"), order("date", "Date added"))),
       list));
-  requestAnimationFrame(() => fitMix(node));
+  requestAnimationFrame(() => { fitNames(node); fitMix(node); });
   return node;
 }
-/* the playlist box always reaches down to the bottom of the window (or the player) */
+/* each "+ genre" line scaled to fill the width: short names big, long ones small */
+function fitNames(node) {
+  node.querySelectorAll(".gm-name").forEach((n) => {
+    n.style.fontSize = "40px";
+    const w = n.parentElement.clientWidth, nat = n.scrollWidth;
+    n.style.fontSize = Math.max(12, Math.min(64, 40 * w / Math.max(1, nat))) + "px";
+  });
+}
+/* the playlist box reaches down to the bottom of the window (or the player) and no further */
 function fitMix(node = document.getElementById("th-genre-mix")) {
   const list = node && node.querySelector(".gm-list");
   if (!list) return;
   const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
-  list.style.height = Math.max(260, innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - 16) + "px"; // measured from the top of the page
+  let h = Math.max(260, innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - 16); // measured from the top of the page
+  list.style.height = h + "px";
+  const over = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) - innerHeight;
+  if (over > 0 && h - over >= 260) list.style.height = h - over + "px"; // the page itself doesn't need to scroll
 }
 addEventListener("resize", () => fitMix());
 
@@ -583,8 +605,8 @@ const img = (src, cls) => src
 /* tags under a title; clicking one searches for it */
 const HIDDEN_TAGS = new Set(["mix"]); // kept on the track for the Mixes page, never shown as a tag
 const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g));
-function tagLine(tr, extra) {
-  const tags = shownTags(tr);
+function tagLine(tr, extra, list) {
+  const tags = list || shownTags(tr);
   return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
@@ -597,7 +619,7 @@ function trackRow(t, tr, i, hits) {
     img(x.thumb, "chip"),
     el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
       el("span", { class: "tr-title" }, x.title),
-      el("span", { class: "tr-sub" }, tagLine(tr, x.recovered ? RECOVERED : null))),
+      el("span", { class: "tr-sub" }, tagLine(tr, x.recovered ? RECOVERED : null, t.mix ? genresOf(tr) : null))),
     rowLinks(t, i, x));
 }
 
@@ -679,7 +701,7 @@ function setActive(id, clickedK) {
     if (row) { const box = row.closest(".scroll-list"); if (row.offsetTop < box.scrollTop || row.offsetTop + row.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = row.offsetTop; }
   }
 }
-const selectable = (th) => th.querySelector(".scroll-list") || (th.classList.contains("searching") && th.querySelector(".tracks"));
+const selectable = (th) => !th.classList.contains("genre-mix") && (th.querySelector(".scroll-list") || (th.classList.contains("searching") && th.querySelector(".tracks")));
 document.addEventListener("click", (e) => {
   if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap")) return; // the player and editing leave it as it is
   if (addingId) return; // adding a track: stays selected until the card closes
@@ -1120,6 +1142,7 @@ function makePlain(box, src, title) {
 function play(t, i) {
   if (i < 0 || i >= t.tracks.length) return;
   playing = { thread: t, index: i };
+  if (t.mix && !autoplay) { autoplay = true; $("#autoBtn").setAttribute("aria-pressed", "true"); $("#autoBtn").textContent = "Autoplay on"; } // a Genres playlist plays on
   const pn = document.getElementById("th-" + t.id);
   // the thread you play from gets the selected frame (in search results only the ones that scroll)
   if (pn && activeId !== t.id && !addingId && selectable(pn)) setActive(t.id, `${t.id}:${i}`); // only boxes that scroll
@@ -1506,7 +1529,10 @@ function moreInfo(tr, edit, tags) {
   const notes = el("textarea", { name: "notes", rows: "3", placeholder: "Not shown on the site; searches still find them" });
   notes.value = (tr && tr.notes) || "";
   const box = el("div", { class: "af-more", hidden: true },
-    el("label", { class: "af-field" }, el("span", {}, "Notes"), notes),
+    el("div", { class: "af-field" }, el("span", {}, "Notes"),
+      el("div", { class: "notes-row" }, notes, edit && edit.t.tracks.length > 1 ? el("div", { class: "order-btns" },
+        orderBtn(true, () => reorderTrack(box.closest("form"), edit, -1), edit.i === 0),
+        orderBtn(false, () => reorderTrack(box.closest("form"), edit, 1), edit.i === edit.t.tracks.length - 1)) : null)),
     edit ? movePanel(() => box.closest("form"), edit) : null);
   if (edit && edit.i === 0) {
     const date = el("input", { name: "date", type: "hidden" }); // YYYY-MM-DD, sent with Save
@@ -1748,6 +1774,27 @@ function applyTags(tr, list, ts) {
 /* ---------- move a track to another thread ---------- */
 const threadLabel = (t) => t.name || info(t.tracks[0]).title;
 
+/* up / down in the thread (from the second place, up makes it the main post) */
+function orderBtn(up, fn, disabled) {
+  const b = el("button", { type: "button", class: "btn ghost order-btn", "aria-label": up ? "Up in the thread" : "Down in the thread", disabled: disabled || null, onclick: fn });
+  b.innerHTML = `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${up ? "M2.5 7.5 6 4l3.5 3.5" : "M2.5 4.5 6 8l3.5-3.5"}" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>`;
+  return b;
+}
+async function reorderTrack(form, { t, i }, d) {
+  const to = i + d, tr = t.tracks[i], playTr = playing && playing.thread === t ? t.tracks[playing.index] : null;
+  if (to < 0 || to >= t.tracks.length) return;
+  const msg = form.querySelector(".af-msg");
+  try { await writeInbox({ action: "reorder", thread: t.id, id: tr.id, to, ts: Math.floor(Date.now() / 1000) }, "reorder"); }
+  catch (e) { msg.textContent = netMsg(e); return; }
+  t.tracks.splice(i, 1); t.tracks.splice(to, 0, tr);
+  t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
+  if (playTr) playing.index = t.tracks.indexOf(playTr);
+  closeAddForm(form, { quiet: true });
+  rerenderThread(t, to); markPlaying();
+  // the card opens again on the track, with the extended part open
+  const row = document.querySelector(`.track[data-k="${CSS.escape(t.id)}:${to}"], .head-row[data-k="${CSS.escape(t.id)}:${to}"]`);
+  if (row) { toggleEditForm(t, to, row); row.nextElementSibling?.querySelector(".more-info-btn")?.click(); }
+}
 /* small thin arrows (one place up / down in the feed) */
 function stepBtn(up, step) {
   const b = el("button", { type: "button", class: "date-step", "aria-label": up ? "Move up in the feed" : "Move down in the feed", onclick: () => step(up) });
@@ -1785,8 +1832,9 @@ function movePanel(formOf, edit) {
   const drawPromote = (ask) => promote && promote.replaceChildren(
     el("button", { type: "button", class: "btn ghost promote-btn", "aria-expanded": String(ask), title: "Make this track a thread of its own", onclick: () => drawPromote(!ask) }, "Promote"),
     ...(ask ? [
-      el("button", { type: "button", class: "btn ghost promote-btn", title: "Its own thread, at the top of the feed (dated today)", onclick: () => promoteTrack(formOf(), edit, "top") }, "To the top"),
-      el("button", { type: "button", class: "btn ghost promote-btn", title: "Its own thread, at the date it was posted", onclick: () => promoteTrack(formOf(), edit, "original") }, "At its own date")] : []));
+      el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "main") }, "To the top"),
+      el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "top") }, "Own thread (new)"),
+      el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "original") }, "Own thread (dated)")] : []));
   drawPromote(false);
   const panel = el("div", { class: "move-panel" }, el("span", { class: "af-label-line" }, "Move to the thread of…"),
     el("div", { class: "move-row" }, input, promote), list);
@@ -1801,7 +1849,7 @@ function movePanel(formOf, edit) {
       const byName = t.name && terms.every((w) => fold(t.name).includes(w));
       const k = byName ? 0 : t.tracks.findIndex((tr) => { const h = haystack(tr); return terms.every((w) => h.includes(w)); });
       if (k > -1) found.push({ t, k });
-      if (found.length >= 8) break;
+      if (found.length >= 3) break;
     }
     if (!found.length) { list.appendChild(el("li", { class: "move-none hint" }, "No other thread has a track like that.")); return; }
     for (const { t, k } of found) {
@@ -1823,6 +1871,11 @@ async function promoteTrack(form, { t, i }, to) {
   btns.forEach((b) => (b.disabled = true)); msg.textContent = "Promoting…";
   try { await writeInbox({ action: "promote", thread: t.id, id: tr.id, to, ts }, "promote"); }
   catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  if (to === "main") { // the main post of its thread; the old one becomes the first reply
+    t.tracks.unshift(t.tracks.splice(i, 1)[0]);
+    t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
+    closeAddForm(form, { quiet: true }); rerenderThread(t, 0); refreshHistory(); return;
+  }
   // on screen right away: its own thread
   t.tracks.splice(i, 1);
   tr.main = true;
@@ -1844,8 +1897,7 @@ async function moveTrack(form, { t, i }, dest) {
   t.tracks.splice(i, 1);
   t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
   delete tr.main;
-  dest.tracks.push(tr);
-  dest.tracks.sort((a, b) => a.ts - b.ts);
+  dest.tracks.push(tr); // the newest reply of its new thread, like "Add a track here"
   dest.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
   if (!t.tracks.length) { threads.splice(threads.indexOf(t), 1); shown = shown.filter((x) => x.t !== t); }
   rerenderThread(t, null);

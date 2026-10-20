@@ -179,13 +179,40 @@ def set_years(e, years):
         e.pop("ys", None)
 
 
+SAME_GENRE = {  # spellings that are certainly the same genre (micro genres stay as they are)
+    "drum n bass": "drum and bass", "drum & bass": "drum and bass", "drum'n'bass": "drum and bass", "drumnbass": "drum and bass",
+    "dnb": "drum and bass", "d&b": "drum and bass", "d n b": "drum and bass",
+    "rock n roll": "rock and roll", "rock & roll": "rock and roll", "rock'n'roll": "rock and roll", "rock 'n' roll": "rock and roll",
+    "hiphop": "hip hop", "r'n'b": "r&b", "rnb": "r&b", "lofi": "lo fi", "dub step": "dubstep", "synthpop": "synth pop",
+    "italodisco": "italo disco", "triphop": "trip hop", "kpop": "k pop", "jpop": "j pop", "electropop": "electro pop",
+}
+
+
+def same_genre(g):
+    """One name per genre: lower case, hyphens as spaces, and the known other spellings."""
+    g = re.sub(r"\s+", " ", g.strip().lower())
+    g = SAME_GENRE.get(g, g)
+    g = re.sub(r"\s*-\s*", " ", g)
+    return SAME_GENRE.get(g, g)
+
+
+def merged(genres):
+    out = []
+    for g in genres:
+        m = same_genre(g)
+        if m and m not in out:
+            out.append(m)
+    return out
+
+
 def add_genres(e, genres):
     g = list(e.get("g") or [])
     for x in genres:
         if x not in g:
             g.append(x)
     if g:
-        e["g"] = g[:10]
+        e["g"] = g[:10]  # as found (searchable)
+        e["gm"] = merged(e["g"])  # same genres merged, for the Genres page
 
 
 def oembed_details(tr):
