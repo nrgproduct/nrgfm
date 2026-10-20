@@ -412,13 +412,7 @@ function jumpTo(id) {
   while (rendered <= at && rendered < shown.length) renderMore();
   const node = document.getElementById("th-" + id);
   if (!node) return;
-  let frames = 0;
-  const place = () => {
-    const dy = node.getBoundingClientRect().top - contentTop() - 8;
-    if (Math.abs(dy) > 1) pageScrollBy(dy);
-    if (++frames < 30) requestAnimationFrame(place);
-  };
-  place();
+  holdAt(node, () => contentTop() + 8);
 }
 /* uBlock Origin Lite for this browser (iPhone/iPad and Safari: the App Store app) */
 function openUblock() {
@@ -526,6 +520,19 @@ if (window.matchMedia("(max-width: 400px)").matches) $("#q").placeholder = "Arti
 const scroller = () => (INNER_SCROLL ? document.body : window);
 const pageScrollBy = (y, smooth) => scroller().scrollBy({ top: y, behavior: smooth ? "smooth" : "auto" });
 const pageScrollTo = (y) => scroller().scrollTo({ top: y, behavior: "auto" });
+const pageY = () => (INNER_SCROLL ? document.body.scrollTop : scrollY);
+/* keep a node at a spot under the header while things above it settle: the position is set absolutely each frame
+   (never added to), and it stops once it has stayed put for a few frames */
+function holdAt(node, offset) {
+  let frames = 0, still = 0;
+  const step = () => {
+    if (!node.isConnected) return;
+    const dy = node.getBoundingClientRect().top - offset();
+    if (Math.abs(dy) > 1) { pageScrollTo(pageY() + dy); still = 0; } else still++;
+    if (++frames < 90 && still < 8) requestAnimationFrame(step);
+  };
+  step();
+}
 /* bring an element fully into view (between the header and the player), moving as little as possible */
 function revealWhole(node, smooth = true) {
   const r = node.getBoundingClientRect(), top = headerBottom() + 8;
@@ -824,14 +831,7 @@ function goToThread(t) {
   while (rendered <= at && rendered < shown.length) renderMore();
   const node = document.getElementById("th-" + t.id);
   if (!node) return;
-  // boxes above size themselves a moment later: keep placing it under the header until nothing moves
-  let frames = 0;
-  const place = () => {
-    const dy = node.getBoundingClientRect().top - headerBottom() - 8;
-    if (Math.abs(dy) > 1) pageScrollBy(dy);
-    if (++frames < 70) requestAnimationFrame(place);
-  };
-  place();
+  holdAt(node, () => headerBottom() + 8); // boxes above size themselves a moment later
 }
 
 function markPlaying() {
@@ -1014,7 +1014,7 @@ function play(t, i) {
   const dock = $("#dock"); dock.hidden = false;
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
-  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (t.kind === "tag" ? " in this tag" : " in this thread");
+  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
   closeThread();
   fitTitle();
   $("#prevBtn").disabled = i === 0;
@@ -1384,8 +1384,30 @@ function moreInfo(tr, edit, tags) {
     el("label", { class: "af-field" }, el("span", {}, "Notes"), notes),
     edit ? movePanel(() => box.closest("form"), edit) : null);
   if (edit && edit.i === 0) {
-    const date = el("input", { name: "date", type: "date", required: true });
+    const date = el("input", { name: "date", type: "hidden" }); // YYYY-MM-DD, sent with Save
     date.value = tr.shown_date || tr.date;
+    const shown = el("button", { type: "button", class: "rel-name date-name" });
+    const showDate = () => shown.replaceChildren(fmtDay(date.value));
+    const typeDate = () => { // the date in numbers: 18.10.2026 (or 2026-10-18)
+      const [y, m, d] = date.value.split("-");
+      const input = el("input", { type: "text", class: "rel-input", value: `${+d}.${+m}.${y}`, size: 11, inputmode: "numeric", "aria-label": "Posted" });
+      let finished = false;
+      const done = (keep) => {
+        if (finished) return; finished = true;
+        if (keep) {
+          const v = input.value.trim(), a = v.match(/^(\d{1,2})[.\/ -](\d{1,2})[.\/ -](\d{4})$/), b = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+          const [yy, mm, dd] = a ? [a[3], a[2], a[1]] : b ? [b[1], b[2], b[3]] : [];
+          const iso = yy && `${yy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+          if (iso && !isNaN(Date.parse(iso + "T12:00:00Z"))) { date.value = iso; pos = null; note.textContent = ""; }
+        }
+        input.replaceWith(shown); showDate();
+      };
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+      input.addEventListener("blur", () => done(true));
+      shown.replaceWith(input); input.focus(); input.select();
+    };
+    shown.onclick = typeDate;
+    showDate();
     // the arrows move the thread one place up or down in the feed (saved with Save)
     const t = edit.t, note = el("span", { class: "hint" });
     let pos = null;
@@ -1399,17 +1421,13 @@ function moreInfo(tr, edit, tags) {
       const a = activity(next), b = beyond ? activity(beyond) : a + (up ? 7200 : -7200);
       pos = Math.round((a + b) / 2); // halfway between the next thread and the one after it
       if (pos === a) pos = a + (up ? 1 : -1);
-      date.value = new Date(pos * 1000).toISOString().slice(0, 10);
+      date.value = new Date(pos * 1000).toISOString().slice(0, 10); showDate();
       note.textContent = (up ? "above " : "below ") + info(next.tracks[0]).title;
     };
-    date.addEventListener("input", () => { pos = null; note.textContent = ""; });
     box.feedPos = () => pos;
-    box.append(el("div", { class: "af-field af-date" },
-      el("span", {}, "Posted", tr.shown_date ? el("span", { class: "hint" }, ` (originally ${fmtDay(tr.date)})`) : null),
-      el("div", { class: "af-date-row" }, date,
-        el("button", { type: "button", class: "btn ghost", title: "One place up in the feed", "aria-label": "Move up in the feed", onclick: () => step(true) }, "↑"),
-        el("button", { type: "button", class: "btn ghost", title: "One place down in the feed", "aria-label": "Move down in the feed", onclick: () => step(false) }, "↓"),
-        note)));
+    box.append(el("div", { class: "af-sug af-date" }, el("span", { class: "af-label" }, "Posted"), date, shown,
+      tr.shown_date ? el("span", { class: "hint" }, `(originally ${fmtDay(tr.date)})`) : null,
+      stepBtn(true, step), stepBtn(false, step), note));
   }
   if (tr) {
     const sug = el("div", { class: "af-sug" });
@@ -1605,6 +1623,12 @@ function applyTags(tr, list, ts) {
 /* ---------- move a track to another thread ---------- */
 const threadLabel = (t) => t.name || info(t.tracks[0]).title;
 
+/* small thin arrows (one place up / down in the feed) */
+function stepBtn(up, step) {
+  const b = el("button", { type: "button", class: "date-step", "aria-label": up ? "Move up in the feed" : "Move down in the feed", onclick: () => step(up) });
+  b.innerHTML = `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="${up ? "M6 10V2M2.5 5.5 6 2l3.5 3.5" : "M6 2v8M2.5 6.5 6 10l3.5-3.5"}" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>`;
+  return b;
+}
 /* the suggested releases, each with a dotted underline: click one to correct it (× deletes it); saved with the card */
 function releaseEditor(tr, x, box) {
   const start = tr.release || x.rl || [], rel = [...start];
@@ -1613,7 +1637,8 @@ function releaseEditor(tr, x, box) {
     const item = el("span", { class: "rel-item" + (k ? " rel-other" : "") });
     const edit = () => {
       const input = el("input", { type: "text", class: "rel-input", value: r, size: Math.max(8, r.length + 2), "aria-label": "Release" });
-      const done = (keep) => { if (keep) { const v = input.value.trim(); if (v) rel[k] = v; else rel.splice(k, 1); } draw(); };
+      let finished = false;
+      const done = (keep) => { if (finished) return; finished = true; if (keep) { const v = input.value.trim(); if (v) rel[k] = v; else rel.splice(k, 1); } draw(); };
       input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
       input.addEventListener("blur", () => done(true));
       item.replaceChildren(input, el("button", { type: "button", class: "rel-x", "aria-label": "Delete this release",
@@ -1799,6 +1824,8 @@ function copyLink(t, btn) {
 /* Escape: close every add/edit card and leave the search */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  const cards = document.querySelectorAll(".add-form");
+  if (cards.length) { cards.forEach((f) => closeAddForm(f)); return; } // an open card closes first, nothing else
   if (activeId) setActive(null);
   if (!$("#menu").hidden) toggleMenu(false);
   const now = Date.now(), twice = now - lastEsc < 450;

@@ -825,3 +825,19 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 .rel-input { height: 28px; padding: 0 8px; font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .rel-x { all: unset; cursor: pointer; color: var(--muted); padding: 0 4px; font-size: 16px; }
 .rel-x:hover { color: var(--text); }
+
+/* close ×: thin lines, a light fill; pressed it turns into the Play button's colours */
+.btn.ghost.close-x { background: color-mix(in srgb, var(--surface-2) 45%, transparent); border-color: var(--line); color: var(--text); }
+.btn.ghost.close-x svg { width: 12px; height: 12px; }
+.btn.ghost.close-x:active { background: var(--jade); border-color: var(--jade); color: var(--jade-ink); }
+@media (max-width: 640px) { .btn.ghost.close-x { border-color: var(--line); } .btn.ghost.close-x svg { width: 14px; height: 14px; } }
+/* Posted: the date as text (click to type it), small thin arrows */
+.af-date .date-name { color: var(--text); }
+.date-step { all: unset; cursor: pointer; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--muted); border: 1px solid var(--line); }
+.date-step:hover { color: var(--text); border-color: var(--muted); }
+.date-step svg { width: 12px; height: 12px; }
+/* History: titles not bold; − + plain with a comfortable click area */
+.month-play .tr-title { font-weight: 400; }
+.hist-size { gap: 4px; }
+.hist-size .when-link { color: var(--muted); text-decoration: none; padding: 2px 8px; border-radius: var(--radius-sm); user-select: none; font-size: 17px; line-height: 1; }
+.hist-size .when-link:hover { color: var(--text); }
