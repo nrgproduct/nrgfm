@@ -203,7 +203,7 @@ function runSearch() {
     drawViewHead();
   } else {
     shown = [];
-    const used = new Set(), none = new Set();
+    const used = new Set(), none = new Set(), perField = new Map(); // tracks found (also) through each part
     for (const t of threads) {
       if (t.kind === "tag") continue; // tags are searched on the tracks themselves
       const hits = new Set();
@@ -212,7 +212,10 @@ function runSearch() {
         if (!matches(tr, terms, none)) return;
         const f = fieldsOf(tr);
         for (const [k] of FIELDS) if (terms.some((w) => has(f[k], w))) used.add(k); // which filters are worth showing
-        if (matches(tr, terms)) { hits.add(i); rank = Math.min(rank, matchRank(tr, terms)); }
+        if (matches(tr, terms)) {
+          hits.add(i); rank = Math.min(rank, matchRank(tr, terms));
+          for (const [k] of FIELDS) if (!searchOff.has(k) && terms.some((w) => has(f[k], w))) perField.set(k, (perField.get(k) || 0) + 1);
+        }
       });
       if (hits.size) shown.push({ t, hits, rank });
     }
@@ -230,7 +233,8 @@ function runSearch() {
         byNewest ? "Newest first" : "Best match"),
       el("span", { class: "search-fields" }, FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
-        onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name))));
+        onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name,
+        searchOff.has(k) ? null : el("span", { class: "gi-n" }, perField.get(k) || 0)))));
   }
   rendered = 0;
   $("#threads").replaceChildren();
@@ -390,14 +394,20 @@ function genrePicker(keepFocus) {
       e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
       items.forEach((li, k) => li.classList.toggle("on", k === active));
     } else if (e.key === "Backspace" && !input.value && gSel.length) setGenres(gSel.slice(0, -1));
-    else if (e.key === "Escape") { e.stopPropagation(); drop.hidden = true; input.blur(); }
+    else if (e.key === "Escape") { e.stopPropagation(); if (!drop.hidden) drop.hidden = true; else { setGenres([]); } }
   });
   const pool = el("div", { class: "gm-pool genre-index" },
     counts.length ? counts.flatMap(([g, n]) => [el("button", { class: "when-link", onclick: () => setGenres([...gSel, g]) }, g, el("span", { class: "gi-n" }, n)), " "])
       : el("span", { class: "hint" }, "No other genres in this mix."));
-  const clear = el("button", { type: "button", class: "btn ghost square gm-clear", "aria-label": "Clear", hidden: !gSel.length || null, onclick: () => setGenres([]) }, "×");
-  const box = el("div", { class: "gm-picker" + (gSel.length ? " picked" : "") }, el("span", { class: "tag-box gm-field" }, field, clear, drop), pool);
+  const moreArrow = el("span", { class: "gm-more", hidden: true, "aria-hidden": "true" });
+  moreArrow.innerHTML = '<svg viewBox="0 0 16 10"><path d="M2 2l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+  pool.addEventListener("scroll", () => (moreArrow.hidden = pool.scrollTop + pool.clientHeight >= pool.scrollHeight - 4), { passive: true });
+  const clear = el("button", { type: "button", class: "btn ghost square gm-clear", "aria-label": "Clear", hidden: !gSel.length || null, onclick: () => setGenres([]) });
+  clear.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+  const box = el("div", { class: "gm-picker" + (gSel.length ? " picked" : "") }, el("span", { class: "tag-box gm-field" }, field, clear, drop),
+    el("div", { class: "gm-pool-wrap" }, pool, moreArrow));
   if (keepFocus) requestAnimationFrame(() => input.focus());
+  requestAnimationFrame(() => fitMix());
   return box;
 }
 function genreMixNode(t) {
@@ -411,16 +421,15 @@ function genreMixNode(t) {
     const more = t.tracks.slice(drawn, drawn + BATCH).map((tr, k) => trackRow(t, tr, drawn + k, null));
     drawn += more.length; list.append(...more); markPlaying();
   }, { passive: true });
-  const order = (o, label) => el("button", { class: "when-link" + (gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
+  const order = (o, label) => el("button", { class: "more-toggle" + (gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
   const node = el("li", { class: "thread tag-thread framed genre-mix", id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
-          el("span", { class: "gm-names" }, gSel.map((g) => el("span", { class: "gm-name" }, "+ " + g))),
-          el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
-        el("div", { class: "gm-order" }, el("span", { class: "gm-sort" }, "Sort by"), order("shuffle", "Shuffle"), order("date", "Date added"))),
+          el("span", { class: "gm-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
+          el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added")))),
       list));
-  requestAnimationFrame(() => { fitNames(node); fitMix(node); });
+  requestAnimationFrame(() => fitMix(node));
   return node;
 }
 /* each "+ genre" line scaled to fill the width: short names big, long ones small */
@@ -432,14 +441,28 @@ function fitNames(node) {
   });
 }
 /* the playlist box reaches down to the bottom of the window (or the player) and no further */
+/* Genres layout: the genres to pick and the playlist share the window. The playlist gets at least half of it
+   (or just what its tracks need); when the genres don't fit above it, they scroll in their own box with a small
+   arrow showing there is more. The page itself doesn't scroll. */
 function fitMix(node = document.getElementById("th-genre-mix")) {
-  const list = node && node.querySelector(".gm-list");
-  if (!list) return;
+  const pool = $("#viewHead .gm-pool"), list = node && node.querySelector(".gm-list");
+  if (!pool) return;
   const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
-  let h = Math.max(260, innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - 16); // measured from the top of the page
-  list.style.height = h + "px";
+  pool.style.height = ""; pool.parentElement.classList.remove("scrolls");
+  const avail = innerHeight - dock - (pool.getBoundingClientRect().top + pageY()) - 12; // from the top of the genres to the bottom
+  if (!list) { pool.parentElement.querySelector(".gm-more").hidden = true; return; }
+  list.style.height = "";
+  const frame = node.getBoundingClientRect().height - list.getBoundingClientRect().height; // the box around the list
+  const gap = node.getBoundingClientRect().top - pool.getBoundingClientRect().bottom;
+  const listNeed = list.scrollHeight + frame, poolNeed = pool.scrollHeight;
+  const listH = Math.min(listNeed, Math.max(avail / 2, avail - poolNeed - gap)); // half the window at least, if it needs it
+  const poolH = Math.min(poolNeed, avail - listH - gap);
+  if (poolH < poolNeed) { pool.style.height = Math.max(60, poolH) + "px"; pool.parentElement.classList.add("scrolls"); }
+  pool.parentElement.querySelector(".gm-more").hidden = !(poolH < poolNeed) || pool.scrollTop + pool.clientHeight >= pool.scrollHeight - 4;
+  const room = innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - (frame - 0) - 12;
+  list.style.height = Math.max(120, Math.min(list.scrollHeight, room)) + "px";
   const over = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) - innerHeight;
-  if (over > 0 && h - over >= 260) list.style.height = h - over + "px"; // the page itself doesn't need to scroll
+  if (over > 0) list.style.height = Math.max(120, list.getBoundingClientRect().height - over) + "px"; // the page itself doesn't scroll
 }
 addEventListener("resize", () => fitMix());
 
@@ -554,6 +577,7 @@ function openUblock() {
   open(url, "_blank", "noopener");
 }
 function setView(v, keepHash) {
+  setTimeout(() => (document.body.dataset.view = view), 0);
   if (v === "ublock") { // first press: "Confirm"; the second opens the store
     const b = $('#menu button[data-view="ublock"]');
     if (b.dataset.confirm) { clearTimeout(b._t); delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; openUblock(); }
@@ -927,7 +951,9 @@ function threadNode({ t, hits }) {
     else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
-    if (searching) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
+    if (searching) foot = el("div", { class: "search-foot" }, pos(),
+      el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), onclick: (e) => { e.stopPropagation(); setActive(scrolling ? null : t.id); } }, "Scroll"),
+      expandBtn("foot-right"));
   } else if (long) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
@@ -1155,6 +1181,7 @@ function play(t, i) {
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
   $("#dock").classList.remove("wide"); // a new track: the buttons come back
+  showFlag();
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
   closeThread();
   fitTitle();
@@ -1830,7 +1857,7 @@ function movePanel(formOf, edit) {
   // Promote (replies only): the track becomes its own thread, at the top of the feed or at its own date
   const promote = edit.i > 0 ? el("span", { class: "promote" }) : null;
   const drawPromote = (ask) => promote && promote.replaceChildren(
-    el("button", { type: "button", class: "btn ghost promote-btn", "aria-expanded": String(ask), title: "Make this track a thread of its own", onclick: () => drawPromote(!ask) }, "Promote"),
+    ask ? null : el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => drawPromote(true) }, "Promote"),
     ...(ask ? [
       el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "main") }, "To the top"),
       el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "top") }, "Own thread (new)"),
@@ -2003,6 +2030,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const cards = document.querySelectorAll(".add-form");
   if (cards.length) { cards.forEach((f) => closeAddForm(f)); return; } // an open card closes first, nothing else
+  if (view === "genres" && gSel.length && !$("#q").value) { setGenres([]); return; } // Genres: Esc empties the field
   if (activeId) setActive(null);
   if (!$("#menu").hidden) toggleMenu(false);
   const now = Date.now(), twice = now - lastEsc < 450;
@@ -2053,6 +2081,16 @@ $("#sourceBtn").onclick = () => {
   if (!playing) return;
   const home = homeOf(playing.thread.tracks[playing.index]);
   if (home) goToThread(home);
+};
+/* "flag" in the player (phone): tags the playing track "flagged" (again: takes it off) */
+function showFlag() { const tr = playing && playing.thread.tracks[playing.index]; $("#flagBtn").classList.toggle("on", !!(tr && tr.tags && tr.tags.flagged)); }
+$("#flagBtn").onclick = async () => {
+  if (!playing) return;
+  if (!getToken()) { openSetup(); return; }
+  const tr = playing.thread.tracks[playing.index], on = !(tr.tags && tr.tags.flagged), ts = Math.floor(Date.now() / 1000);
+  try { await writeInbox({ action: "tag", ids: [tr.id], add: on ? ["flagged"] : [], remove: on ? [] : ["flagged"], ts }, "tag"); } catch { return; }
+  applyTags(tr, on ? [...Object.keys(tr.tags || {}), "flagged"] : Object.keys(tr.tags || {}).filter((g) => g !== "flagged"), ts);
+  tr._hay = null; showFlag(); refreshTags();
 };
 /* "edit" in the player: the playing track's edit card */
 $("#editBtn").onclick = () => editPlaying(false);
@@ -2152,6 +2190,7 @@ $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView(
   const gq = location.hash.match(/^#\/genres\?g=(.+)$/);
   if (gq) gSel = gq[1].split(",").map(decodeURIComponent).filter(Boolean);
   document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
+  document.body.dataset.view = view;
   runSearch();
   watchHistory();
   checkSetupHash();

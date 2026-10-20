@@ -244,7 +244,7 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
 .head-row.hit .t-title, .track.hit .tr-title {
-  display: inline; background: var(--jade); color: var(--jade-ink); padding: 2px 7px; /* the Play button's fill behind dark text (before: var(--text), see the theme file) */ margin: 0 -3px; border-radius: 4px; line-height: 1.55;
+  display: inline; background: var(--seek, var(--jade)); color: var(--jade-ink); padding: 2px 7px; /* the Add track fill, square like a highlighter (earlier colours: see the theme file) */ margin: 0 -3px; border-radius: 0; line-height: 1.55;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .head-row.dead .t-title { text-decoration: line-through; }
@@ -846,8 +846,8 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 .add-form button[type=submit].btn { background: var(--seek, var(--accent-dim)); }
 .add-form button[type=submit].btn:hover { background: var(--accent-dim); }
 /* Random: lights up in the Play button's colour when pressed */
-.menu button[data-view="random"].flash, .menu button[data-view="random"]:active { background: var(--jade); color: var(--jade-ink); border-radius: 3px; text-decoration: none; }
-.menu button[data-view="random"] { padding: 0 3px; margin: 0 -3px; transition: background .25s, color .25s; }
+.menu button[data-view="random"].flash, .menu button[data-view="random"]:active { color: var(--jade); }
+.menu button[data-view="random"] { transition: color .25s; }
 
 /* long titles in the player: click to make room */
 #nowTitle { cursor: default; }
@@ -896,3 +896,46 @@ body:has(#th-genre-mix) main { padding-bottom: calc(var(--dock-h, 0px) + 8px); }
 .btn.ghost.order-btn:disabled { opacity: .35; cursor: default; }
 .order-btn svg { width: 14px; height: 14px; }
 .order-btns { width: 82px; } .move-row > .promote > .promote-btn:first-child { min-width: 82px; justify-content: center; }
+
+/* Genres, third round */
+body[data-view="genres"] main { padding-bottom: calc(var(--dock-h, 0px) + 8px); } /* the page ends with the genres / playlist */
+body[data-view="genres"] #more { display: none; }
+.gm-field .tag-chip.in { color: var(--text); }
+.gm-clear svg { width: 12px; height: 12px; }
+.gm-clear.btn.square { font-weight: 400; }
+.gm-pool-wrap { position: relative; }
+.gm-pool-wrap.scrolls .gm-pool { overflow-y: auto; }
+.gm-more { position: absolute; left: 0; right: 0; bottom: 0; height: 28px; display: grid; place-items: end center; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--bg) 70%); color: var(--muted); }
+.gm-more svg { width: 16px; height: 10px; margin-bottom: 4px; }
+.gm-more[hidden] { display: none; }
+.gm-count { color: var(--text); font-size: 22px; font-weight: 500; line-height: 1.2; }
+.gm-order { display: grid !important; justify-items: start !important; text-align: left !important; gap: 0; margin-top: 6px !important; }
+.gm-order .more-toggle { margin-left: -8px; height: 26px; }
+.gm-order .more-toggle.on { color: var(--text); }
+.genre-mix .tag-side { justify-content: flex-start; }
+@media (max-width: 640px) {
+  .gm-picker, .gm-field, .gm-pool-wrap { min-width: 0; max-width: 100%; }
+  .gm-pool { text-align: left; overflow-wrap: anywhere; }
+  .gm-field .tag-field { max-width: 100%; }
+}
+/* phone player: flag */
+#flagBtn { margin-left: 10px; }
+#flagBtn.on { color: var(--jade); }
+@media (min-width: 641px) { #flagBtn { display: none; } }
+@media (max-width: 640px) {
+  .ctrlrow { grid-template-columns: auto 1fr auto auto !important; grid-template-areas: "title title title title" "transport thread flag source" "opts opts opts opts" !important; }
+  #flagBtn { grid-area: flag; margin-left: 0; }
+}
+body:not(.can-add) #flagBtn { display: none; }
+/* Promote: the three choices take its place and the search field makes room */
+.af-more > *, .move-panel, .move-row { min-width: 0; }
+.move-row input { min-width: 80px; }
+/* search: the count per part */
+.sf .gi-n { margin-left: 4px; font-size: 12px; color: var(--muted); }
+@media (max-width: 640px) {
+  .genre-mix .tag-side { padding: 8px; min-height: 0; }
+  .genre-mix .tag-label { flex-direction: row; align-items: baseline; justify-content: space-between; width: 100%; }
+  .genre-mix .gm-order { display: flex !important; gap: 14px; margin-top: 0 !important; }
+  .gm-count { font-size: 19px; }
+}

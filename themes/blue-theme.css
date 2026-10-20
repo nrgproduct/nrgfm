@@ -14,7 +14,8 @@
   --seek: #6f9ecb;         /* the playhead fill */
   --hit: #4f78a0;          /* (old) search highlight */
   /* saved: the search highlight used until Oct 2026 was the track text colour (--text, #d5dde5) behind dark text
-     (--jade-ink); it is now the Play button's fill (--jade). To go back: .hit titles background: var(--text). */
+     (--jade-ink); then the Play button's fill (--jade); now the Add track fill (--seek) with square edges.
+     To go back: .hit titles background: var(--text) and border-radius: 4px. */
   --dots: #93a8c0;         /* dotted frames and dividers */
   --accent-dim-hover: #a0c0e2;
 }
