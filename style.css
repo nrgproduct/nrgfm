@@ -64,8 +64,8 @@ button, input { font: inherit; color: inherit; }
 /* tags */
 .tag-area { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
 .af-actions { flex-wrap: nowrap; }
-.af-actions > .mix-btn { margin-right: auto; }
-.btn.ghost.mix-btn { font-weight: 400; }
+.af-actions > .af-gap { margin-right: auto; }
+.btn.ghost.mix-btn { color: var(--muted); }
 .btn.ghost.mix-btn[aria-pressed="true"] { border-color: var(--jade); color: var(--jade); }
 .tag-box { position: relative; }
 /* tags added in an add card: two rows, filling column by column */
@@ -605,14 +605,14 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 /* editing a track: a dotted box around the track and its card */
 .track.editing, .head-row.editing { isolation: isolate; position: relative; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .track.editing { position: relative; }
-.editing::before, .edit-wrap::before {
+.editing::before, .edit-wrap.boxed::before {
   content: ""; position: absolute; inset: 0 4px; pointer-events: none; z-index: -1;
   border: 1px dotted var(--jade); background: var(--surface);
 }
 .track.editing.playing::before, .head-row.editing.playing::before { background: var(--surface-2); }
 .editing::before { border-bottom: 0; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .edit-wrap { position: relative; isolation: isolate; display: flow-root; } /* keeps the card's margins inside the box */
-.edit-wrap::before { border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.edit-wrap.boxed::before { border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
 .edit-wrap > .add-form { position: relative; }
 .track.editing, .head-row.editing, .head-row.editing:hover, .track.editing:hover { background: none; }
 
@@ -636,7 +636,8 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .view-head { padding: 14px 0 4px; }
 .view-head[hidden] { display: none; }
 .view-note { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
-.genre-index { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; margin-bottom: 10px; }
+.genre-index { display: block; text-align: justify; text-align-last: left; line-height: 2; font-size: 14px; margin-bottom: 10px; word-spacing: 6px; }
+.genre-index .when-link, .genre-index .gi-all { word-spacing: normal; }
 .genre-index .gi-n { color: var(--muted); font-size: 12px; margin-left: 4px; display: inline-block; }
 .genre-index .gi-all { height: auto; margin: 0; font-size: 14px; }
 .view-history { position: sticky; top: var(--top-h, 60px); z-index: 4; background: var(--bg); border-bottom: 1px dotted var(--dots, var(--line-strong)); padding-bottom: 10px; }
@@ -695,3 +696,12 @@ body.hist-thumbs-on .mini { display: block; }
 @media (max-width: 640px) { .month-tracks { margin-left: 56px; } }
 .thread:has(.edit-wrap), .thread:has(> .add-form) { z-index: 6; } /* its tag suggestions go over the threads below */
 .top { z-index: 20; } /* above a thread that is being edited */
+
+/* the playing thread's frame goes around the main track's box (the box's margin stays inside the thread) */
+.thread { display: flow-root; }
+/* menu: Random at the right */
+.menu .menu-right { margin-left: auto; }
+/* grey hint text in the add/edit card: the colour of the tags under titles */
+.add-form input::placeholder, .add-form textarea::placeholder { color: color-mix(in srgb, var(--text) 50%, transparent); }
+/* editing in the playing thread: its frame is enough, no second dotted line */
+.thread.active .editing::before, .thread.active .edit-wrap.boxed::before { border-color: transparent; }

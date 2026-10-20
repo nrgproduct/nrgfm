@@ -273,7 +273,7 @@ function monthNode({ t }) {
 /* the genre index: the biggest 40, "all 263 genres" shows the rest */
 function genreIndex(items, limit) {
   const box = el("div", { class: "genre-index" },
-    items.slice(0, limit).map((g) => el("button", { class: "when-link", onclick: () => jumpTo(g.id) }, g.name, el("span", { class: "gi-n" }, g.tracks.length))),
+    items.slice(0, limit).flatMap((g) => [el("button", { class: "when-link", onclick: () => jumpTo(g.id) }, g.name, el("span", { class: "gi-n" }, g.tracks.length)), " "]),
     items.length > limit ? el("button", { class: "more-toggle gi-all", onclick: () => box.replaceWith(genreIndex(items, Infinity)) }, `all ${items.length} genres`) : null);
   return box;
 }
@@ -339,7 +339,16 @@ function jumpTo(id) {
   };
   place();
 }
+/* uBlock Origin Lite for this browser (iPhone/iPad and Safari: the App Store app) */
+function openUblock() {
+  const ua = navigator.userAgent, apple = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const url = /Firefox|FxiOS/.test(ua) && !apple ? "https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/"
+    : apple || (/Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua)) ? "https://apps.apple.com/de/app/ublock-origin-lite/id6745342698"
+    : "https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh?hl=en";
+  open(url, "_blank", "noopener");
+}
 function setView(v, keepHash) {
+  if (v === "ublock") { openUblock(); return; }
   if (v === "random") { const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)]); return; }
   view = VIEW_NAMES[v] ? v : "threads";
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : "#/" + view);
@@ -1214,6 +1223,7 @@ function addForm(thread, edit, row) {
       el("input", { name: "url", type: "url", required: true, placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
     el("div", { class: "af-actions" },
       tags.box,
+      el("span", { class: "af-gap" }),
       // a mix (DJ mix, full album…): it gets the "mix" tag and shows up on the Mixes page
       el("button", { type: "button", class: "btn ghost mix-btn", "aria-pressed": String(tags.has("mix")),
         title: "A DJ mix, full album or other long recording: shows up under Mixes",
@@ -1371,7 +1381,7 @@ function toggleEditForm(t, i, row) {
   const form = addForm(null, { t, i }, row);
   const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
   row.after(wrap);
-  row.classList.add("editing"); // a dotted box around the track and its card
+  if (!row.closest(".tag-thread")) { row.classList.add("editing"); wrap.classList.add("boxed"); } // a dotted box around the track and its card (not in tag playlists)
   const box = wrap.closest(".scroll-list");
   form.tags.input.focus({ preventScroll: true }); // editing usually means tagging: start in the tag field
   if (box) {
