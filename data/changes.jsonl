@@ -280,3 +280,4 @@
 {"action": "edit", "thread": "p28227915433465146", "id": "t28227915433465146_0", "title": "Tonetta - Kiss Me Soon", "url": "https://www.youtube.com/watch?v=5DcQuaGYx5k", "tags": [], "ts": 1792530830}
 {"action": "edit", "thread": "p28192168577039832", "id": "t28192168577039832_0", "title": "Amb - Journey", "url": "https://www.youtube.com/watch?v=5UB81YH8mH0", "tags": [], "ts": 1792530862}
 {"action": "delete", "thread": "xt989397387743652_0", "id": "t989397387743652_0", "ts": 1792533269}
+{"action": "promote", "thread": "xt989397387743652_0", "id": "t1026046584078732_0", "to": "original", "ts": 1792533424}
