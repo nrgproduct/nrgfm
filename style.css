@@ -639,7 +639,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .view-history { position: sticky; top: var(--top-h, 60px); z-index: 4; background: var(--bg); border-bottom: 1px dotted var(--dots, var(--line-strong)); padding-bottom: 10px; }
 .hist-years, .hist-months { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .hist-years { font-size: clamp(11px, 1.5vw, 17px); margin-bottom: 8px; flex-wrap: nowrap; justify-content: space-between; gap: 0 6px; }
-.month-tracks { grid-column: 1 / -1; list-style: none; margin: 2px 0 6px 108px; padding: 0; display: grid; gap: 2px; }
+.month-tracks { list-style: none; margin: 2px 0 6px 108px; padding: 0; display: grid; gap: 2px; }
 .month-tracks[hidden] { display: none; }
 .month-tracks li { display: grid; grid-template-columns: 1fr; padding: 2px 8px; border-radius: var(--radius-sm); }
 .month-tracks li:hover { background: var(--surface); }
@@ -652,23 +652,23 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .view-head .when-link.none { opacity: .35; cursor: default; text-decoration: none; }
 /* history: a month, then one short row per post */
 .month { list-style: none; padding: 14px 0 6px; border-bottom: 1px dotted var(--dots, var(--line-strong)); }
-.month-name { margin: 0 0 6px; color: var(--jade); font-size: 19px; font-weight: 500; }
+.month-name { margin: 0 0 6px; color: var(--jade); font-size: 17px; font-weight: 500; }
 .month-count { color: var(--muted); font-size: 14px; font-weight: 400; }
 .month-list { list-style: none; margin: 0; padding: 0; }
-.month-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: baseline; padding: 4px 8px; border-radius: var(--radius-sm); }
-.month-row:hover { background: var(--surface); }
-.month-row.playing { background: var(--surface-2); }
-.month-row .when-link { font-size: 13px; justify-self: start; }
+.month-line { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 4px 8px; border-radius: var(--radius-sm); }
+.month-line:hover { background: var(--surface); }
+.month-line.playing { background: var(--surface-2); }
+.month-line .when-link { font-size: 13px; justify-self: start; }
 .month-play { all: unset; cursor: pointer; min-width: 0; display: flex; align-items: center; gap: 8px; }
 .month-play .tr-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.month-row.dead .tr-title { text-decoration: line-through; }
+.month-row.dead > .month-line .tr-title { text-decoration: line-through; }
 .month-n { color: var(--muted); font-size: 13px; white-space: nowrap; }
 @media (max-width: 640px) {
   .menu { flex-wrap: wrap; gap: 4px 10px; }
   .hist-years, .hist-months { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 0 14px; padding-bottom: 2px; }
   .hist-years { font-size: 13px; margin-bottom: 6px; justify-content: flex-start; gap: 0 12px; }
   .month-tracks { margin-left: 56px; }
-  .month-row { grid-template-columns: 56px 1fr; padding: 4px 0; }
+  .month-line { grid-template-columns: 56px 1fr; padding: 4px 0; }
   .month-n { display: none; }
 }
 .af-actions .tag-box { flex: 0 1 200px; min-width: 90px; }
@@ -686,7 +686,7 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .hist-months-row { display: flex; align-items: baseline; gap: 14px; }
 .hist-months-row .hist-months { flex: 1; min-width: 0; }
 .hist-thumbs { font-size: 14px; white-space: nowrap; }
-.mini { display: none; width: 32px; height: 18px; border-radius: 2px; object-fit: cover; background: var(--surface-2); flex: none; }
+.mini { display: none; width: 44px; height: 25px; border-radius: 2px; object-fit: cover; background: var(--surface-2); flex: none; }
 body.hist-thumbs-on .mini { display: block; }
 .month-tracks li:hover { background: var(--surface-2); }
 @media (max-width: 640px) { .month-tracks { margin-left: 56px; } }
@@ -701,3 +701,28 @@ body.hist-thumbs-on .mini { display: block; }
 /* editing in the playing thread: its frame is enough, no second dotted line */
 .thread.active .editing::before, .thread.active .edit-wrap.boxed::before { border-color: transparent; }
 .btn.ghost.move-btn { color: var(--muted); }
+
+/* tag field: the added tags sit inside it; suggestions open over the page below it */
+.tag-field {
+  display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px; box-sizing: border-box; width: 100%;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  overflow-x: auto; scrollbar-width: none; cursor: text;
+}
+.tag-field::-webkit-scrollbar { display: none; }
+.tag-field:focus-within { border-color: var(--jade); }
+.tag-field .tag-input { flex: 1 0 70px; min-width: 70px; width: auto !important; height: 38px; padding: 0 4px; border: 0; background: none; outline: none; }
+.tag-chips-in { display: flex; gap: 4px; flex: none; }
+button.tag-chip.in { font-size: 13px; line-height: 24px; padding: 0 6px; color: var(--muted); white-space: nowrap; font-weight: 400; }
+.tag-drop { min-width: max(100%, 240px); padding: 6px; }
+.tag-drop ul { list-style: none; margin: 0; padding: 0; }
+.drop-sug { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 6px; }
+.drop-sug:last-child { padding-bottom: 2px; }
+.af-actions .tag-box { flex: 0 1 260px; }
+/* small things */
+.more-info-btn.btn.ghost { color: var(--muted); }
+.af-more .move-panel { border-top: 0; padding-top: 0; }
+#editBtn { margin-left: 10px; }
+body:not(.can-add) #editBtn { display: none; }
+@media (max-width: 640px) { #editBtn { display: none; } }
+/* selected boxes (search, tags, genres): the edit card stays clear of the frame */
+.thread.framed .edit-wrap > .add-form, .thread.searching.active .edit-wrap > .add-form { margin-right: 8px; }

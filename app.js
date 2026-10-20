@@ -83,8 +83,7 @@ function haystack(t) {
     const m = meta[t.url] || {}, x = extra[t.url] || {};
     // notes and looked-up info count too (the full descriptions don't)
     t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t),
-      t.notes, (x.g || []).join(" "), x.y, (x.ys || []).join(" "), (x.rl || []).join(" "), x.by, x.up,
-      t.date, fmtDay(t.date), t.shown_date && fmtDay(t.shown_date)].filter(Boolean).join(" "));
+      t.notes, (x.g || []).join(" "), x.y, (x.rl || []).join(" "), x.by].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -249,7 +248,7 @@ function historyMonths() {
   return [...by].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([m, list]) => ({
     id: "m-" + m, kind: "month", month: m, threads: list.sort((a, b) => (postDate(a) < postDate(b) ? 1 : -1)) }));
 }
-const histThumbs = () => { try { return !!localStorage.getItem("nrgfm-hist-thumbs"); } catch { return false; } };
+const histThumbs = () => { try { return localStorage.getItem("nrgfm-hist-thumbs") !== "0"; } catch { return true; } }; // on unless switched off
 document.body.classList.toggle("hist-thumbs-on", histThumbs());
 function monthNode({ t }) {
   const [y, mo] = t.month.split("-");
@@ -257,12 +256,12 @@ function monthNode({ t }) {
     el("h2", { class: "month-name" }, `${MONTHS[+mo - 1]} ${y}`, el("span", { class: "month-count" }, ` · ${t.threads.length} ${t.threads.length === 1 ? "post" : "posts"}`)),
     el("ol", { class: "month-list" }, t.threads.map((th) => {
       const x = info(th.tracks[0]), n = th.tracks.length;
-      return el("li", { class: "month-row" + (x.dead ? " dead" : ""), "data-k": `${th.id}:0` },
+      return el("li", { class: "month-row" + (x.dead ? " dead" : "") }, el("div", { class: "month-line", "data-k": `${th.id}:0` },
         el("button", { class: "when-link", title: "Go to the thread (" + fmtDay(postDate(th)) + ")", onclick: () => goToThread(th) }, fmtDay(postDate(th)).replace(/ \d{4}$/, "")),
         el("button", { class: "play month-play", onclick: () => play(th, 0), "aria-label": `Play ${x.title}` }, img(x.thumb, "mini"), el("span", { class: "tr-title" }, x.title)),
         n > 1 ? el("button", { class: "when-link month-n", "aria-expanded": "false", title: "Show the tracks",
-          onclick: (e) => { const box = e.currentTarget.parentElement.querySelector(".month-tracks"), open = box.hidden;
-            box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); } }, `${n} tracks`) : el("span", { class: "month-n" }),
+          onclick: (e) => { const box = e.currentTarget.closest(".month-row").querySelector(".month-tracks"), open = box.hidden;
+            box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); } }, `${n} tracks`) : el("span", { class: "month-n" })),
         n > 1 ? el("ol", { class: "month-tracks", hidden: true }, th.tracks.slice(1).map((tr, k) => {
           const y = info(tr);
           return el("li", { class: y.dead ? "dead" : "", "data-k": `${th.id}:${k + 1}` },
@@ -299,7 +298,7 @@ function drawViewHead() {
       }));
     };
     const thumbsBtn = el("button", { class: "when-link hist-thumbs" + (histThumbs() ? " on" : ""), onclick: (e) => {
-      const on = !histThumbs(); try { localStorage.setItem("nrgfm-hist-thumbs", on ? "1" : ""); } catch {}
+      const on = !histThumbs(); try { localStorage.setItem("nrgfm-hist-thumbs", on ? "1" : "0"); } catch {}
       document.body.classList.toggle("hist-thumbs-on", on); e.currentTarget.classList.toggle("on", on);
     } }, "Thumbnails");
     head.replaceChildren(
@@ -348,7 +347,12 @@ function openUblock() {
   open(url, "_blank", "noopener");
 }
 function setView(v, keepHash) {
-  if (v === "ublock") { openUblock(); return; }
+  if (v === "ublock") { // first press: "Confirm"; the second opens the store
+    const b = $('#menu button[data-view="ublock"]');
+    if (b.dataset.confirm) { clearTimeout(b._t); delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; openUblock(); }
+    else { b.dataset.confirm = "1"; b.textContent = "Confirm"; b._t = setTimeout(() => { delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; }, 5000); }
+    return;
+  }
   if (v === "random") { const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)]); return; }
   view = VIEW_NAMES[v] ? v : "threads";
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : "#/" + view);
@@ -357,6 +361,7 @@ function setView(v, keepHash) {
   runSearch(); pageScrollTo(0);
 }
 function toggleMenu(open = $("#menu").hidden) {
+  if (open && !$("#addPanel").hidden) closeAddForm($("#addPanel").querySelector("form"));
   $("#menu").hidden = !open; $("#home").setAttribute("aria-expanded", String(open));
   document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
 }
@@ -1035,7 +1040,7 @@ function closeVol() { $("#volPop").hidden = true; $("#volBtn").setAttribute("ari
 function showVolume() {
   $("#vol").value = volume; $("#volVal").textContent = volume;
   $("#vol").style.setProperty("--p", volume + "%");
-  $("#volNum").textContent = volume; $("#volNum").hidden = volume === 100;
+  $("#volBtn").textContent = volume; // the button shows the volume
 }
 showVolume();
 $("#volBtn").onclick = (e) => {
@@ -1146,59 +1151,62 @@ const LINK_RE = /^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|soundcloud\.com
 /* Tag field: type, pick a suggestion with Enter (or the arrow keys), keep typing the next one.
    Editing a track: its tags under the title get an × and can be clicked away.
    Adding a track: the tags stack in two rows to the right of the field. */
-function tagEditor(initial, suggested = [], host = null) {
+/* The tag field: added tags sit inside the field as small boxes (× removes one); typing shows matching tags,
+   and suggested tags (the main track's) show with a dotted outline, in a list that opens over the page below
+   the field, so nothing moves. */
+function tagEditor(initial, suggested = []) {
   const chosen = [...initial];
   const input = el("input", { type: "text", class: "tag-input", placeholder: "Add tag", autocomplete: "off", spellcheck: "false", "aria-label": "Add tag" });
-  const drop = el("ul", { class: "tag-drop", hidden: true });
-  const stack = host ? null : el("span", { class: "tag-stack" });
-  const original = host ? [...host.childNodes] : null;
+  const chips = el("span", { class: "tag-chips-in" });
+  const field = el("span", { class: "tag-field", onmousedown: (e) => { if (e.target === field || e.target === chips) { e.preventDefault(); input.focus(); } } }, chips, input);
+  const drop = el("div", { class: "tag-drop", hidden: true });
   let opts = [], active = 0;
-  const remove = (g) => { chosen.splice(chosen.indexOf(g), 1); drawChips(); input.focus(); };
+  const remove = (g) => { chosen.splice(chosen.indexOf(g), 1); drawChips(); drawDrop(); input.focus(); };
   const drawChips = () => {
-    if (host) {
-      host.replaceChildren(...chosen.map((g) => el("span", {
-        class: "tag tag-x", role: "button", tabindex: "0", title: "Remove tag",
-        onclick: (e) => { e.preventDefault(); e.stopPropagation(); remove(g); },
-        onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); remove(g); } },
-      }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
-      return;
-    }
-    stack.replaceChildren(
-      ...chosen.map((g) => el("button", { type: "button", class: "tag-chip", title: "Remove tag", onclick: () => remove(g) }, g, el("span", { "aria-hidden": "true" }, " ×"))),
-      // the main track's tags, offered with a dotted outline; click to use one
-      ...suggested.filter((g) => !chosen.includes(g)).map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag", onclick: () => { chosen.push(g); drawChips(); } }, "+ " + g)));
+    chips.replaceChildren(...chosen.map((g) => el("button", { type: "button", class: "tag-chip in", title: "Remove tag",
+      onmousedown: (e) => e.preventDefault(), onclick: () => remove(g) }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+    input.placeholder = chosen.length ? "" : "Add tag";
+    field.scrollLeft = field.scrollWidth;
   };
   const drawDrop = () => {
     const q = fold(input.value);
-    opts = q ? allTags().filter((g) => !chosen.includes(g) && fold(g).includes(q)).sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q)).slice(0, 6) : [];
+    const sug = suggested.filter((g) => !chosen.includes(g) && (!q || fold(g).includes(q)));
+    opts = q ? allTags().filter((g) => !chosen.includes(g) && !sug.includes(g) && fold(g).includes(q))
+      .sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q)).slice(0, 6) : [];
     active = 0;
-    drop.hidden = !opts.length;
-    drop.replaceChildren(...opts.map((g, k) => el("li", { class: k === active ? "on" : "", onmousedown: (e) => { e.preventDefault(); add(g); } }, g)));
+    const parts = [];
+    if (sug.length) parts.push(el("div", { class: "drop-sug" }, sug.map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag",
+      onmousedown: (e) => { e.preventDefault(); add(g); } }, "+ " + g))));
+    if (opts.length) parts.push(el("ul", { class: "drop-list" }, opts.map((g, k) => el("li", { class: k === active ? "on" : "", onmousedown: (e) => { e.preventDefault(); add(g); } }, g))));
+    drop.replaceChildren(...parts);
+    drop.hidden = !parts.length || document.activeElement !== input;
   };
-  const add = (g) => { g = normTag(g); if (g && !chosen.includes(g)) chosen.push(g); input.value = ""; drawDrop(); drawChips(); input.focus(); };
+  const add = (g) => { g = normTag(g); if (g && !chosen.includes(g)) chosen.push(g); input.value = ""; drawChips(); drawDrop(); input.focus(); };
   input.addEventListener("input", drawDrop);
+  input.addEventListener("focus", drawDrop);
   input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.shiftKey) return; // Shift+Enter saves the card (handled by the form)
+    const items = [...drop.querySelectorAll(".drop-list li")];
     if (e.key === "Enter" || (e.key === "," && input.value.trim())) {
       e.preventDefault();
-      if (!drop.hidden && opts[active]) add(opts[active]); else if (input.value.trim()) add(input.value);
+      if (!drop.hidden && opts[active] && input.value.trim()) add(opts[active]); else if (input.value.trim()) add(input.value);
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      if (drop.hidden) return; e.preventDefault();
+      if (drop.hidden || !items.length) return; e.preventDefault();
       active = (active + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length;
-      [...drop.children].forEach((li, k) => li.classList.toggle("on", k === active));
+      items.forEach((li, k) => li.classList.toggle("on", k === active));
     } else if (e.key === "Escape" && !drop.hidden) { e.stopPropagation(); drop.hidden = true; }
-    else if (e.key === "Backspace" && !input.value && chosen.length) { chosen.pop(); drawChips(); }
+    else if (e.key === "Backspace" && !input.value && chosen.length) { chosen.pop(); drawChips(); drawDrop(); }
   });
   drawChips();
   return {
-    box: el("span", { class: "tag-area" }, el("span", { class: "tag-box" }, input, drop), stack),
+    box: el("span", { class: "tag-area" }, el("span", { class: "tag-box" }, field, drop)),
     input,
     use: (g) => { g = normTag(g); if (g && !chosen.includes(g)) { chosen.push(g); drawChips(); } },
     has: (g) => chosen.includes(normTag(g)),
     drop: (g) => { const k = chosen.indexOf(normTag(g)); if (k > -1) { chosen.splice(k, 1); drawChips(); } },
     get: () => { if (input.value.trim()) add(input.value); return [...chosen]; }, // a typed but not yet added tag counts too
-    restore: () => { if (host) host.replaceChildren(...original); },
+    restore: () => {},
   };
 }
 
@@ -1206,7 +1214,7 @@ function addForm(thread, edit, row) {
   // edit = { t, i } when editing an existing track; row = that track's row (its tags become removable)
   const tr = edit ? edit.t.tracks[edit.i] : null;
   const host = row ? row.querySelector(".tag-wrap") : null;
-  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : [], host);
+  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : []);
   const more = moreInfo(tr, edit, tags);
   const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
     "aria-label": "More info", onclick: (e) => {
@@ -1251,11 +1259,9 @@ function moreInfo(tr, edit, tags) {
   const x = (tr && extra[tr.url]) || {};
   const notes = el("textarea", { name: "notes", rows: "3", placeholder: "Not shown on the site; searches still find them" });
   notes.value = (tr && tr.notes) || "";
-  const moveBtn = edit ? el("button", { type: "button", class: "btn ghost move-btn", "aria-expanded": "false",
-    onclick: (e) => toggleMovePanel(e.currentTarget.closest("form"), edit, e.currentTarget) }, "Move") : null;
   const box = el("div", { class: "af-more", hidden: true },
     el("label", { class: "af-field" }, el("span", {}, "Notes"), notes),
-    moveBtn && edit.i !== 0 ? el("div", { class: "af-move-row" }, moveBtn) : null);
+    edit ? movePanel(() => box.closest("form"), edit) : null);
   if (edit && edit.i === 0) {
     const date = el("input", { name: "date", type: "date", required: true });
     date.value = tr.shown_date || tr.date;
@@ -1282,7 +1288,7 @@ function moreInfo(tr, edit, tags) {
       el("div", { class: "af-date-row" }, date,
         el("button", { type: "button", class: "btn ghost", title: "One place up in the feed", "aria-label": "Move up in the feed", onclick: () => step(true) }, "↑"),
         el("button", { type: "button", class: "btn ghost", title: "One place down in the feed", "aria-label": "Move down in the feed", onclick: () => step(false) }, "↓"),
-        note, moveBtn)));
+        note)));
   }
   if (tr) {
     const sug = el("div", { class: "af-sug" });
@@ -1350,6 +1356,7 @@ function toggleHeaderForm() {
   if (!getToken()) { openSetup(); return; }
   const panel = $("#addPanel");
   if (!panel.hidden) { closeAddForm(panel.querySelector("form")); return; }
+  if (!$("#menu").hidden) toggleMenu(false); // stays on this page
   closeAllCards();
   panel.replaceChildren(addForm(null));
   panel.hidden = false; $("#addBtn").setAttribute("aria-expanded", "true");
@@ -1475,15 +1482,10 @@ function applyTags(tr, list, ts) {
 /* ---------- move a track to another thread ---------- */
 const threadLabel = (t) => t.name || info(t.tracks[0]).title;
 
-function toggleMovePanel(form, edit, btn) {
-  const open = form.querySelector(".move-panel");
-  if (open) { open.remove(); btn.setAttribute("aria-expanded", "false"); return; }
-  btn.setAttribute("aria-expanded", "true");
+function movePanel(formOf, edit) {
   const input = el("input", { type: "search", placeholder: "Search a track in the thread you want to move it to", autocomplete: "off", spellcheck: "false" });
   const list = el("ul", { class: "move-results" });
   const panel = el("div", { class: "move-panel" }, el("label", { class: "af-field" }, el("span", {}, "Move to the thread of…"), input), list);
-  form.appendChild(panel);
-  input.focus();
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); const first = list.querySelector("button"); if (first) first.click(); } });
   input.addEventListener("input", () => {
     const terms = fold(input.value).split(" ").filter(Boolean);
@@ -1501,19 +1503,20 @@ function toggleMovePanel(form, edit, btn) {
     for (const { t, k } of found) {
       const x = info(t.tracks[k]);
       list.appendChild(el("li", {},
-        el("button", { type: "button", class: "move-hit", onclick: () => moveTrack(form, edit, t) },
+        el("button", { type: "button", class: "move-hit", onclick: () => moveTrack(formOf(), edit, t) },
           el("span", { class: "mh-thumb" }, img(x.thumb, "thumb-img")),
           el("span", { class: "mh-text" },
             el("span", { class: "mh-title" }, x.title),
             el("span", { class: "mh-thread" }, "Thread: " + threadLabel(t) + ` (${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"})`)))));
     }
   });
+  return panel;
 }
 
 async function moveTrack(form, { t, i }, dest) {
   const tr = t.tracks[i];
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
-  btns.forEach((b) => (b.disabled = true)); form.querySelector(".move-btn").textContent = "Moving…"; msg.textContent = "";
+  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Moving…"; msg.textContent = "";
   try { await writeInbox({ action: "move", thread: t.id, id: tr.id, to: dest.id, ts: Math.floor(Date.now() / 1000) }, "move"); }
   catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
   if (playing && playing.thread === t) playing = null;
@@ -1662,26 +1665,36 @@ $("#sourceBtn").onclick = () => {
   const home = homeOf(playing.thread.tracks[playing.index]);
   if (home) goToThread(home);
 };
+/* "edit" in the player: the playing track's edit card */
+$("#editBtn").onclick = () => editPlaying(false);
 /* Cmd+Enter (Ctrl+Enter on Windows) while a track plays: open its edit card (on a device with a key) */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || !playing || !getToken()) return;
   const t = e.target;
   if (t.closest && t.closest("input, textarea, select, [contenteditable]") && !t.closest(".edit-form")) return;
   e.preventDefault();
+  editPlaying(true);
+});
+/* the playing track's edit card: where it shows on this page, otherwise in its own thread;
+   already open: Cmd+Enter opens (or closes) its More info, the player's "edit" closes it */
+function editPlaying(more) {
+  if (!playing) return;
+  if (!getToken()) { openSetup(); return; }
   const tr = playing.thread.tracks[playing.index], home = homeOf(tr);
   if (!home) return;
   const i = home.tracks.indexOf(tr);
-  let row = document.querySelector(`[data-k="${home.id}:${i}"]`);
+  let t = playing.thread, k = playing.index;
+  let row = document.querySelector(`[data-k="${CSS.escape(t.id)}:${k}"]:not(.month-row):not(li li)`);
+  if (!row || !row.querySelector(".edit-btn")) { t = home; k = i; row = document.querySelector(`[data-k="${home.id}:${i}"]`); }
   if (!row) { goToThread(home); row = document.querySelector(`[data-k="${home.id}:${i}"]`); }
   if (!row) return;
   const next = row.nextElementSibling;
-  if (next && next.classList.contains("edit-wrap")) { // already open: open (or close) its More info
-    next.querySelector(".more-info-btn")?.click();
+  if (next && next.classList.contains("edit-wrap")) {
+    if (more) next.querySelector(".more-info-btn")?.click(); else closeAddForm(next.querySelector(".add-form"));
     return;
   }
-  toggleEditForm(home, i, row);
-  row.scrollIntoView({ block: "nearest" });
-});
+  toggleEditForm(t, k, row);
+}
 
 /* keyboard (laptop): Space plays/pauses, Left/Right jump 5 seconds back/forward */
 document.addEventListener("keydown", (e) => {
@@ -1710,6 +1723,7 @@ $("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if 
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
 document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
 $("#home").onclick = (e) => { e.preventDefault(); toggleMenu(); };
+$("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
 
 (async function boot() {
   try {
