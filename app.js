@@ -225,9 +225,9 @@ function runSearch() {
     if (n) parts.push(`${n} ${n === 1 ? "track" : "tracks"} in ${trackThreads} ${trackThreads === 1 ? "thread" : "threads"}`);
     $("#resultInfo").hidden = false;
     $("#resultInfo").replaceChildren(
+      el("span", { class: "result-n" }, n ? `${n} ${n === 1 ? "result" : "results"}` : `Nothing matches “${$("#q").value.trim()}”.`),
       el("button", { class: "sf sf-order", "aria-pressed": String(byNewest), onclick: () => { byNewest = !byNewest; runSearch(); } },
         byNewest ? "Newest first" : "Best match"),
-      el("span", { class: "result-n" }, n ? `${n} ${n === 1 ? "result" : "results"}` : `Nothing matches “${$("#q").value.trim()}”.`),
       el("span", { class: "search-fields" }, FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
         onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name))));
@@ -282,13 +282,14 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", genreboxes: "Genres (one box each)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
   if (view === "tags") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last);
   if (view === "mixes") return mixThreads();
-  if (view === "genres") return genreThreads();
+  if (view === "genres") return [genreMix()];
+  if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
   if (view === "history") return historyMonths();
   return threads.filter(isBase);
 }
@@ -314,6 +315,112 @@ function genreThreads() {
     .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
     .map(([g, list]) => playlist("genre-" + slug(g), g, [...new Set(list)].sort(newestFirst)));
 }
+/* ---------- Genres: mix genres into one playlist ----------
+   Pick a genre and the playlist is every track with it; the genres left to pick are only those the playlist's
+   tracks also have, each with the number of tracks you would get by adding it. Remove a genre and it widens
+   again. Each new mix is shuffled; "Date added" puts the newest first. The choice is kept in the address. */
+let gSel = [], gOrder = "shuffle", gMix = null, gIndex = null;
+const genresOf = (tr) => (extra[tr.url] || {}).g || [];
+function genreIndexAll() {
+  if (gIndex) return gIndex;
+  gIndex = new Map();
+  for (const tr of baseTracks()) for (const g of genresOf(tr)) (gIndex.get(g) || gIndex.set(g, new Set()).get(g)).add(tr);
+  return gIndex;
+}
+function genreTracks(sel) {
+  if (!sel.length) return [];
+  const idx = genreIndexAll(), sets = sel.map((g) => idx.get(g) || new Set()).sort((a, b) => a.size - b.size);
+  return [...sets[0]].filter((tr) => sets.every((st) => st.has(tr)));
+}
+function genreCounts() { // genre -> tracks you would get by adding it
+  const idx = genreIndexAll(), out = new Map();
+  if (!gSel.length) { for (const [g, st] of idx) out.set(g, st.size); }
+  else for (const tr of genreTracks(gSel)) for (const g of genresOf(tr)) if (!gSel.includes(g)) out.set(g, (out.get(g) || 0) + 1);
+  return [...out].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+function genreMix(fresh) {
+  if (gMix && !fresh) return gMix;
+  const tracks = genreTracks(gSel);
+  if (gOrder === "date") tracks.sort((a, b) => b.ts - a.ts);
+  else for (let i = tracks.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [tracks[i], tracks[j]] = [tracks[j], tracks[i]]; }
+  gMix = { id: "genre-mix", kind: "tag", mix: true, name: gSel.join(" + "), tracks, last: 0 };
+  return gMix;
+}
+function setGenres(sel) {
+  gSel = sel;
+  history.replaceState(null, "", "#/genres" + (gSel.length ? "?g=" + gSel.map(encodeURIComponent).join(",") : ""));
+  const t = genreMix(true), node = document.getElementById("th-genre-mix");
+  shown = [{ t, hits: null }];
+  if (node) node.replaceWith(genreMixNode(t));
+  if (playing && playing.thread.mix) markPlaying();
+  const old = $("#viewHead .gm-picker"); if (old) old.replaceWith(genrePicker(true));
+}
+function genrePicker(keepFocus) {
+  const counts = genreCounts();
+  const input = el("input", { type: "text", class: "tag-input", placeholder: gSel.length ? "" : "Add genre", autocomplete: "off", spellcheck: "false", "aria-label": "Add genre" });
+  const chips = el("span", { class: "tag-chips-in" }, gSel.map((g) => el("button", { type: "button", class: "tag-chip in",
+    onmousedown: (e) => e.preventDefault(), onclick: () => setGenres(gSel.filter((x) => x !== g)) }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+  const field = el("span", { class: "tag-field", onmousedown: (e) => { if (e.target === field || e.target === chips) { e.preventDefault(); input.focus(); } } }, chips, input);
+  const drop = el("div", { class: "tag-drop", hidden: true });
+  let opts = [], active = 0;
+  const drawDrop = () => {
+    const q = fold(input.value);
+    opts = q ? counts.filter(([g]) => fold(g).split(" ").some((w) => w.startsWith(q)) || fold(g).startsWith(q)).slice(0, 8) : [];
+    active = 0;
+    drop.replaceChildren(el("ul", { class: "drop-list" }, opts.map(([g, n], k) => el("li", { class: k === active ? "on" : "",
+      onmousedown: (e) => { e.preventDefault(); setGenres([...gSel, g]); } }, g, el("span", { class: "gi-n" }, n)))));
+    drop.hidden = !opts.length;
+  };
+  input.addEventListener("input", drawDrop);
+  input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
+  input.addEventListener("keydown", (e) => {
+    const items = [...drop.querySelectorAll("li")];
+    if (e.key === "Enter") { e.preventDefault(); if (opts[active]) setGenres([...gSel, opts[active][0]]); }
+    else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && items.length) {
+      e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+      items.forEach((li, k) => li.classList.toggle("on", k === active));
+    } else if (e.key === "Backspace" && !input.value && gSel.length) setGenres(gSel.slice(0, -1));
+    else if (e.key === "Escape") { e.stopPropagation(); drop.hidden = true; input.blur(); }
+  });
+  const pool = el("div", { class: "gm-pool genre-index" },
+    counts.length ? counts.flatMap(([g, n]) => [el("button", { class: "when-link", onclick: () => setGenres([...gSel, g]) }, g, el("span", { class: "gi-n" }, n)), " "])
+      : el("span", { class: "hint" }, "No other genres in this mix."));
+  const box = el("div", { class: "gm-picker" }, el("span", { class: "tag-box gm-field" }, field, drop), pool);
+  if (keepFocus) requestAnimationFrame(() => input.focus());
+  return box;
+}
+function genreMixNode(t) {
+  const n = t.tracks.length, BATCH = 60;
+  let drawn = Math.min(n, BATCH);
+  const list = el("ol", { class: "tag-list scroll-list gm-list", "data-total": n },
+    n ? t.tracks.slice(0, drawn).map((tr, i) => trackRow(t, tr, i, null))
+      : el("li", { class: "gm-empty hint" }, gSel.length ? "No tracks have all of these genres." : "Pick a genre above to start a playlist."));
+  list.addEventListener("scroll", () => {
+    if (drawn >= n || list.scrollTop + list.clientHeight < list.scrollHeight - 500) return;
+    const more = t.tracks.slice(drawn, drawn + BATCH).map((tr, k) => trackRow(t, tr, drawn + k, null));
+    drawn += more.length; list.append(...more); markPlaying();
+  }, { passive: true });
+  const order = (o, label) => el("button", { class: "when-link" + (gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
+  const node = el("li", { class: "thread tag-thread framed genre-mix", id: "th-" + t.id },
+    el("div", { class: "tag-frame" },
+      el("div", { class: "tag-side" },
+        el("div", { class: "tag-label" },
+          el("span", { class: "tag-name" }, gSel.length ? gSel.join(" + ") : "Genres"),
+          el("span", { class: "tag-count" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
+        el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added"))),
+      list));
+  requestAnimationFrame(() => fitMix(node));
+  return node;
+}
+/* the playlist box always reaches down to the bottom of the window (or the player) */
+function fitMix(node = document.getElementById("th-genre-mix")) {
+  const list = node && node.querySelector(".gm-list");
+  if (!list) return;
+  const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  list.style.height = Math.max(260, innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - 16) + "px"; // measured from the top of the page
+}
+addEventListener("resize", () => fitMix());
+
 /* History: every thread by the month it was posted, newest first, as short rows */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const postDate = (t) => t.tracks[0].shown_date || t.tracks[0].date || "";
@@ -363,6 +470,8 @@ function drawViewHead() {
   const head = $("#viewHead");
   head.className = "view-head view-" + view;
   if (view === "genres") {
+    head.replaceChildren(genrePicker());
+  } else if (view === "genreboxes") {
     const items = shown.map((x) => x.t);
     head.replaceChildren(
       genreIndex(items, 40));
@@ -429,7 +538,10 @@ function setView(v, keepHash) {
     else { b.style.minWidth = b.getBoundingClientRect().width + "px"; b.dataset.confirm = "1"; b.textContent = "Confirm"; b._t = setTimeout(() => { delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; }, 5000); }
     return;
   }
-  if (v === "random") { const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)]); return; }
+  if (v === "random") { // a random thread, at the top of the page with the divider above it still in view
+    const b = $('#menu button[data-view="random"]'); b.classList.add("flash"); setTimeout(() => b.classList.remove("flash"), 350);
+    const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22); return;
+  }
   view = VIEW_NAMES[v] ? v : "threads";
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : "#/" + view);
   document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
@@ -585,7 +697,7 @@ document.addEventListener("wheel", (e) => {
     if (list) { e.preventDefault(); list.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY); return; }
   }
   const box = e.target.closest && e.target.closest(".scroll-list");
-  if (!box || box.closest(".thread").classList.contains("active") || box.querySelector(".edit-wrap")) return; // selected, or editing in it
+  if (!box || box.closest(".thread").classList.contains("active") || box.querySelector(".edit-wrap") || box.closest(".genre-mix")) return; // selected, editing in it, or the Genres playlist
   e.preventDefault();
   scroller().scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY);
 }, { passive: false });
@@ -666,7 +778,11 @@ function fitList(node, scroll) {
   const GAP = 8;
   const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
   const below = () => node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // Collapse, Add a track…
-  const size = () => { list.style.maxHeight = Math.max(200, innerHeight - dock - GAP - list.getBoundingClientRect().top - below()) + "px"; };
+  const size = () => {
+    const h = Math.max(200, innerHeight - dock - GAP - list.getBoundingClientRect().top - below()) + "px";
+    list.style.maxHeight = h;
+    if (node.classList.contains("tag-thread")) list.style.minHeight = h; // a playlist fills the screen even with few tracks
+  };
   if (scroll) {
     const above = list.getBoundingClientRect().top - node.getBoundingClientRect().top;
     list.style.maxHeight = Math.max(200, innerHeight - dock - headerBottom() - 2 * GAP - above - below()) + "px";
@@ -750,6 +866,7 @@ const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a +
 
 function threadNode({ t, hits }) {
   if (t.kind === "month") return monthNode({ t });
+  if (t.mix) return genreMixNode(t);
   if (t.kind === "tag") return tagThreadNode({ t, hits });
   const n = t.tracks.length, limit = threadLimit(), mobile = phone();
   const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
@@ -821,7 +938,7 @@ function threadNode({ t, hits }) {
 }
 
 /* "Thread": leave the search and show this thread where it sits in the feed */
-function goToThread(t) {
+function goToThread(t, gap = 8) {
   $("#q").value = ""; syncClear(); $("#q").blur(); // (phone: the keyboard goes away first, so the page doesn't shift afterwards)
   if (view !== "threads") { view = "threads"; history.replaceState(null, "", location.pathname); document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === "threads"))); }
   expanded.delete(t.id);
@@ -831,7 +948,7 @@ function goToThread(t) {
   while (rendered <= at && rendered < shown.length) renderMore();
   const node = document.getElementById("th-" + t.id);
   if (!node) return;
-  holdAt(node, () => headerBottom() + 8); // boxes above size themselves a moment later
+  holdAt(node, () => headerBottom() + gap); // boxes above size themselves a moment later
 }
 
 function markPlaying() {
@@ -1014,6 +1131,7 @@ function play(t, i) {
   const dock = $("#dock"); dock.hidden = false;
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
+  $("#dock").classList.remove("wide"); // a new track: the buttons come back
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
   closeThread();
   fitTitle();
@@ -1177,6 +1295,12 @@ const lockPlayerWidths = () => {
   lockWidth($("#autoBtn"), ["Autoplay off", "Autoplay on"]);
   lockWidth($("#infoBtn"), ["Copy info", "Copied"]); lockWidth($("#copyBtn"), ["Copy link", "Copied"]);
 };
+/* a title too long for the player: click it and Autoplay and the Copy buttons step aside to make room
+   (click again, or the next track, brings them back) */
+$("#nowTitle").onclick = () => {
+  const t = $("#nowTitle"), d = $("#dock");
+  if (d.classList.contains("wide") || t.scrollWidth > t.clientWidth + 1) d.classList.toggle("wide");
+};
 $("#autoBtn").onclick = () => {
   autoplay = !autoplay;
   $("#autoBtn").setAttribute("aria-pressed", autoplay ? "true" : "false");
@@ -1202,6 +1326,7 @@ $("#closeBtn").onclick = closeDock;
 function syncDockSpace() {
   const d = $("#dock");
   document.body.style.setProperty("--dock-h", d.hidden ? "0px" : d.offsetHeight + "px");
+  fitMix();
   document.querySelectorAll(".scroll-list.open").forEach((l) => { // an open box at the top ends above the player
     const th = l.closest(".thread"), top = th.getBoundingClientRect().top - headerBottom();
     if (top > -4 && top < 40) fitList(th);
@@ -1972,6 +2097,8 @@ $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView(
   }
   const page = location.hash.match(/^#\/(\w+)/);
   if (page && VIEW_NAMES[page[1]]) view = page[1];
+  const gq = location.hash.match(/^#\/genres\?g=(.+)$/);
+  if (gq) gSel = gq[1].split(",").map(decodeURIComponent).filter(Boolean);
   document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   runSearch();
   watchHistory();

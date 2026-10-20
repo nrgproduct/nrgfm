@@ -12,7 +12,9 @@
   --jade-ink: #0e1621;      /* text on the accent */
   --accent-dim: #8fb2d8;     /* Add track, Expand buttons */
   --seek: #6f9ecb;         /* the playhead fill */
-  --hit: #4f78a0;          /* search highlight */
+  --hit: #4f78a0;          /* (old) search highlight */
+  /* saved: the search highlight used until Oct 2026 was the track text colour (--text, #d5dde5) behind dark text
+     (--jade-ink); it is now the Play button's fill (--jade). To go back: .hit titles background: var(--text). */
   --dots: #93a8c0;         /* dotted frames and dividers */
   --accent-dim-hover: #a0c0e2;
 }

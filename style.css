@@ -244,7 +244,7 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
 .head-row.hit .t-title, .track.hit .tr-title {
-  display: inline; background: var(--text); color: var(--jade-ink); padding: 2px 7px; /* inverted: track colour behind dark text */ margin: 0 -3px; border-radius: 4px; line-height: 1.55;
+  display: inline; background: var(--jade); color: var(--jade-ink); padding: 2px 7px; /* the Play button's fill behind dark text (before: var(--text), see the theme file) */ margin: 0 -3px; border-radius: 4px; line-height: 1.55;
   -webkit-box-decoration-break: clone; box-decoration-break: clone;
 }
 .head-row.dead .t-title { text-decoration: line-through; }
@@ -738,7 +738,7 @@ body:not(.can-add) #editBtn { display: none; }
 #volBtn.muted { color: var(--jade); }
 /* uBlock: "Confirm" in the same place, lit */
 .menu button[data-view="ublock"] { text-align: center; }
-.menu button[data-view="ublock"][data-confirm] { color: var(--jade); font-weight: 700; }
+.menu button[data-view="ublock"][data-confirm] { color: var(--jade); }
 .add-form { grid-template-columns: minmax(0, 1fr); } .add-form > * { min-width: 0; } /* a long tag field scrolls instead of widening the card */
 .af-actions > .btn { flex: none; }
 
@@ -791,8 +791,8 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 #vol { --seek: var(--jade); }
 /* search line: order on the left, the count in the middle, filters on the right */
 #resultInfo:not([hidden]) { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 6px 16px; }
-#resultInfo .sf-order { justify-self: start; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-#resultInfo .result-n { justify-self: center; text-align: center; }
+#resultInfo .result-n { justify-self: start !important; text-align: left !important; }
+#resultInfo .sf-order { justify-self: center; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 #resultInfo .search-fields { justify-self: end; margin-left: 0; }
 @media (max-width: 640px) {
   #resultInfo:not([hidden]) { grid-template-columns: 1fr auto; grid-template-areas: "n order" "fields fields"; }
@@ -841,3 +841,35 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 .hist-size { gap: 4px; }
 .hist-size .when-link { color: var(--muted); text-decoration: none; padding: 2px 8px; border-radius: var(--radius-sm); user-select: none; font-size: 17px; line-height: 1; }
 .hist-size .when-link:hover { color: var(--text); }
+
+/* Save in the add/edit cards: the Add track colour */
+.add-form button[type=submit].btn { background: var(--seek, var(--accent-dim)); }
+.add-form button[type=submit].btn:hover { background: var(--accent-dim); }
+/* Random: lights up in the Play button's colour when pressed */
+.menu button[data-view="random"].flash, .menu button[data-view="random"]:active { background: var(--jade); color: var(--jade-ink); border-radius: 3px; text-decoration: none; }
+.menu button[data-view="random"] { padding: 0 3px; margin: 0 -3px; transition: background .25s, color .25s; }
+
+/* long titles in the player: click to make room */
+#nowTitle { cursor: default; }
+#autoBtn, #infoBtn, #copyBtn { transition: max-width .3s ease, opacity .25s ease, transform .3s ease, padding .3s ease; max-width: 200px; overflow: hidden; }
+.dock.wide #autoBtn, .dock.wide #infoBtn, .dock.wide #copyBtn { max-width: 0; opacity: 0; transform: translateX(60px); padding-left: 0; padding-right: 0; min-width: 0 !important; pointer-events: none; }
+.dock.wide #nowTitle { white-space: normal; overflow: visible; text-overflow: clip; }
+@media (max-width: 640px) {
+  .dock.wide #autoBtn, .dock.wide #infoBtn, .dock.wide #copyBtn { display: none; }
+}
+
+/* Genres: the picker (field + genres left to pick) and one playlist box below it */
+.gm-picker { display: grid; gap: 10px; }
+.gm-field { display: block; max-width: 520px; }
+.gm-field .tag-field { height: 40px; }
+.gm-pool { height: 22vh; min-height: 120px; overflow-y: auto; margin: 0; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
+.gm-pool .when-link { color: var(--muted); }
+.gm-pool .when-link:hover { color: var(--text); }
+.genre-mix .tag-list { max-height: none; }
+.genre-mix .gm-list { overflow-y: auto; }
+.gm-order { display: flex; gap: 12px; margin-top: auto; font-size: 14px; }
+.gm-order .when-link { color: var(--muted); }
+.gm-order .when-link.on { color: var(--jade); }
+.gm-empty { list-style: none; padding: 20px 8px; }
+.tag-drop .gi-n { color: var(--muted); font-size: 12px; margin-left: 6px; }
+@media (max-width: 640px) { .gm-pool { height: 18vh; } }
