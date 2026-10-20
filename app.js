@@ -83,7 +83,8 @@ function haystack(t) {
     const m = meta[t.url] || {}, x = extra[t.url] || {};
     // notes and looked-up info count too (the full descriptions don't)
     t._hay = fold([t.title, m.title, m.author_name, channelArtist(m.author_name), m.wb_title, m.wb_author, slugTitle(t),
-      t.notes, (x.g || []).join(" "), x.y, x.by, x.up].filter(Boolean).join(" "));
+      t.notes, (x.g || []).join(" "), x.y, (x.ys || []).join(" "), (x.rl || []).join(" "), x.by, x.up,
+      t.date, fmtDay(t.date), t.shown_date && fmtDay(t.shown_date)].filter(Boolean).join(" "));
   }
   return t._hay;
 }
@@ -157,7 +158,7 @@ function refreshTags() {
 /* ---------- search ---------- */
 function runSearch() {
   query = fold($("#q").value);
-  fixedRows.clear(); scrollOn.clear(); keptHeight.clear();
+  fixedRows.clear(); scrollOn.clear(); keptHeight.clear(); expanded.clear(); activeId = null;
   const terms = query.split(" ").filter(Boolean);
   if (!terms.length) {
     shown = threads.map((t) => ({ t, hits: null }));
@@ -243,9 +244,10 @@ const phone = () => window.matchMedia("(max-width: 640px)").matches;
 /* iPhone: the page scrolls inside the body instead of the window, so the browser's bars don't pop up and down */
 const INNER_SCROLL = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) && phone();
 if (INNER_SCROLL) document.documentElement.classList.add("inner-scroll");
+if (window.matchMedia("(max-width: 400px)").matches) $("#q").placeholder = "Artist, title or tag"; // small phones: it all fits
 const scroller = () => (INNER_SCROLL ? document.body : window);
-const pageScrollBy = (y, smooth) => scroller().scrollBy({ top: y, behavior: smooth ? "smooth" : "instant" });
-const pageScrollTo = (y) => scroller().scrollTo({ top: y, behavior: "instant" });
+const pageScrollBy = (y, smooth) => scroller().scrollBy({ top: y, behavior: smooth ? "smooth" : "auto" });
+const pageScrollTo = (y) => scroller().scrollTo({ top: y, behavior: "auto" });
 /* bring an element fully into view (between the header and the player), moving as little as possible */
 function revealWhole(node, smooth = true) {
   const r = node.getBoundingClientRect(), top = headerBottom() + 8;
@@ -297,6 +299,11 @@ function toggleExpand(t, hits) {
   if (wasOpen) { setActive(null); pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8); } // collapsed: the thread at the top
   else setActive(t.id);
   fitList(fresh, !wasOpen);
+  if (!wasOpen && hits && phone()) { // phone search: the whole thread, with the (first) hit at the top
+    const hit = fresh.querySelector("li.track.hit, .head-row.hit");
+    if (hit) pageScrollBy(hit.getBoundingClientRect().top - headerBottom() - 8);
+    return;
+  }
   const list = fresh.querySelector(".scroll-list"); // carry on from where you were in the list
   if (list && keep) { list.scrollTop = keep; fresh.querySelector(".scroll-list").dataset.centred = "1"; updateListPos(fresh); }
 }
@@ -415,12 +422,12 @@ function threadNode({ t, hits }) {
   const n = t.tracks.length, limit = threadLimit(), mobile = phone();
   const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
   const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
-  const scrolling = searching && scrollOn.has(t.id);
+  const scrolling = searching; // all of the thread in a box of 5 around the first hit; it scrolls once selected
   let idx, listCls = "tracks", show = long ? TAG_PREVIEW : limit - 1; // long threads show 5, like tags
   if (open && hits && mobile) { idx = range(1, n); }                     // phone search: the whole thread
   else if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
   else if (open) { idx = range(1, n); }                                 // short thread: simply all of it
-  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = Math.max(SEARCH_AROUND, searchRows(t, hits).length); }
+  else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = SEARCH_AROUND; }
   else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
   else if (long && !mobile) { idx = range(1, n); listCls += " scroll-list"; }
   else if (long) { idx = range(1, 1 + TAG_PREVIEW); }
@@ -430,7 +437,6 @@ function threadNode({ t, hits }) {
   const posText = `${!searching || lo === 2 ? 1 : lo} of ${n}`;
   const pos = () => el("span", { class: "more-pos" }, posText);
   const expandBtn = (cls = "") => btn("tg-expand " + cls, open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
-  const scrollBtn = () => el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), "aria-pressed": String(scrolling), onclick: () => toggleScroll(t, hits) }, "Scroll");
   const day = fmtDay(head.shown_date || head.date);
 
   // what goes where
@@ -438,14 +444,15 @@ function threadNode({ t, hits }) {
   // under the thumbnail: the post date; in search results it leads to the thread, with the track count under it
   const when = el("div", { class: "t-when" + (hits ? " in-search" : "") },
     hits ? el("button", { class: "when-link", title: "Show this thread in the feed", onclick: () => goToThread(t) }, day) : el("span", {}, day),
-    hits && n > 1 ? el("span", { class: "more-pos" }, `${n} ${n === 1 ? "track" : "tracks"}`) : null);
+    hits && n > 1 ? el("span", { class: "when-count" }, `${n} ${n === 1 ? "track" : "tracks"}`) : null,
+    hits && hits.size > 1 ? el("span", { class: "when-count" }, `${hits.size} matches`) : null);
   if (hits && !mobile) {
     // laptop search: Expand under the tracks
     if (searching) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {}));
-    else if (open && long) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
+    else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // Collapse where Expand was
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
-    if (searching) foot = el("div", { class: "search-foot" }, pos(), scrollBtn(), expandBtn("foot-right"));
+    if (searching) foot = el("div", { class: "search-foot" }, pos(), el("span", {}), expandBtn("foot-right"));
   } else if (long) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
@@ -487,10 +494,14 @@ function goToThread(t) {
   while (rendered <= at && rendered < shown.length) renderMore();
   const node = document.getElementById("th-" + t.id);
   if (!node) return;
-  const place = () => pageScrollBy(node.getBoundingClientRect().top - headerBottom() - 8);
+  // boxes above size themselves a moment later: keep placing it under the header until nothing moves
+  let frames = 0;
+  const place = () => {
+    const dy = node.getBoundingClientRect().top - headerBottom() - 8;
+    if (Math.abs(dy) > 1) pageScrollBy(dy);
+    if (++frames < 40) requestAnimationFrame(place);
+  };
   place();
-  // long threads above size their boxes a moment later; place it again once they have
-  requestAnimationFrame(() => requestAnimationFrame(() => { place(); setTimeout(place, 150); }));
 }
 
 function markPlaying() {
@@ -713,7 +724,6 @@ function play(t, i) {
   });
   markPlaying();
   syncDockSpace();
-  freezeScrolledResult(t);
 }
 /* phone, search results with Scroll on: playing a track switches Scroll off and keeps
    the tracks that were on screen as the result window */
@@ -758,6 +768,8 @@ function openThread() {
           el("span", { class: "tr-title" }, x.title),
           el("span", { class: "tr-sub" }, [i === 0 ? "Main track" : null, x.author].filter(Boolean).join(", ")))));
   }));
+  const room = $(".bar").getBoundingClientRect().top - headerBottom() - 16;
+  $("#threadPop").style.maxHeight = phone() ? Math.max(120, room) + "px" : "";
   $("#threadPop").hidden = false; $("#threadBtn").setAttribute("aria-expanded", "true");
   $("#threadList .current")?.scrollIntoView({ block: "nearest" });
 }
@@ -971,7 +983,10 @@ function addForm(thread, edit, row) {
   const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
     "aria-label": "More info", onclick: (e) => {
       const open = more.hidden; more.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open));
-      if (open) { more.querySelector("textarea").focus({ preventScroll: true }); revealWhole(form); }
+      if (open) more.querySelector("textarea").focus({ preventScroll: true });
+      const wrap = form.closest(".edit-wrap");
+      if (wrap && wrap.previousElementSibling) focusRow(wrap.previousElementSibling, true, "top", "top"); // the track stays at the top
+      else if (open) revealWhole(form);
     } }, "▾");
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("label", { class: "af-field" }, el("span", {}, "Title"),
@@ -1043,6 +1058,9 @@ function moreInfo(tr, edit, tags) {
         : [el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")]).filter(Boolean));
     chips();
     box.append(sug,
+      el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"),
+        x.rl && x.rl.length ? el("span", {}, x.rl[0]) : el("span", { class: "hint" }, x.chk && x.v >= 3 ? "none found" : "not looked up yet"),
+        x.rl && x.rl.length > 1 ? el("span", { class: "hint" }, "(also " + x.rl.slice(1).join(", ") + ")") : null),
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
         el("span", {}, x.y ? String(x.y) : el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")),
         x.ys && x.ys.length ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null,
@@ -1414,7 +1432,6 @@ document.addEventListener("keydown", (e) => {
   const next = row.nextElementSibling;
   if (next && next.classList.contains("edit-wrap")) { // already open: open (or close) its More info
     next.querySelector(".more-info-btn")?.click();
-    next.scrollIntoView({ block: "nearest" });
     return;
   }
   toggleEditForm(home, i, row);

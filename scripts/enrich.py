@@ -92,7 +92,13 @@ def musicbrainz_once(artist, title):
     for r in good:
         for t in r.get("tags", []) or []:
             tags[t["name"].lower()] = tags.get(t["name"].lower(), 0) + int(t.get("count", 1))
-    return {"y": min(years) if years else None, "ys": years, "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
+    rels = []  # (year, release title): the albums, singles or compilations the recording is on
+    for r in good:
+        for rel in r.get("releases", []) or []:
+            if rel.get("title"):
+                rels.append((year_of(rel.get("date")) or 9999, rel["title"]))
+    return {"y": min(years) if years else None, "ys": years, "rl": rels,
+            "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
 
 
 def discogs(artist, title):
@@ -110,10 +116,18 @@ def discogs(artist, title):
     for r in res:
         for g in (r.get("style") or []) + (r.get("genre") or []):
             count[g.lower()] = count.get(g.lower(), 0) + 1
-    return {"y": min(years) if years else None, "ys": years, "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])][:6]}
+    rels = []
+    for r in res:  # Discogs titles are "Artist - Release"
+        name = r.get("title") or ""
+        name = name.split(" - ", 1)[1] if " - " in name else name
+        y = int(r["year"]) if str(r.get("year", "")).isdigit() else 9999
+        if name:
+            rels.append((y, name))
+    return {"y": min(years) if years else None, "ys": years, "rl": rels,
+            "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])][:6]}
 
 
-VERSION = 2  # entries looked up by an older version of this script are looked up again
+VERSION = 3  # entries looked up by an older version of this script are looked up again
 BASE_GENRES = """ambient,acid house,alternative rock,art rock,bass music,breakbeat,breaks,chillwave,classical,coldwave,dancehall,
 deep house,disco,downtempo,drum and bass,drum n bass,dub,dub techno,dubstep,edm,electro,electronic,electropop,experimental,folk,
 folk rock,footwork,funk,garage,grime,hard rock,hardcore,hip hop,house,idm,indie,indie pop,indie rock,industrial,italo disco,
@@ -266,6 +280,15 @@ def main():
                 set_years(e, years)
                 if e.get("y"):
                     stats["year"] += 1
+                # suggested release: the earliest one first, then up to three others (different names)
+                seen, rl = set(), []
+                for _, name in sorted([x for r in (mb, dg) if r for x in r.get("rl", [])], key=lambda x: x[0]):
+                    if name.lower() not in seen:
+                        seen.add(name.lower())
+                        rl.append(name)
+                if rl:
+                    e["rl"] = rl[:4]
+                    stats["release"] = stats.get("release", 0) + 1
                 add_genres(e, genres[:8])
                 if e.get("g"):
                     stats["genres"] += 1

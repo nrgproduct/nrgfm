@@ -108,7 +108,7 @@ button.tag-chip:hover { border-color: var(--muted); }
 .tag-count { color: var(--muted); font-size: 14px; }
 .tag-more { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-top: auto; }
 .tag-more .more-toggle { margin: 0 -8px 0 0; }
-.tag-list { list-style: none; margin: 0; padding: 4px 0 4px 8px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
+.tag-list { list-style: none; margin: 0 -12px 0 0; padding: 4px 0 4px 8px; /* tracks line up with those in track threads */ display: grid; gap: 0; align-content: start; position: relative; min-width: 0; }
 /* Expand / Collapse and the counter */
 .more-toggle {
   all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center;
@@ -175,7 +175,8 @@ html, body { overflow-anchor: none; } /* the site places threads itself when the
 }
 .btn.square:hover { border-color: var(--muted); }
 .btn.square[hidden] { display: none; }
-.search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search input::-webkit-search-cancel-button, .search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.search input { -webkit-appearance: none; appearance: none; }
 .af-msg:empty { display: none; }
 .just-saved { outline: 2px solid var(--jade); outline-offset: -2px; }
 .saved-tag { color: var(--jade); font-weight: 700; margin-right: 8px; }
@@ -233,7 +234,7 @@ main { max-width: 860px; padding: 8px 24px calc(var(--dock-h, 0px) + 40px); }
 /* main track: same box treatment as the replies (hover, playing) */
 .head-row {
   display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
-  margin: 10px 0; padding: 8px; border-radius: var(--radius-sm); position: relative;
+  margin: 10px -12px 10px 0; padding: 8px; border-radius: var(--radius-sm); position: relative; /* "YouTube" ends where Add track ends */
 }
 .head-row:hover { background: var(--surface); }
 .head-row.playing { background: var(--surface-2); }
@@ -269,7 +270,7 @@ img.broken { visibility: hidden; }
 .t-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; }
 
 /* expanded */
-.tracks { list-style: none; margin: 0 0 6px 0; padding: 0 0 0 176px; }
+.tracks { list-style: none; margin: 0 -12px 6px 0; padding: 0 0 0 176px; }
 .track {
   display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center;
   padding: 6px 8px; border-radius: var(--radius-sm);
@@ -466,6 +467,7 @@ img.broken { visibility: hidden; }
   /* a wider clear button, easier to hit */
   .btn.square { width: 50px; border-color: var(--text); }
   .search input { padding-right: 64px; }
+  .search:has(#clearQ[hidden]) input { padding-right: 12px; } /* no clear button: the whole placeholder fits */
   .more-after > .more-toggle:last-child { margin-right: -8px; }
   .tag-label .more-pos { display: block; padding-top: 2px; }
   .tag-more .more-pos { display: none; }
@@ -561,7 +563,7 @@ img.broken { visibility: hidden; }
 }
 /* iPhone: the body scrolls instead of the window, so the browser's bars stay put */
 html.inner-scroll, html.inner-scroll body { height: 100%; overflow: hidden; }
-html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; }
+html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; color-scheme: dark; }
 @media (max-width: 640px) {
   .thread.framed:not(.searching) { padding: 0 8px; }
   .t-when { display: none; }
@@ -577,3 +579,12 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .thread.active .scroll-list { overscroll-behavior: contain; }
 .thread.framed.active:not(.searching) { background: color-mix(in srgb, var(--jade) 5%, transparent); border-radius: var(--radius-sm); }
 @media (hover: none) { .thread:not(.active) .scroll-list { overflow-y: hidden; } }
+
+/* search results: a selected result gets the same lit dotted frame and scrolls */
+.thread.searching.active::before {
+  content: ""; position: absolute; inset: 0 -16px 0 -8px; pointer-events: none; z-index: 4; /* room for the links that reach the edge */
+  border: 1px dotted var(--jade); border-radius: var(--radius-sm);
+}
+/* inside a dotted frame the rows stay inside it (the links end a little before the frame) */
+.thread.framed:not(.searching) .head-row { margin-right: 0; }
+.thread.framed:not(.searching) .tracks, .thread.framed:not(.searching) .tag-list { margin-right: 0; }
