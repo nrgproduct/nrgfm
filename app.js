@@ -258,7 +258,14 @@ function monthNode({ t }) {
       return el("li", { class: "month-row" + (x.dead ? " dead" : ""), "data-k": `${th.id}:0` },
         el("button", { class: "when-link", title: "Go to the thread (" + fmtDay(postDate(th)) + ")", onclick: () => goToThread(th) }, fmtDay(postDate(th)).replace(/ \d{4}$/, "")),
         el("button", { class: "play month-play", onclick: () => play(th, 0), "aria-label": `Play ${x.title}` }, el("span", { class: "tr-title" }, x.title)),
-        el("span", { class: "month-n" }, n > 1 ? `${n} tracks` : ""));
+        n > 1 ? el("button", { class: "when-link month-n", "aria-expanded": "false", title: "Show the tracks",
+          onclick: (e) => { const box = e.currentTarget.parentElement.querySelector(".month-tracks"), open = box.hidden;
+            box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open)); } }, `${n} tracks`) : el("span", { class: "month-n" }),
+        n > 1 ? el("ol", { class: "month-tracks", hidden: true }, th.tracks.slice(1).map((tr, k) => {
+          const y = info(tr);
+          return el("li", { class: y.dead ? "dead" : "", "data-k": `${th.id}:${k + 1}` },
+            el("button", { class: "play month-play", onclick: () => play(th, k + 1), "aria-label": `Play ${y.title}` }, el("span", { class: "tr-title" }, y.title)));
+        })) : null);
     })));
 }
 /* the genre index: the biggest 40, "all 263 genres" shows the rest */
@@ -1055,6 +1062,7 @@ $("#closeBtn").onclick = closeDock;
 function syncDockSpace() {
   const d = $("#dock");
   document.body.style.setProperty("--dock-h", d.hidden ? "0px" : d.offsetHeight + "px");
+  document.body.classList.toggle("has-player", !d.hidden); // the list makes room for the video
   document.querySelectorAll(".scroll-list.open").forEach((l) => { // an open box at the top ends above the player
     const th = l.closest(".thread"), top = th.getBoundingClientRect().top - headerBottom();
     if (top > -4 && top < 40) fitList(th);

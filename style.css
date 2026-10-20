@@ -65,6 +65,7 @@ button, input { font: inherit; color: inherit; }
 .tag-area { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
 .af-actions { flex-wrap: nowrap; }
 .af-actions > .mix-btn { margin-right: auto; }
+.btn.ghost.mix-btn { font-weight: 400; }
 .btn.ghost.mix-btn[aria-pressed="true"] { border-color: var(--jade); color: var(--jade); }
 .tag-box { position: relative; }
 /* tags added in an add card: two rows, filling column by column */
@@ -562,8 +563,11 @@ img.broken { visibility: hidden; }
 .when-link:hover { color: var(--text); }
 /* the list is as wide as the space left of the video player (laptop) */
 @media (min-width: 641px) {
-  main { max-width: max(600px, calc(100% - 366px)); }
-  .top { padding-right: max(24px, min(calc(100% - 576px), 390px)); }
+  /* no player: the list uses the whole width; with the player it ends just left of the video */
+  main { max-width: none; }
+  .top { padding-right: 24px; }
+  body.has-player main { max-width: max(600px, calc(100% - 366px)); }
+  body.has-player .top { padding-right: max(24px, min(calc(100% - 576px), 390px)); }
 }
 /* iPhone: the body scrolls instead of the window, so the browser's bars stay put */
 html.inner-scroll, html.inner-scroll body { height: 100%; overflow: hidden; }
@@ -598,18 +602,19 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
   content: ""; position: absolute; inset: 4px 0 8px; border-radius: var(--radius-sm); pointer-events: none;
 }
 .thread.active:not(.framed):not(.searching)::before { border: 1px dotted var(--jade); z-index: 4; }
+.thread.active:not(.framed):not(.searching)::after { background: color-mix(in srgb, var(--jade) 5%, transparent); z-index: -1; }
 
 
 /* editing a track: a dotted box around the track and its card */
 .track.editing, .head-row.editing { isolation: isolate; position: relative; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .track.editing { position: relative; }
 .editing::before, .edit-wrap::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  content: ""; position: absolute; inset: 0 4px; pointer-events: none; z-index: -1;
   border: 1px dotted var(--jade); background: var(--surface);
 }
 .track.editing.playing::before, .head-row.editing.playing::before { background: var(--surface-2); }
 .editing::before { border-bottom: 0; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
-.edit-wrap { position: relative; isolation: isolate; }
+.edit-wrap { position: relative; isolation: isolate; display: flow-root; } /* keeps the card's margins inside the box */
 .edit-wrap::before { border-top: 0; border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
 .edit-wrap > .add-form { position: relative; }
 .track.editing, .head-row.editing, .head-row.editing:hover, .track.editing:hover { background: none; }
@@ -620,14 +625,14 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 
 /* the menu under the logo: one line across the page */
 .brand a { cursor: pointer; }
-.menu { flex-basis: 100%; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 4px 0 2px; }
+.menu { flex-basis: 100%; display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 6px 10px; padding: 2px 0 0; }
 .menu[hidden] { display: none; }
 .menu button {
-  all: unset; cursor: pointer; color: var(--jade); font-size: 19px; font-weight: 500; line-height: 1.25;
-  text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 4px;
+  all: unset; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1.4;
+  text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px;
 }
 .menu button:hover { color: var(--text); }
-.menu button[aria-current="true"] { text-decoration-style: solid; }
+.menu button[aria-current="true"] { color: var(--jade); }
 .menu button:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
 
 /* page intro, genre index, history jumps */
@@ -639,7 +644,14 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .genre-index .gi-all { height: auto; margin: 0; font-size: 14px; }
 .view-history { position: sticky; top: var(--top-h, 60px); z-index: 4; background: var(--bg); border-bottom: 1px dotted var(--dots, var(--line-strong)); padding-bottom: 10px; }
 .hist-years, .hist-months { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.hist-years { font-size: 17px; margin-bottom: 8px; }
+.hist-years { font-size: clamp(11px, 1.5vw, 17px); margin-bottom: 8px; flex-wrap: nowrap; justify-content: space-between; gap: 0 6px; }
+.month-tracks { grid-column: 1 / -1; list-style: none; margin: 2px 0 6px 76px; padding: 0; display: grid; gap: 2px; }
+.month-tracks[hidden] { display: none; }
+.month-tracks li { display: grid; grid-template-columns: 1fr; padding: 2px 8px; border-radius: var(--radius-sm); }
+.month-tracks li:hover { background: var(--surface); }
+.month-tracks li.playing { background: var(--surface-2); }
+.month-tracks .month-play .tr-title { font-weight: 400; font-size: 14px; }
+.month-n.when-link { font-size: 13px; }
 .hist-months { font-size: 14px; }
 .view-head .when-link { color: var(--muted); }
 .view-head .when-link:hover, .view-head .when-link.on { color: var(--jade); }
@@ -658,13 +670,15 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
 .month-row.dead .tr-title { text-decoration: line-through; }
 .month-n { color: var(--muted); font-size: 13px; white-space: nowrap; }
 @media (max-width: 640px) {
-  .menu { flex-wrap: nowrap; gap: 0 8px; }
-  .menu button { font-size: 15px; }
+  .menu { flex-wrap: wrap; gap: 4px 10px; }
   .hist-years, .hist-months { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 0 14px; padding-bottom: 2px; }
-  .hist-years { font-size: 15px; margin-bottom: 6px; }
+  .hist-years { font-size: 13px; margin-bottom: 6px; justify-content: flex-start; gap: 0 12px; }
+  .month-tracks { margin-left: 56px; }
   .month-row { grid-template-columns: 56px 1fr; padding: 4px 0; }
   .month-n { display: none; }
 }
 .af-actions .tag-box { flex: 0 1 200px; min-width: 90px; }
 .af-actions .tag-input { width: 100%; box-sizing: border-box; }
 @media (max-width: 640px) { .af-actions { flex-wrap: wrap; } }
+.month-tracks li.dead .tr-title { text-decoration: line-through; }
+.head-row.editing { margin-bottom: 0; } /* the box around the main track and its card has no gap */
