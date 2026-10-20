@@ -112,6 +112,7 @@ function makeTagThreads() {
   for (const t of threads) {
     if (!isBase(t)) continue;
     for (const tr of t.tracks) for (const [g, ts] of Object.entries(tr.tags || {})) {
+      if (HIDDEN_TAGS.has(g)) continue;
       if (!by.has(g)) by.set(g, []);
       by.get(g).push({ tr, ts });
     }
@@ -123,7 +124,7 @@ function makeTagThreads() {
 }
 function allTags() {
   const n = new Map();
-  for (const t of threads) if (isBase(t)) for (const tr of t.tracks) for (const g of Object.keys(tr.tags || {})) n.set(g, (n.get(g) || 0) + 1);
+  for (const t of threads) if (isBase(t)) for (const tr of t.tracks) for (const g of shownTags(tr)) n.set(g, (n.get(g) || 0) + 1);
   return [...n].sort((a, b) => b[1] - a[1]).map(([g]) => g);
 }
 function sortThreads() {
@@ -284,9 +285,8 @@ function drawViewHead() {
     head.replaceChildren(
       genreIndex(items, 40));
   } else if (view === "mixes") {
-    head.replaceChildren(el("p", { class: "view-note" }, shown.length
-      ? "Tracks ticked as Mix in the edit card, grouped by their other tags."
-      : "No mixes yet. Tick “Mix” in a track's edit card and it shows up here."));
+    if (!shown.length) { head.hidden = true; return; }
+    head.replaceChildren(el("p", { class: "view-note" }, "Tracks ticked as Mix in the edit card, grouped by their other tags."));
   } else if (view === "history") {
     const months = shown.map((x) => x.t), years = [...new Set(months.map((m) => m.month.slice(0, 4)))];
     const monthRow = el("div", { class: "hist-months" });
@@ -350,7 +350,7 @@ function setView(v, keepHash) {
   if (v === "ublock") { // first press: "Confirm"; the second opens the store
     const b = $('#menu button[data-view="ublock"]');
     if (b.dataset.confirm) { clearTimeout(b._t); delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; openUblock(); }
-    else { b.dataset.confirm = "1"; b.textContent = "Confirm"; b._t = setTimeout(() => { delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; }, 5000); }
+    else { b.style.minWidth = b.getBoundingClientRect().width + "px"; b.dataset.confirm = "1"; b.textContent = "Confirm"; b._t = setTimeout(() => { delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; }, 5000); }
     return;
   }
   if (v === "random") { const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)]); return; }
@@ -370,7 +370,22 @@ addEventListener("hashchange", () => { // back/forward and links between pages
   if (page && VIEW_NAMES[page[1]] && page[1] !== view) setView(page[1], true);
   else if (!location.hash && view !== "threads") setView("threads", true);
 });
-$("#menu").addEventListener("click", (e) => { const b = e.target.closest("button[data-view]"); if (b) setView(b.dataset.view); }); // stays open
+$("#menu").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-view]");
+  if (!b) return;
+  if (VIEW_NAMES[b.dataset.view]) toggleMenu(false); // a page closes the menu; Random and uBlock leave it open
+  setView(b.dataset.view);
+});
+/* scrolling the page closes the menu; the page is moved back by the menu's height, so nothing jumps */
+function closeMenuByScroll() {
+  if ($("#menu").hidden) return;
+  const h = $(".top").getBoundingClientRect().height;
+  toggleMenu(false);
+  const dh = h - $(".top").getBoundingClientRect().height;
+  if (dh > 0) pageScrollBy(-dh);
+}
+addEventListener("wheel", (e) => { if (!e.target.closest(".top")) closeMenuByScroll(); }, { passive: true });
+addEventListener("touchmove", (e) => { if (!e.target.closest(".top")) closeMenuByScroll(); }, { passive: true });
 
 /* ---------- rendering: every thread is shown open ---------- */
 const img = (src, cls) => src
@@ -378,8 +393,10 @@ const img = (src, cls) => src
   : el("span", { class: cls + " empty" });
 
 /* tags under a title; clicking one searches for it */
+const HIDDEN_TAGS = new Set(["mix"]); // kept on the track for the Mixes page, never shown as a tag
+const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g));
 function tagLine(tr, extra) {
-  const tags = Object.keys(tr.tags || {});
+  const tags = shownTags(tr);
   return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
@@ -912,6 +929,7 @@ function play(t, i) {
   adapter = null;
   const box = $("#otherSlot"); box.replaceChildren();
   const dock = $("#dock"); dock.hidden = false;
+  if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
   closeThread();
@@ -924,7 +942,7 @@ function play(t, i) {
   if (x.dead) {
     kind = "note";
     box.append(el("p", { class: "nolink" }, x.archive
-      ? "This track was deleted. “Open” shows the archived page; search the title on YouTube to find a re-upload."
+      ? "This track was deleted. “Archive” next to it shows the archived page; “Search” looks for a re-upload on YouTube."
       : "This track was deleted and no archived copy of its page was found."));
   } else if (tr.platform === "youtube" && tr.yt && m.status !== 401) {
     adapter = makeYouTube(tr);
@@ -942,7 +960,7 @@ function play(t, i) {
     adapter = makePlain(box, `https://player-widget.mixcloud.com/widget/iframe/?hide_cover=1&autoplay=1&feed=${encodeURIComponent(new URL(tr.url).pathname)}`, x.title);
   } else {
     kind = "note";
-    box.append(el("p", { class: "nolink" }, `This ${PLATFORM[tr.platform] || "link"} can't play here. Use “Open”.`));
+    box.append(el("p", { class: "nolink" }, `This ${PLATFORM[tr.platform] || "link"} can't play here.`));
   }
   $("#media").dataset.kind = kind;
   const controllable = !!(adapter && adapter.controllable);
@@ -952,7 +970,7 @@ function play(t, i) {
   if (adapter) adapter.ready.catch(() => {
     if (token !== loadToken) return;
     ytSlot().hidden = true;
-    box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load. Use “Open” to play it on the original site."));
+    box.replaceChildren(el("p", { class: "nolink" }, "The player didn't load. The link next to the track opens it on the original site."));
   });
   markPlaying();
   syncDockSpace();
@@ -1037,10 +1055,19 @@ window.addEventListener("resize", fitTitle);
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 if (IOS) $("#volWrap").hidden = true; // iOS only allows the hardware volume buttons
 function closeVol() { $("#volPop").hidden = true; $("#volBtn").setAttribute("aria-expanded", "false"); }
+const speaker = (v) => {
+  const n = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  n.setAttribute("viewBox", "0 0 16 16"); n.setAttribute("class", "spk"); n.setAttribute("aria-hidden", "true");
+  n.innerHTML = '<path d="M2 6h3l4-3v10L5 10H2z" fill="currentColor"/>' +
+    (v === 0 ? '<path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4" fill="none"/>'
+      : '<path d="M11 5.5a3.5 3.5 0 0 1 0 5" stroke="currentColor" stroke-width="1.4" fill="none"/>' + (v > 50 ? '<path d="M12.8 3.5a6 6 0 0 1 0 9" stroke="currentColor" stroke-width="1.4" fill="none"/>' : ""));
+  return n;
+};
 function showVolume() {
   $("#vol").value = volume; $("#volVal").textContent = volume;
   $("#vol").style.setProperty("--p", volume + "%");
-  $("#volBtn").textContent = volume; // the button shows the volume
+  $("#volBtn").replaceChildren(speaker(volume), el("span", { class: "vol-n" }, volume)); // the button shows the volume
+  $("#volBtn").classList.toggle("muted", volume === 0);
 }
 showVolume();
 $("#volBtn").onclick = (e) => {
@@ -1057,6 +1084,16 @@ $("#vol").addEventListener("input", () => {
   try { localStorage.setItem("nrgfm-volume", String(volume)); } catch {}
 });
 
+/* buttons whose text changes keep the width of their longest text, so the row doesn't move */
+function lockWidth(btn, texts) {
+  const was = btn.textContent;
+  btn.style.minWidth = Math.ceil(Math.max(...texts.map((t) => { btn.textContent = t; return btn.getBoundingClientRect().width; }))) + "px";
+  btn.textContent = was;
+}
+const lockPlayerWidths = () => {
+  lockWidth($("#autoBtn"), ["Autoplay off", "Autoplay on"]);
+  lockWidth($("#infoBtn"), ["Copy info", "Copied"]); lockWidth($("#copyBtn"), ["Copy link", "Copied"]);
+};
 $("#autoBtn").onclick = () => {
   autoplay = !autoplay;
   $("#autoBtn").setAttribute("aria-pressed", autoplay ? "true" : "false");
@@ -1214,7 +1251,8 @@ function addForm(thread, edit, row) {
   // edit = { t, i } when editing an existing track; row = that track's row (its tags become removable)
   const tr = edit ? edit.t.tracks[edit.i] : null;
   const host = row ? row.querySelector(".tag-wrap") : null;
-  const tags = tagEditor(tr ? Object.keys(tr.tags || {}) : [], !tr && thread ? Object.keys(thread.tracks[0].tags || {}) : []);
+  const tags = tagEditor(tr ? shownTags(tr) : [], !tr && thread ? shownTags(thread.tracks[0]) : []);
+  const isMix = !!(tr && tr.tags && tr.tags.mix);
   const more = moreInfo(tr, edit, tags);
   const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
     "aria-label": "More info", onclick: (e) => {
@@ -1225,17 +1263,17 @@ function addForm(thread, edit, row) {
       else if (open) revealWhole(form);
     } }, "▾");
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
-    el("label", { class: "af-field" }, el("span", {}, "Title"),
-      el("input", { name: "title", type: "text", placeholder: "Artist – Track (optional, filled in automatically)" })),
-    el("label", { class: "af-field" }, el("span", {}, "Link"),
-      el("input", { name: "url", type: "url", required: true, placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
+    el("div", { class: "af-field" },
+      el("input", { name: "title", type: "text", "aria-label": "Title", placeholder: "Artist – Track (optional, filled in automatically)" })),
+    el("div", { class: "af-field" },
+      el("input", { name: "url", type: "url", required: true, "aria-label": "Link", placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
     el("div", { class: "af-actions" },
       tags.box,
       el("span", { class: "af-gap" }),
       // a mix (DJ mix, full album…): it gets the "mix" tag and shows up on the Mixes page
-      el("button", { type: "button", class: "btn ghost mix-btn", "aria-pressed": String(tags.has("mix")),
+      el("button", { type: "button", class: "btn ghost mix-btn", "aria-pressed": String(isMix),
         title: "A DJ mix, full album or other long recording: shows up under Mixes",
-        onclick: (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", String(on)); on ? tags.use("mix") : tags.drop("mix"); } }, "Mix"),
+        onclick: (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", String(on)); } }, "Mix"),
       edit ? arrow : null,
       el("span", { class: "af-msg hint", role: "status" }),
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
@@ -1389,7 +1427,7 @@ function toggleEditForm(t, i, row) {
   const wrap = el(row.tagName === "LI" ? "li" : "div", { class: "edit-wrap edit-li" }, form);
   row.after(wrap);
   const box = wrap.closest(".scroll-list");
-  form.tags.input.focus({ preventScroll: true }); // editing usually means tagging: start in the tag field
+  form.title.focus({ preventScroll: true }); // start in the title
   if (box) {
     // inside a scrolling box: the box grows to fit the card (and its More info), the track goes a third of the way down
     const base = box.clientHeight, grow = () => { box.style.maxHeight = base + wrap.offsetHeight + "px"; };
@@ -1684,9 +1722,10 @@ function editPlaying(more) {
   if (!home) return;
   const i = home.tracks.indexOf(tr);
   let t = playing.thread, k = playing.index;
-  let row = document.querySelector(`[data-k="${CSS.escape(t.id)}:${k}"]:not(.month-row):not(li li)`);
-  if (!row || !row.querySelector(".edit-btn")) { t = home; k = i; row = document.querySelector(`[data-k="${home.id}:${i}"]`); }
-  if (!row) { goToThread(home); row = document.querySelector(`[data-k="${home.id}:${i}"]`); }
+  const rowOf = (id, n) => document.querySelector(`.track[data-k="${CSS.escape(id)}:${n}"], .head-row[data-k="${CSS.escape(id)}:${n}"]`);
+  let row = rowOf(t.id, k);
+  if (!row) { t = home; k = i; row = rowOf(home.id, i); }
+  if (!row) { goToThread(home); row = rowOf(home.id, i); }
   if (!row) return;
   const next = row.nextElementSibling;
   if (next && next.classList.contains("edit-wrap")) {

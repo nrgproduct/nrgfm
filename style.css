@@ -717,7 +717,8 @@ button.tag-chip.in { font-size: 13px; line-height: 24px; padding: 0 6px; color: 
 .tag-drop ul { list-style: none; margin: 0; padding: 0; }
 .drop-sug { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 6px; }
 .drop-sug:last-child { padding-bottom: 2px; }
-.af-actions .tag-box { flex: 0 1 260px; }
+.af-actions .tag-area { flex: 0 1 auto; min-width: 0; }
+.af-actions .tag-box { flex: 0 1 auto; min-width: 200px; max-width: 100%; } /* grows with its tags, up to the Mix button */
 /* small things */
 .more-info-btn.btn.ghost { color: var(--muted); }
 .af-more .move-panel { border-top: 0; padding-top: 0; }
@@ -726,3 +727,13 @@ body:not(.can-add) #editBtn { display: none; }
 @media (max-width: 640px) { #editBtn { display: none; } }
 /* selected boxes (search, tags, genres): the edit card stays clear of the frame */
 .thread.framed .edit-wrap > .add-form, .thread.searching.active .edit-wrap > .add-form { margin-right: 8px; }
+
+/* volume: a speaker and the number, always the same width */
+#volBtn { min-width: 62px; justify-content: center; gap: 5px; font-variant-numeric: tabular-nums; }
+#volBtn .spk { width: 15px; height: 15px; flex: none; }
+#volBtn.muted { color: var(--jade); }
+/* uBlock: "Confirm" in the same place, lit */
+.menu button[data-view="ublock"] { text-align: center; }
+.menu button[data-view="ublock"][data-confirm] { color: var(--jade); font-weight: 700; }
+.add-form { grid-template-columns: minmax(0, 1fr); } .add-form > * { min-width: 0; } /* a long tag field scrolls instead of widening the card */
+.af-actions > .btn { flex: none; }
