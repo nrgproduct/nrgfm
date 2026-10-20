@@ -6,7 +6,7 @@ const $ = (s) => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
-    if (v == null || v === false) continue;
+    if (v == null || v === false || k === "title") continue; // no hover hints on this site
     if (k === "class") n.className = v;
     else if (k === "style") n.style.cssText = v;
     else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
@@ -80,7 +80,7 @@ function info(t) {
 
 /* What search looks in, field by field (the filters next to the result count switch fields off) */
 // in order of importance: a match in an earlier field ranks a result higher
-const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["tags", "Tags"], ["release", "Release"], ["year", "Year"], ["genres", "Genres"], ["uploader", "Uploader"]];
+const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["tags", "Tags"], ["release", "Release"], ["year", "Year"], ["genres", "Genres"], ["uploader", "Meta"]];
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {}, x = extra[t.url] || {};
@@ -92,7 +92,7 @@ function haystack(t) {
       tags: j(shownTags(t)),
       genres: j(x.g || []),
       year: j([x.y]),
-      release: j(x.rl || []),
+      release: j(t.release || x.rl || []),
       uploader: j([m.author_name, channelArtist(m.author_name), m.wb_author, x.by]),
     };
     t._hay = Object.values(t._f).join(" ");
@@ -100,7 +100,7 @@ function haystack(t) {
   return t._hay;
 }
 const fieldsOf = (t) => (haystack(t), t._f);
-let searchOff = new Set((() => { try { return JSON.parse(localStorage.getItem("nrgfm-search-off") || "[]"); } catch { return []; } })());
+let searchOff = new Set(); // filters switched off for this search only
 /* a word you type matches the start of a word ("sear" finds "Search", not "Research") */
 const has = (field, w) => field.includes(" " + w);
 const matches = (tr, terms, off = searchOff) => { const f = fieldsOf(tr); return terms.every((w) => FIELDS.some(([k]) => !off.has(k) && has(f[k], w))); };
@@ -112,7 +112,7 @@ function matchRank(tr, terms) {
   const any = on.findIndex(([k]) => terms.some((w) => has(f[k], w)));
   return any > -1 ? any + 0.5 : 99;
 }
-let byNewest = (() => { try { return localStorage.getItem("nrgfm-search-newest") === "1"; } catch { return false; } })();
+let byNewest = false; // "Best match" each time
 
 const fmtDate = (d) => {
   const [y, mo] = d.split("-");
@@ -197,6 +197,7 @@ function runSearch() {
   const terms = query.split(" ").filter(Boolean);
   $("#viewHead").hidden = true;
   if (!terms.length) {
+    searchOff.clear(); byNewest = false; // leaving search: the next one starts fresh
     shown = viewItems().map((t) => ({ t, hits: null }));
     $("#resultInfo").hidden = true;
     drawViewHead();
@@ -224,17 +225,12 @@ function runSearch() {
     if (n) parts.push(`${n} ${n === 1 ? "track" : "tracks"} in ${trackThreads} ${trackThreads === 1 ? "thread" : "threads"}`);
     $("#resultInfo").hidden = false;
     $("#resultInfo").replaceChildren(
-      el("span", {}, parts.length ? parts.join(", ") : `Nothing matches “${$("#q").value.trim()}”. Many old links have no title yet; try fewer words.`),
-      el("span", { class: "search-fields" }, el("button", { class: "sf sf-order", "aria-pressed": String(byNewest),
-          title: byNewest ? "Now: newest first. Click for the best matches first" : "Now: best matches first. Click for newest first",
-          onclick: () => { byNewest = !byNewest; try { localStorage.setItem("nrgfm-search-newest", byNewest ? "1" : ""); } catch {} runSearch(); } },
-          byNewest ? "Newest first" : "Best match"),
-        FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
+      el("button", { class: "sf sf-order", "aria-pressed": String(byNewest), onclick: () => { byNewest = !byNewest; runSearch(); } },
+        byNewest ? "Newest first" : "Best match"),
+      el("span", { class: "result-n" }, n ? `${n} ${n === 1 ? "result" : "results"}` : `Nothing matches “${$("#q").value.trim()}”.`),
+      el("span", { class: "search-fields" }, FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
-        title: searchOff.has(k) ? `Search ${name.toLowerCase()} again` : `Leave out ${name.toLowerCase()}`,
-        onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k);
-          try { localStorage.setItem("nrgfm-search-off", JSON.stringify([...searchOff])); } catch {}
-          runSearch(); } }, name))));
+        onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name))));
   }
   rendered = 0;
   $("#threads").replaceChildren();
@@ -266,12 +262,12 @@ function showWhy(row) {
     return (k ? "…" : "") + cut(n.slice(k), 70);
   };
   const say = {
-    title: () => "Title",
+    title: () => "Title: " + ([tr.title, m.title, m.wb_title].filter(Boolean).find(hit) || info(tr).title),
     notes: () => "Notes: " + note(),
     tags: () => "Tags: " + shownTags(tr).filter(hit).join(", "),
     genres: () => "Genres: " + (x.g || []).filter(hit).join(", "),
     year: () => "Year: " + x.y,
-    release: () => "Release: " + cut((x.rl || []).filter(hit).join(", ")),
+    release: () => "Release: " + cut((tr.release || x.rl || []).filter(hit).join(", ")),
     uploader: () => "Uploader: " + ([m.author_name, m.wb_author, x.by].filter(Boolean).find(hit) || m.author_name || x.by),
   };
   const lines = FIELDS.filter(([k]) => !searchOff.has(k) && terms.some((w) => has(f[k], w))).map(([k]) => say[k]());
@@ -819,7 +815,7 @@ function threadNode({ t, hits }) {
 
 /* "Thread": leave the search and show this thread where it sits in the feed */
 function goToThread(t) {
-  $("#q").value = ""; syncClear();
+  $("#q").value = ""; syncClear(); $("#q").blur(); // (phone: the keyboard goes away first, so the page doesn't shift afterwards)
   if (view !== "threads") { view = "threads"; history.replaceState(null, "", location.pathname); document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === "threads"))); }
   expanded.delete(t.id);
   runSearch();
@@ -833,7 +829,7 @@ function goToThread(t) {
   const place = () => {
     const dy = node.getBoundingClientRect().top - headerBottom() - 8;
     if (Math.abs(dy) > 1) pageScrollBy(dy);
-    if (++frames < 40) requestAnimationFrame(place);
+    if (++frames < 70) requestAnimationFrame(place);
   };
   place();
 }
@@ -1018,7 +1014,7 @@ function play(t, i) {
   const dock = $("#dock"); dock.hidden = false;
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
-  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
+  $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (t.kind === "tag" ? " in this tag" : " in this thread");
   closeThread();
   fitTitle();
   $("#prevBtn").disabled = i === 0;
@@ -1424,9 +1420,7 @@ function moreInfo(tr, edit, tags) {
         : [el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")]).filter(Boolean));
     chips();
     box.append(sug,
-      el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"),
-        x.rl && x.rl.length ? el("span", {}, x.rl[0]) : el("span", { class: "hint" }, x.chk && x.v >= 3 ? "none found" : "not looked up yet"),
-        x.rl && x.rl.length > 1 ? el("span", { class: "hint" }, "(also " + x.rl.slice(1).join(", ") + ")") : null),
+      el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
         el("span", {}, x.y ? String(x.y) : el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")),
         x.ys && x.ys.length ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null,
@@ -1569,6 +1563,8 @@ async function saveEdit(form, { t, i }) {
   const item = { action: "edit", thread: t.id, id: tr.id, title, url, tags: mixTags(form), ts: Math.floor(Date.now() / 1000) };
   const notes = form.notes.value.trim();
   if (notes !== (tr.notes || "")) item.notes = notes;
+  const rel = form.querySelector(".af-more")?.releaseChanged?.();
+  if (rel) item.release = rel;
   if (form.date && i === 0) {
     if (!form.date.value) { form.date.reportValidity(); return; }
     const pos = form.querySelector(".af-more").feedPos();
@@ -1584,6 +1580,7 @@ async function saveEdit(form, { t, i }) {
   if (title) tr.title = title; else delete tr.title;
   applyTags(tr, item.tags, item.ts);
   if ("notes" in item) { if (notes) tr.notes = notes; else delete tr.notes; }
+  if (item.release) tr.release = item.release;
   if (item.date) { // option A: the thread takes its place by this date (on the next load of the feed)
     if (item.date === tr.date && !item.pos) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
     else {
@@ -1608,6 +1605,28 @@ function applyTags(tr, list, ts) {
 /* ---------- move a track to another thread ---------- */
 const threadLabel = (t) => t.name || info(t.tracks[0]).title;
 
+/* the suggested releases, each with a dotted underline: click one to correct it (× deletes it); saved with the card */
+function releaseEditor(tr, x, box) {
+  const start = tr.release || x.rl || [], rel = [...start];
+  const wrap = el("span", { class: "rel-list" });
+  const draw = () => wrap.replaceChildren(...(rel.length ? rel.map((r, k) => {
+    const item = el("span", { class: "rel-item" + (k ? " rel-other" : "") });
+    const edit = () => {
+      const input = el("input", { type: "text", class: "rel-input", value: r, size: Math.max(8, r.length + 2), "aria-label": "Release" });
+      const done = (keep) => { if (keep) { const v = input.value.trim(); if (v) rel[k] = v; else rel.splice(k, 1); } draw(); };
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+      input.addEventListener("blur", () => done(true));
+      item.replaceChildren(input, el("button", { type: "button", class: "rel-x", "aria-label": "Delete this release",
+        onmousedown: (e) => { e.preventDefault(); rel.splice(k, 1); draw(); } }, "×"));
+      input.focus(); input.select();
+    };
+    item.append(el("button", { type: "button", class: "rel-name", onclick: edit }, r));
+    return item;
+  }) : [el("span", { class: "hint" }, start.length || tr.release ? "none" : x.chk && x.v >= 3 ? "none found" : "not looked up yet")]));
+  draw();
+  box.releaseChanged = () => (JSON.stringify(rel) !== JSON.stringify(start) ? [...rel] : undefined);
+  return wrap;
+}
 function movePanel(formOf, edit) {
   const input = el("input", { type: "search", placeholder: "Search a track in the thread you want to move it to", autocomplete: "off", spellcheck: "false" });
   const list = el("ul", { class: "move-results" });

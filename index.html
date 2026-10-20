@@ -22,7 +22,7 @@
 </head>
 <body>
 <header class="top">
-  <h1 class="brand"><a href="#" id="home" aria-expanded="false" aria-controls="menu" title="Menu">nrgfm</a></h1>
+  <h1 class="brand"><a href="#" id="home" aria-expanded="false" aria-controls="menu">nrgfm</a></h1>
   <label class="search">
     <span class="sr">Search tracks</span>
     <input id="q" type="search" placeholder="Search artist, title or tag" autocomplete="off" spellcheck="false">
@@ -37,7 +37,7 @@
     <button data-view="genres">Genres</button>
     <button data-view="history">History</button>
     <button data-view="random">Random</button>
-    <button data-view="ublock" class="menu-right" title="A free ad blocker: no ads before the YouTube videos">uBlock Origin Lite</button>
+    <button data-view="ublock" class="menu-right">uBlock Origin Lite</button>
   </nav>
 </header>
 
@@ -67,10 +67,10 @@
       </div>
       <div class="now">
         <strong id="nowTitle"></strong>
-        <button id="threadBtn" class="thread-btn" aria-expanded="false" aria-controls="threadPop" title="Show all tracks in this thread"></button>
-        <button id="editBtn" class="thread-btn" title="Edit the playing track">edit</button>
-        <button id="sourceBtn" class="thread-btn" title="Go to the thread this track was posted in">source</button>
-        <button id="discogsBtn" class="thread-btn" title="Search Google for this track on Discogs">discogs</button>
+        <button id="threadBtn" class="thread-btn" aria-expanded="false" aria-controls="threadPop"></button>
+        <button id="editBtn" class="thread-btn">edit</button>
+        <button id="sourceBtn" class="thread-btn">source</button>
+        <button id="discogsBtn" class="thread-btn">discogs</button>
       </div>
       <div class="opts">
         <span id="volWrap" class="vol-wrap">
@@ -78,13 +78,13 @@
             <input id="vol" class="seek" type="range" min="0" max="100" step="1" value="100" aria-label="Volume" tabindex="-1">
             <span id="volVal" class="time" hidden>100</span>
           </span>
-          <button id="volBtn" class="ctl" aria-expanded="false" aria-controls="volPop" title="Volume">100</button>
+          <button id="volBtn" class="ctl" aria-expanded="false" aria-controls="volPop">100</button>
           <span id="volNum" class="vol-num" hidden></span>
         </span>
-        <button id="autoBtn" class="ctl toggle" aria-pressed="false" title="Play through the rest of the thread">Autoplay off</button>
-        <button id="infoBtn" class="ctl" title="Copy artist and title of the playing track">Copy info</button>
-        <button id="copyBtn" class="ctl" title="Copy the link of the playing track">Copy link</button>
-        <button id="closeBtn" class="ctl close-btn" title="Hide the player">Close</button>
+        <button id="autoBtn" class="ctl toggle" aria-pressed="false">Autoplay off</button>
+        <button id="infoBtn" class="ctl">Copy info</button>
+        <button id="copyBtn" class="ctl">Copy link</button>
+        <button id="closeBtn" class="btn ghost close-x" aria-label="Close the player">×</button>
       </div>
     </div>
   </div>

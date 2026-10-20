@@ -102,6 +102,9 @@ def apply_edit(data, item):
     ts = int(item.get("ts") or time.time())
     if "tags" in item:
         set_tags(tr, item["tags"], ts)
+    if "release" in item:  # the suggested releases as corrected by hand ([] removes them all)
+        rel = [str(x).strip()[:200] for x in (item["release"] or []) if str(x).strip()][:8]
+        tr["release"] = rel
     if "notes" in item:
         notes = (item["notes"] or "").strip()[:4000]
         if notes:

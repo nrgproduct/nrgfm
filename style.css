@@ -786,3 +786,42 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 .btn.ghost.promote-btn { font-weight: 400; color: var(--muted); }
 .btn.ghost.promote-btn:hover { color: var(--text); border-color: var(--muted); }
 .btn.ghost.promote-btn[aria-expanded="true"] { color: var(--text); border-color: var(--muted); }
+
+/* volume fill in the Play button's colour */
+#vol { --seek: var(--jade); }
+/* search line: order on the left, the count in the middle, filters on the right */
+#resultInfo:not([hidden]) { display: grid; grid-template-columns: 1fr auto 1fr; align-items: baseline; gap: 6px 16px; }
+#resultInfo .sf-order { justify-self: start; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+#resultInfo .result-n { justify-self: center; text-align: center; }
+#resultInfo .search-fields { justify-self: end; margin-left: 0; }
+@media (max-width: 640px) {
+  #resultInfo:not([hidden]) { grid-template-columns: 1fr auto; grid-template-areas: "n order" "fields fields"; }
+  #resultInfo .result-n { grid-area: n; justify-self: start; text-align: left; }
+  #resultInfo .sf-order { grid-area: order; justify-self: end; }
+  #resultInfo .search-fields { grid-area: fields; justify-self: start; }
+}
+/* close the player: an × like the search field's */
+.btn.ghost.close-x {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0;
+  font-size: 20px; font-weight: 400; line-height: 1; background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
+}
+.btn.ghost.close-x:hover { border-color: var(--muted); }
+@media (max-width: 640px) { .btn.ghost.close-x { width: 50px; border-color: var(--text); margin-left: auto; } }
+/* search: a selected result also gets the light background */
+.thread.searching.active::after {
+  content: ""; position: absolute; inset: 0 0 8px; border-radius: var(--radius-sm); pointer-events: none; z-index: -1;
+  background: color-mix(in srgb, var(--jade) 5%, transparent);
+}
+/* Move: the same size and type as Notes; Promote to fit */
+.move-row input { height: 40px; font: inherit; font-size: 14px; padding: 0 12px; }
+.af-field textarea { font-size: 14px; }
+.btn.ghost.promote-btn { height: 40px; padding: 0 12px; font-size: 14px; }
+/* suggested releases: dotted, click to correct */
+.rel-list { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.rel-name { all: unset; cursor: pointer; color: var(--text); text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.rel-other .rel-name { color: var(--muted); }
+.rel-name:hover { color: var(--jade); }
+.rel-item { display: inline-flex; align-items: center; gap: 4px; }
+.rel-input { height: 28px; padding: 0 8px; font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.rel-x { all: unset; cursor: pointer; color: var(--muted); padding: 0 4px; font-size: 16px; }
+.rel-x:hover { color: var(--text); }
