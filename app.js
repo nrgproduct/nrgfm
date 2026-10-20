@@ -445,6 +445,12 @@ document.addEventListener("click", (e) => {
   else if (activeId) setActive(null); // a click in the selected box or anywhere else unselects
 }, true);
 document.addEventListener("wheel", (e) => {
+  // inside a selected box but not over its list (the name, the thumbnail, the counter): scroll the list anyway
+  const sel = e.target.closest && e.target.closest(".thread.active");
+  if (sel && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
+    const list = sel.querySelector(".scroll-list");
+    if (list) { e.preventDefault(); list.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY); return; }
+  }
   const box = e.target.closest && e.target.closest(".scroll-list");
   if (!box || box.closest(".thread").classList.contains("active")) return;
   e.preventDefault();
@@ -547,7 +553,7 @@ function updateListPos(node) {
   const rows = [...list.children].filter((r) => r.matches("li.track")), top = list.scrollTop, bottom = top + list.clientHeight;
   let first = 0, last = 0;
   rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
-  const total = rows.length + offset;
+  const total = +list.dataset.total || rows.length + offset;
   const text = `${offset && top < 4 ? 1 : (first || 1) + offset} of ${total}`;
   pos.forEach((p) => (p.textContent = text));
 }
@@ -563,9 +569,17 @@ function tagThreadNode({ t, hits }) {
   const open = expanded.has(t.id), n = t.tracks.length, many = n > TAG_PREVIEW;
   // on a laptop every track is in the list (5 visible, scroll for more); on a phone only 5 until Expand
   const all = open || !phone();
-  const rows = (all ? t.tracks : t.tracks.slice(0, TAG_PREVIEW)).map((tr, i) => trackRow(t, tr, i, hits));
+  // big playlists (Genres) draw their rows a batch at a time while you scroll, so the page stays quick
+  const BATCH = 50;
+  let drawn = all ? Math.min(n, BATCH) : Math.min(n, TAG_PREVIEW);
+  const rows = t.tracks.slice(0, drawn).map((tr, i) => trackRow(t, tr, i, hits));
   const scrolls = many && all;
-  const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW }, rows);
+  const list = el("ol", { class: "tag-list" + (scrolls ? " scroll-list" : "") + (open ? " open" : ""), "data-show": TAG_PREVIEW, "data-total": n }, rows);
+  if (all && drawn < n) list.addEventListener("scroll", () => {
+    if (drawn >= n || list.scrollTop + list.clientHeight < list.scrollHeight - 400) return;
+    const more = t.tracks.slice(drawn, drawn + BATCH).map((tr, k) => trackRow(t, tr, drawn + k, hits));
+    drawn += more.length; list.append(...more); markPlaying();
+  }, { passive: true });
   const pos = () => el("span", { class: "more-pos" }, `1 of ${n}`);
   const node = el("li", { class: "thread tag-thread framed" + (open ? " expanded" : "") + (t.id === activeId ? " active" : ""), id: "th-" + t.id },
     el("div", { class: "tag-frame" },

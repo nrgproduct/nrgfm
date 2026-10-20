@@ -250,6 +250,36 @@ def apply_split(data, by_id, item):
     return "split" if made else "split: nothing to do"
 
 
+def apply_regroup(data, by_id, item):
+    """{"action": "regroup", "threads": [thread ids], "groups": [[track ids], ...]} -> take all tracks out of the
+    listed threads and put them together again as the given groups (each group one thread, dated by its first
+    track). Tracks not in any group get a thread of their own."""
+    pool = {}
+    for tid in item.get("threads") or []:
+        th = by_id.pop(tid, None)
+        if th is None:
+            continue
+        data["threads"].remove(th)
+        for tr in th["tracks"]:
+            pool[tr["id"]] = tr
+    if not pool:
+        return "regroup: threads not found"
+    groups = [[pool.pop(i) for i in ids if i in pool] for ids in item.get("groups") or []]
+    groups += [[tr] for tr in pool.values()]
+    for trs in groups:
+        if not trs:
+            continue
+        trs.sort(key=lambda x: x["ts"])
+        for k, x in enumerate(trs):
+            x.pop("main", None)
+            if k == 0:
+                x["main"] = True
+        nt = {"id": "x" + trs[0]["id"], "date": trs[0]["date"], "ts": trs[0]["ts"], "kind": "thread", "tracks": trs}
+        data["threads"].append(nt)
+        by_id[nt["id"]] = nt
+    return "regrouped"
+
+
 def main():
     files = sorted(glob.glob(os.path.join(ROOT, "inbox", "*.json")))
     if not files:
@@ -272,6 +302,8 @@ def main():
             res = apply_move(data, by_id, item)
         elif action == "split":
             res = apply_split(data, by_id, item)
+        elif action == "regroup":
+            res = apply_regroup(data, by_id, item)
         elif action == "tag":
             res = apply_tag(data, item)
         elif action == "recheck":
@@ -279,7 +311,7 @@ def main():
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
-        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split"):
+        if res in ("added", "edited", "deleted", "moved", "tagged", "rechecked", "split", "regrouped"):
             item.setdefault("ts", int(time.time()))
             with open(CHANGES, "a", encoding="utf-8") as log:
                 log.write(json.dumps(item, ensure_ascii=False) + "\n")
