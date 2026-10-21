@@ -2414,6 +2414,177 @@ function withGemini(x, ai) {
   }
   return x;
 }
+/* ---------- the side space: a box in the empty column above the video (computer, wide windows only) ----------
+   General: side.show(head, items) shows it, side.hide() hides it. It hangs from under the header and is only as
+   tall as its contents, at most down to just above the video (or the player bar when no video is open). */
+const side = (() => {
+  const box = el("aside", { class: "side", hidden: true, "aria-live": "polite" });
+  const head = el("div", { class: "side-head" }), list = el("div", { class: "side-list" });
+  box.append(head, list);
+  document.body.append(box);
+  const fits = () => !phone() && innerWidth >= 966; // the video column exists beside the list
+  function place() {
+    if (box.hidden) return;
+    const top = headerBottom() + 10;
+    let bottom = innerHeight - 16;
+    const d = $("#dock");
+    if (!d.hidden) {
+      const m = $("#media").getBoundingClientRect(), bar = d.querySelector(".bar").getBoundingClientRect();
+      bottom = (m.height && !d.classList.contains("idle") ? m.top : bar.top) - 10;
+    }
+    box.style.top = top + "px";
+    box.style.maxHeight = Math.max(120, bottom - top) + "px";
+  }
+  addEventListener("resize", () => { if (!fits()) box.hidden = true; place(); });
+  return {
+    fits,
+    show(title, items) {
+      if (!fits()) return;
+      head.replaceChildren(...[].concat(title));
+      list.replaceChildren(...items); list.scrollTop = 0;
+      box.hidden = false; place();
+    },
+    hide() { box.hidden = true; },
+    get open() { return !box.hidden; },
+  };
+})();
+
+/* ---------- quick tags: Cmd+click a track (Ctrl+click on Windows), or Cmd+E for the playing track ----------
+   A tag field opens where the track's tags are. Picking a tag saves it straight away (Enter or a click); ","
+   saves it and waits for the next one; Esc closes. The highlighted suggestion's tracks show in the side space,
+   where a click plays them from that tag's playlist (the field stays open). */
+let quick = null;
+function trackAt(k) {
+  const [id, n] = [k.slice(0, k.lastIndexOf(":")), +k.slice(k.lastIndexOf(":") + 1)];
+  const t = id === "genre-mix" ? gMix : threads.find((x) => x.id === id);
+  return t && t.tracks[n] ? { t, i: n, tr: t.tracks[n] } : null;
+}
+function tagThreadOf(g) { return threads.find((x) => x.kind === "tag" && x.name === g); }
+function showTagSide(g) {
+  const t = g && tagThreadOf(g);
+  if (!t) { side.hide(); return; }
+  side.show([el("span", { class: "side-title" }, g), el("span", { class: "side-n" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`)],
+    t.tracks.map((tr, i) => {
+      const x = info(tr);
+      return el("button", { type: "button", class: "side-row" + (playing && playing.thread.tracks[playing.index] === tr ? " playing" : ""),
+        onmousedown: (e) => e.preventDefault(), // the tag field keeps the cursor
+        onclick: () => { play(t, i); showTagSide(g); } },
+        img(x.thumb, "side-thumb"), el("span", { class: "side-name" }, x.title));
+    }));
+}
+function closeQuick() {
+  if (!quick) return;
+  const q = quick; quick = null;
+  q.box.remove(); side.hide();
+  if (q.wrap) { // the tags line under the title, as it is now
+    const list = q.row.closest(".genre-mix") ? genresOf(q.tr) : shownTags(q.tr);
+    q.wrap.replaceChildren(...list.map((g) => el("span", { class: "tag" }, g)));
+    q.wrap.style.visibility = "";
+  }
+  if (q.changed) refreshTags(); // the tag playlists follow (after the field is gone, so nothing jumps under it)
+}
+function openQuick(row, at) {
+  if (!getToken() || phone()) return;
+  closeQuick();
+  const { tr } = at;
+  if (row) { // a track low on the screen comes up a little, so the field and its suggestions fit
+    const room = innerHeight - dockH() - row.getBoundingClientRect().bottom;
+    if (room < 140) pageScrollBy(140 - room);
+  }
+  const wrap = row && row.querySelector(".tag-wrap");
+  const input = el("input", { type: "text", class: "quick-input", placeholder: "tag", autocomplete: "off", spellcheck: "false", "aria-label": "Add a tag" });
+  const chips = el("span", { class: "quick-chips" });
+  const drop = el("ul", { class: "quick-drop", hidden: true });
+  const box = el("span", { class: "quick-tag" }, chips, input, drop);
+  quick = { row, tr, wrap, box, changed: false };
+  let opts = [], active = -1;
+  const drawChips = () => chips.replaceChildren(...shownTags(tr).map((g) => el("button", { type: "button", class: "quick-chip",
+    onmousedown: (e) => e.preventDefault(), onclick: () => save(g, false) }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+  const counts = () => { const n = new Map(); for (const t of threads) if (isBase(t)) for (const x of t.tracks) for (const g of shownTags(x)) n.set(g, (n.get(g) || 0) + 1); return n; };
+  let tagCount = counts();
+  const highlight = (k) => {
+    active = k;
+    [...drop.children].forEach((li, j) => li.classList.toggle("on", j === k));
+    showTagSide(opts[k] || null);
+  };
+  const drawDrop = () => {
+    const q = fold(input.value.trim());
+    const have = new Set(shownTags(tr));
+    opts = q ? [...tagCount.keys()].filter((g) => !have.has(g) && fold(g).includes(q))
+      .sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q) || tagCount.get(b) - tagCount.get(a)).slice(0, 8) : [];
+    drop.replaceChildren(...opts.map((g, j) => el("li", { onmouseenter: () => highlight(j),
+      onmousedown: (e) => { e.preventDefault(); save(g, true); } }, g, el("span", { class: "gi-n" }, tagCount.get(g)))));
+    drop.hidden = !opts.length;
+    if (opts.length) { // opens upwards when there is no room under the field (above the player)
+      drop.classList.remove("up");
+      if (drop.getBoundingClientRect().bottom > innerHeight - dockH() - 8) drop.classList.add("up");
+    }
+    highlight(opts.length ? 0 : -1); // typing: the first suggestion is highlighted and its tracks show
+  };
+  async function save(g, add) {
+    g = normTag(g);
+    if (!g) return;
+    const has = shownTags(tr).includes(g);
+    if (add === has) { input.value = ""; drawDrop(); return; }
+    const ts = Math.floor(Date.now() / 1000);
+    try { await writeInbox({ action: "tag", ids: [tr.id], add: add ? [g] : [], remove: add ? [] : [g], ts }, "tag"); }
+    catch (e) { input.placeholder = "not saved"; return; }
+    applyTags(tr, add ? [...Object.keys(tr.tags || {}), g] : Object.keys(tr.tags || {}).filter((x) => x !== g), ts);
+    tr._hay = null; gIndex = null; quick && (quick.changed = true);
+    tagCount = counts(); input.value = ""; drawChips(); drawDrop(); input.focus();
+  }
+  input.addEventListener("input", drawDrop);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeQuick(); }
+    else if (e.key === "Enter" || e.key === ",") { // Enter: save it; ",": save it and type the next one
+      e.preventDefault(); e.stopPropagation();
+      const g = opts[active] || input.value;
+      if (g.trim()) save(g, true);
+    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && opts.length) {
+      e.preventDefault();
+      highlight((active + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length);
+    }
+    e.stopPropagation(); // the page's own keys (search, Space) stay out of it
+  });
+  input.addEventListener("blur", () => setTimeout(() => { if (quick && quick.box === box && !box.contains(document.activeElement)) closeQuick(); }, 150));
+  drawChips();
+  // it lies over the tags line (the line itself is inside the track's play button, where a field can't go)
+  const anchor = wrap || (row && row.querySelector(".tr-title, .t-title"));
+  if (row && anchor) {
+    if (getComputedStyle(row).position === "static") row.style.position = "relative";
+    const a = anchor.getBoundingClientRect(), r0 = row.getBoundingClientRect();
+    box.style.left = a.left - r0.left + "px";
+    box.style.top = (wrap ? a.top - r0.top - 3 : a.bottom - r0.top + 2) + "px";
+    if (wrap) wrap.style.visibility = "hidden";
+    row.append(box);
+  } else { box.classList.add("quick-float"); document.body.append(box); } // the playing track isn't on the page: over the player
+  input.focus();
+}
+/* Cmd+click (Ctrl+click) on a track */
+document.addEventListener("click", (e) => {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || !getToken() || phone()) return;
+  const hit = e.target.closest && e.target.closest("#threads .track .play, #threads .head-row .thread-head, #threads .month-play");
+  if (!hit) return;
+  const row = hit.closest("[data-k]"), at = row && trackAt(row.dataset.k);
+  if (!at) return;
+  e.preventDefault(); e.stopPropagation();
+  openQuick(row, at);
+}, true);
+/* Cmd+E (Ctrl+E), or Cmd+click on the player's title: the playing track */
+function quickPlaying() {
+  if (!playing) return;
+  const tr = playing.thread.tracks[playing.index];
+  const rows = [...document.querySelectorAll("#threads [data-k]")].filter((r) => { const a = trackAt(r.dataset.k); return a && a.tr === tr && r.offsetParent; });
+  const row = rows.find((r) => r.closest(".thread") && r.closest(".thread").id === "th-" + playing.thread.id) || rows[0] || null;
+  openQuick(row, { tr });
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() !== "e" || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || !playing || !getToken() || phone()) return;
+  e.preventDefault();
+  quick ? closeQuick() : quickPlaying();
+});
+$("#nowTitle").addEventListener("click", (e) => { if ((e.metaKey || e.ctrlKey) && getToken()) { e.stopImmediatePropagation(); quickPlaying(); } }, true);
+
 (async function boot() {
   try {
     const [d, m, x, ai] = await Promise.all([
