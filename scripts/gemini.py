@@ -42,10 +42,11 @@ def why(e):
         return f"HTTP {getattr(e, 'code', '')}"
 
 
-def pick_model():
-    """The newest stable Flash model this key can use (or GEMINI_MODEL if set)."""
+def pick_models():
+    """The stable Flash models this key can use, newest first (or GEMINI_MODEL if set). When the newest one is
+    overloaded, the next one is used."""
     if MODEL:
-        return MODEL
+        return [MODEL]
     names = []
     page = ""
     while True:
@@ -59,7 +60,7 @@ def pick_model():
             break
     if not names:
         raise SystemExit("no Gemini Flash model available for this key")
-    return max(names, key=lambda n: float(re.search(r"\d+(\.\d+)?", n).group()))
+    return sorted(set(names), key=lambda n: -float(re.search(r"\d+(\.\d+)?", n).group()))
 
 
 def title_of(tr, meta):
@@ -193,12 +194,11 @@ def main():
     print("to ask:", len(todo["sources"]), "with sources,", len(todo["search"]), "to look up")
 
     try:
-        model = pick_model()
+        models = pick_models()
     except urllib.error.HTTPError as e:
         status["state"] = "error: " + why(e)
         return save()
-    status["model"] = model
-    print("model", model)
+    print("models", models)
 
     left, fails = MAX, 0
     status["state"] = "ok"
@@ -211,7 +211,16 @@ def main():
             batch = [(u, f) for u, f, _ in items[i:i + PER_CALL[how]]]
             fps = {u: fp for u, _, fp in items[i:i + PER_CALL[how]]}
             try:
-                answers = ask(model, how, batch, vocab)
+                answers = None
+                for model in models:
+                    try:
+                        answers = ask(model, how, batch, vocab)
+                        status["model"] = model
+                        break
+                    except urllib.error.HTTPError as e:
+                        if e.code not in (503, 500, 404) or model == models[-1]:
+                            raise
+                        print(model, "unavailable:", why(e), "- trying the next one")
             except urllib.error.HTTPError as e:
                 status["state"] = "error: " + why(e)
                 print(status["state"])
@@ -235,7 +244,7 @@ def main():
                 if not isinstance(k, int) or not 0 <= k < len(batch):
                     continue
                 u = batch[k][0]
-                ai[u] = {**clean_answer(a), "how": how, "m": model, "in": fps[u], "v": VERSION}
+                ai[u] = {**clean_answer(a), "how": how, "m": status["model"], "in": fps[u], "v": VERSION}
             status["asked"] += len(batch)
             left -= len(batch)
             print(how, status["asked"], "asked")
