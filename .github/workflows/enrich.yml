@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "nrgproduct"
           git config user.email "nrgproduct@users.noreply.github.com"
-          git add data/extra.json data/descriptions.json
+          git add data/extra.json data/descriptions.json data/enrich-status.json
           if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
           git commit -m "Look up track info"
           git pull --rebase origin main

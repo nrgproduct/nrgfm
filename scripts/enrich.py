@@ -23,6 +23,7 @@ MINUTES = float(sys.argv[2]) if len(sys.argv) > 2 else 100
 UA = "nrgfm/1.0 ( https://github.com/nrgproduct/nrgfm )"
 DISCOGS = os.environ.get("DISCOGS_TOKEN", "").strip()
 YTKEY = os.environ.get("YT_API_KEY", "").strip()
+YT_ERR = []  # why the YouTube lookup failed, if it did
 START = time.time()
 
 SEP = re.compile(r"\s+[-–—]\s+|\s*[-–—]\s+|\s+[-–—]\s*")
@@ -239,8 +240,17 @@ def youtube_details(ids):
         q = urllib.parse.urlencode({"part": "snippet", "id": ",".join(ids[i:i + 50]), "key": YTKEY, "maxResults": 50})
         try:
             d = get_json("https://www.googleapis.com/youtube/v3/videos?" + q)
+        except urllib.error.HTTPError as e:
+            try:  # Google says why, e.g. "API not enabled" or "key not valid" (the key itself is never printed)
+                why = json.load(e).get("error", {}).get("message", "")
+            except Exception:  # noqa: BLE001
+                why = ""
+            YT_ERR.append(f"HTTP {e.code} {why}".strip())
+            print("youtube lookup failed:", YT_ERR[-1])
+            return out
         except Exception as e:  # noqa: BLE001
-            print("youtube lookup failed:", e)
+            YT_ERR.append(type(e).__name__)
+            print("youtube lookup failed:", YT_ERR[-1])
             return out
         for it in d.get("items", []):
             sn = it.get("snippet", {})
@@ -343,7 +353,7 @@ def main():
                     add_genres(e, hg)
                     if "youtube" not in (e.get("src") or ""):
                         e["src"] = "+".join(x for x in (e.get("src"), "youtube") if x)
-        if YTKEY and tr["platform"] == "youtube":
+        if YTKEY and not YT_ERR and tr["platform"] == "youtube":
             e["ytchk"] = int(time.time())
         extra[u] = e
         done += 1
@@ -353,6 +363,11 @@ def main():
     json.dump(extra, open(extra_p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(desc, open(desc_p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print("looked up", done, stats)
+    # a small public status note, since the run logs can't be read from outside GitHub
+    status = {"date": time.strftime("%Y-%m-%d", time.gmtime()), "looked_up": done,
+              "discogs": "on" if DISCOGS else "off (no DISCOGS_TOKEN secret)",
+              "youtube": ("error: " + YT_ERR[0]) if YT_ERR else ("on" if YTKEY else "off (no YT_API_KEY secret)")}
+    json.dump(status, open(os.path.join(DATA, "enrich-status.json"), "w", encoding="utf-8"), indent=1)
 
 
 if __name__ == "__main__":
