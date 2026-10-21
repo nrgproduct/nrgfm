@@ -2227,7 +2227,7 @@ function withGemini(x, ai) {
     const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);
     const gs = [...new Set((a.g || []).map(sameGenre))]; // "synth-pop" → "synth pop", as the site writes it
     x[u] = { ...o, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
-      src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " from " + o.src : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
+      src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
   return x;
 }
