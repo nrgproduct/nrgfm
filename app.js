@@ -1028,7 +1028,7 @@ function threadNode({ t, hits }) {
     hits && hits.size > 1 ? el("button", { class: "when-link", title: "Next match", onclick: (e) => nextMatch(e.currentTarget.closest(".thread")) }, `${hits.size} matches`) : null);
   if (hits && !mobile) {
     // laptop search: "175 tracks" under the tracks, centred, shows the whole thread (no Collapse)
-    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}),
+    if (searching) foot = el("div", { class: "search-foot" }, pos(), // "1 of 8" under the thumbnail, as in the Tags threads
       btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}));
     else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {

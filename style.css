@@ -1048,3 +1048,10 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
   #resultInfo .search-fields { grid-area: fields; justify-self: end; flex-wrap: nowrap; margin: 0; }
 }
 @media (min-width: 641px) { #resultInfo.tight:not([hidden]) { grid-template-columns: auto auto minmax(0, 1fr); } }
+/* search filters: no underline (Best match keeps its dotted one) */
+#resultInfo .sf:not(.sf-order) { text-decoration: none; }
+#resultInfo .sf.off { text-decoration: line-through; }
+/* search results (computer): "1 of 8" in the left column, right-aligned like in the Tags threads */
+@media (min-width: 641px) {
+  .thread.searching .search-foot > .more-pos { justify-self: start; width: 160px; text-align: right; font-size: 13px; color: var(--muted); visibility: visible; }
+}
