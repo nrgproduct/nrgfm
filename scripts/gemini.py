@@ -212,15 +212,19 @@ def main():
             fps = {u: fp for u, _, fp in items[i:i + PER_CALL[how]]}
             try:
                 answers = None
-                for model in models:
+                for attempt in range(4):  # "high demand" (503) usually passes after a short wait
                     try:
-                        answers = ask(model, how, batch, vocab)
-                        status["model"] = model
+                        answers = ask(models[0], how, batch, vocab)
+                        status["model"] = models[0]
                         break
                     except urllib.error.HTTPError as e:
-                        if e.code not in (503, 500, 404) or model == models[-1]:
+                        if e.code == 404 and len(models) > 1:  # retired for this key: drop it
+                            print(models.pop(0), "not available:", why(e))
+                            continue
+                        if e.code not in (500, 503) or attempt == 3:
                             raise
-                        print(model, "unavailable:", why(e), "- trying the next one")
+                        print(models[0], "busy:", why(e), "- waiting")
+                        time.sleep(20 * (attempt + 1))
             except urllib.error.HTTPError as e:
                 status["state"] = "error: " + why(e)
                 print(status["state"])
