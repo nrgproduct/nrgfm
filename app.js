@@ -243,26 +243,19 @@ function runSearch() {
   renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
 }
 
-/* computer: the search line is always one line: the count on the left, the order on the right, the filters
-   centred in the line; when they don't fit in the middle they move left towards the count */
+/* computer: the search line stays one line; filters too wide for their side get a little smaller */
 function placeFilters() {
   const info = $("#resultInfo"), f = info.querySelector(".search-fields");
   if (!f || info.hidden) return;
-  f.style.left = "";
   f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.removeProperty("font-size"));
+  f.style.gap = ""; info.classList.remove("tight");
   if (phone()) return;
-  const box = info.getBoundingClientRect(), n = info.querySelector(".result-n").getBoundingClientRect(), o = info.querySelector(".sf-order").getBoundingClientRect();
-  const GAP = 24, room = o.left - n.right - 2 * GAP;
-  f.style.fontSize = ""; f.style.gap = "";
-  for (let size = 12; f.getBoundingClientRect().width > room && size > 9; size -= 0.5) { // a narrow window: a bit smaller, still one line
-    f.style.fontSize = size + "px"; f.style.gap = Math.max(6, size - 2) + "px";
+  const fits = () => f.getBoundingClientRect().width <= info.getBoundingClientRect().right - info.querySelector(".result-n").getBoundingClientRect().right - 20;
+  for (let size = 14; !fits() && size > 11; size -= 0.5) {
+    f.style.gap = Math.max(6, size - 2) + "px";
     f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.setProperty("font-size", size + "px", "important"));
   }
-  const w = f.getBoundingClientRect().width;
-  let left = (box.width - w) / 2;                                   // centred in the whole line
-  left = Math.min(left, o.left - box.left - GAP - w);               // not into the order button
-  left = Math.max(left, n.right - box.left + GAP);                  // not into the count
-  f.style.left = left + "px";
+  if (!fits()) info.classList.add("tight"); // still too many: the count moves left, next to Best match
 }
 addEventListener("resize", placeFilters);
 /* Search results: rest the pointer on a found track for a moment and a small note says where the words

@@ -1000,9 +1000,6 @@ body:not(.can-add) #flagBtn { display: none; }
 }
 @media (max-width: 640px) { .genre-mix .tag-label { padding-left: 8px; } }
 
-/* search filters: names in capitals, so letters and numbers are the same height */
-.sf:not(.sf-order) { text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
-.sf:not(.sf-order) .gi-n { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 
 /* no accidental text highlighting anywhere; typing fields still work as usual */
 body { -webkit-user-select: none; user-select: none; }
@@ -1022,9 +1019,6 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
   .genre-mix .tag-label, .tag-thread:not(.genre-mix) .tag-label { padding-left: 8px; box-sizing: border-box; }
 }
 
-/* search: the result count, the order and the filters all in capitals at one size */
-#resultInfo .result-n, #resultInfo .sf-order, .sf:not(.sf-order) { text-transform: uppercase; letter-spacing: .06em; font-size: 12px !important; color: var(--muted); }
-.sf:not(.sf-order) .gi-n { font-size: 12px !important; }
 /* "4 matches": the match it went to */
 .thread.searching .track.match-now { background: var(--surface-2); border-radius: var(--radius-sm); }
 
@@ -1035,13 +1029,22 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 /* Genres page: the genre field as far under the header as the first box on the Tags page */
 body[data-view="genres"] .gm-picker { margin-top: -6px; }
 
-/* search line (computer): count left, order right, filters placed in the middle by placeFilters(); one line */
-@media (min-width: 641px) {
-  #resultInfo:not([hidden]) { display: flex !important; position: relative; flex-wrap: nowrap; white-space: nowrap; }
-  #resultInfo .sf-order { margin-left: auto; }
-  #resultInfo .search-fields { position: absolute; top: 0; flex-wrap: nowrap; margin: 0; }
-}
 /* search results: "N tracks" a little closer to the tracks */
 .thread.searching .search-foot { margin-top: -6px; }
 /* Tags threads: the name and count a few pixels further left than on the Genres page */
 @media (min-width: 641px) { .tag-thread:not(.genre-mix) .tag-label { padding-left: 4px !important; } }
+
+/* search line: Best match left, the count in the middle, the filters right; normal text the size of "N tracks",
+   dotted like it, lit on hover. On a computer always one line (the filters get a little smaller if needed). */
+#resultInfo .result-n, #resultInfo .sf, #resultInfo .sf .gi-n { font-size: 14px; color: var(--muted); }
+#resultInfo .sf { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+#resultInfo .sf .gi-n { margin-left: 4px; color: inherit; text-decoration: inherit; }
+#resultInfo .sf:hover { color: var(--text); }
+#resultInfo .sf.off { text-decoration: line-through; }
+@media (min-width: 641px) {
+  #resultInfo:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "order n fields"; white-space: nowrap; column-gap: 16px; }
+  #resultInfo .sf-order { grid-area: order; justify-self: start; }
+  #resultInfo .result-n { grid-area: n; justify-self: center !important; text-align: center !important; }
+  #resultInfo .search-fields { grid-area: fields; justify-self: end; flex-wrap: nowrap; margin: 0; }
+}
+@media (min-width: 641px) { #resultInfo.tight:not([hidden]) { grid-template-columns: auto auto minmax(0, 1fr); } }
