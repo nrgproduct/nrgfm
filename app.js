@@ -214,8 +214,8 @@ function runSearch() {
         for (const [k] of FIELDS) if (terms.some((w) => has(f[k], w))) used.add(k); // which filters are worth showing
         if (matches(tr, terms)) {
           hits.add(i); rank = Math.min(rank, matchRank(tr, terms));
-          for (const [k] of FIELDS) if (!searchOff.has(k) && terms.some((w) => has(f[k], w))) perField.set(k, (perField.get(k) || 0) + 1);
         }
+        for (const [k] of FIELDS) if (terms.some((w) => has(f[k], w))) perField.set(k, (perField.get(k) || 0) + 1); // (also for parts switched off)
       });
       if (hits.size) shown.push({ t, hits, rank });
     }
@@ -234,7 +234,7 @@ function runSearch() {
       el("span", { class: "search-fields" }, FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
         onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name,
-        searchOff.has(k) ? null : el("span", { class: "gi-n" }, perField.get(k) || 0)))));
+        el("span", { class: "gi-n" }, perField.get(k) || 0)))));
   }
   rendered = 0;
   $("#threads").replaceChildren();
@@ -389,7 +389,7 @@ function genrePicker(keepFocus) {
   input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
   input.addEventListener("keydown", (e) => {
     const items = [...drop.querySelectorAll("li")];
-    if (e.key === "Enter") { e.preventDefault(); if (opts[active]) setGenres([...gSel, opts[active][0]]); }
+    if (e.key === "Enter") { e.preventDefault(); if (opts[active]) setGenres([...gSel, opts[active][0]]); if (phone()) setTimeout(() => document.activeElement.blur(), 50); }
     else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && items.length) {
       e.preventDefault(); active = (active + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
       items.forEach((li, k) => li.classList.toggle("on", k === active));
@@ -406,7 +406,7 @@ function genrePicker(keepFocus) {
   clear.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
   const box = el("div", { class: "gm-picker" + (gSel.length ? " picked" : "") }, el("span", { class: "tag-box gm-field" }, field, clear, drop),
     el("div", { class: "gm-pool-wrap" }, pool, moreArrow));
-  if (keepFocus) requestAnimationFrame(() => input.focus());
+  if (keepFocus && !phone()) requestAnimationFrame(() => input.focus()); // (phone: no keyboard popping up again)
   requestAnimationFrame(() => fitMix());
   return box;
 }
@@ -421,15 +421,16 @@ function genreMixNode(t) {
     const more = t.tracks.slice(drawn, drawn + BATCH).map((tr, k) => trackRow(t, tr, drawn + k, null));
     drawn += more.length; list.append(...more); markPlaying();
   }, { passive: true });
-  const order = (o, label) => el("button", { class: "more-toggle" + (gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
+  const order = (o, label) => el("button", { class: "more-toggle" + (o === "date" && gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
   const node = el("li", { class: "thread tag-thread framed genre-mix", id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
-          el("span", { class: "gm-count" }, `${n} ${n === 1 ? "track" : "tracks"}`),
-          el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added")))),
+          el("span", { class: "gm-names" }, gSel.flatMap((g, k) => [k ? el("span", { class: "gm-and" }, "&") : null, el("span", { class: "gm-name" }, g)])),
+          el("span", { class: "tag-count gm-n" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
+        el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added"))),
       list));
-  requestAnimationFrame(() => fitMix(node));
+  requestAnimationFrame(() => { fitMix(node); updateFade(list); });
   return node;
 }
 /* each "+ genre" line scaled to fill the width: short names big, long ones small */
@@ -444,10 +445,18 @@ function fitNames(node) {
 /* Genres layout: the genres to pick and the playlist share the window. The playlist gets at least half of it
    (or just what its tracks need); when the genres don't fit above it, they scroll in their own box with a small
    arrow showing there is more. The page itself doesn't scroll. */
+/* how much of the bottom of the window the player covers over the content column: the video floats beside the
+   content on wide screens, so only the bar counts there */
+function dockH() {
+  const d = $("#dock"); if (d.hidden) return 0;
+  const m = $("main").getBoundingClientRect(), media = d.querySelector("#media").getBoundingClientRect();
+  if (media.height && media.left > m.left + m.width / 2) return d.querySelector(".bar").getBoundingClientRect().height;
+  return d.getBoundingClientRect().height;
+}
 function fitMix(node = document.getElementById("th-genre-mix")) {
   const pool = $("#viewHead .gm-pool"), list = node && node.querySelector(".gm-list");
   if (!pool) return;
-  const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  const dock = dockH();
   pool.style.height = ""; pool.parentElement.classList.remove("scrolls");
   const avail = innerHeight - dock - (pool.getBoundingClientRect().top + pageY()) - 12; // from the top of the genres to the bottom
   if (!list) { pool.parentElement.querySelector(".gm-more").hidden = true; return; }
@@ -459,12 +468,29 @@ function fitMix(node = document.getElementById("th-genre-mix")) {
   const poolH = Math.min(poolNeed, avail - listH - gap);
   if (poolH < poolNeed) { pool.style.height = Math.max(60, poolH) + "px"; pool.parentElement.classList.add("scrolls"); }
   pool.parentElement.querySelector(".gm-more").hidden = !(poolH < poolNeed) || pool.scrollTop + pool.clientHeight >= pool.scrollHeight - 4;
-  const room = innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - (frame - 0) - 12;
+  const below = node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // the box's edge under the list
+  const room = innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - below - 12;
   list.style.height = Math.max(120, Math.min(list.scrollHeight, room)) + "px";
   const over = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) - innerHeight;
   if (over > 0) list.style.height = Math.max(120, list.getBoundingClientRect().height - over) + "px"; // the page itself doesn't scroll
 }
 addEventListener("resize", () => fitMix());
+/* boxes with more tracks above or below fade out at that edge (Genres playlist: only at the bottom) */
+function updateFade(list) {
+  if (!list) return;
+  let up, down;
+  if (list.classList.contains("scroll-list")) {
+    up = list.scrollTop > 2 && !list.classList.contains("gm-list");
+    down = list.scrollTop + list.clientHeight < list.scrollHeight - 2;
+  } else { // a search result showing a few tracks of its thread
+    const th = list.closest(".thread"), ks = [...list.querySelectorAll(":scope > li.track")].map((r) => +r.dataset.k.split(":").pop());
+    const n = th ? shown.find((x) => "th-" + x.t.id === th.id)?.t.tracks.length || 0 : 0;
+    up = ks.length && ks[0] > 1; down = ks.length && ks[ks.length - 1] < n - 1;
+  }
+  list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
+}
+document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
+const fadeAll = () => document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks").forEach(updateFade);
 
 /* History: every thread by the month it was posted, newest first, as short rows */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -569,28 +595,31 @@ function jumpTo(id) {
   holdAt(node, () => contentTop() + 8);
 }
 /* uBlock Origin Lite for this browser (iPhone/iPad and Safari: the App Store app) */
-function openUblock() {
+function ublockUrl() {
   const ua = navigator.userAgent, apple = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const url = /Firefox|FxiOS/.test(ua) && !apple ? "https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/"
     : apple || (/Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua)) ? "https://apps.apple.com/de/app/ublock-origin-lite/id6745342698"
     : "https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh?hl=en";
-  open(url, "_blank", "noopener");
+  return url;
 }
+const openUblock = () => open(ublockUrl(), "_blank", "noopener");
+$('#menu [data-view="ublock"]').href = ublockUrl();
 function setView(v, keepHash) {
   setTimeout(() => (document.body.dataset.view = view), 0);
   if (v === "ublock") { // first press: "Confirm"; the second opens the store
-    const b = $('#menu button[data-view="ublock"]');
+    const b = $('#menu [data-view="ublock"]');
     if (b.dataset.confirm) { clearTimeout(b._t); delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; openUblock(); }
     else { b.style.minWidth = b.getBoundingClientRect().width + "px"; b.dataset.confirm = "1"; b.textContent = "Confirm"; b._t = setTimeout(() => { delete b.dataset.confirm; b.textContent = "uBlock Origin Lite"; }, 5000); }
     return;
   }
   if (v === "random") { // a random thread, at the top of the page with the divider above it still in view
-    const b = $('#menu button[data-view="random"]'); b.classList.add("flash"); setTimeout(() => b.classList.remove("flash"), 350);
-    const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22); return;
+    const b = $('#menu [data-view="random"]'); b.classList.add("flash"); setTimeout(() => b.classList.remove("flash"), 350);
+    const menuH = $("#menu").hidden ? 0 : $("#menu").getBoundingClientRect().height; // the open menu covers the top
+    const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22 + menuH); return;
   }
   view = VIEW_NAMES[v] ? v : "threads";
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : "#/" + view);
-  document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
+  document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   $("#q").value = ""; syncClear();
   runSearch(); pageScrollTo(0);
 }
@@ -605,8 +634,10 @@ addEventListener("hashchange", () => { // back/forward and links between pages
   else if (!location.hash && view !== "threads") setView("threads", true);
 });
 $("#menu").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-view]");
+  const b = e.target.closest("[data-view]");
   if (!b) return;
+  if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return; // Ctrl/Cmd+click: the browser opens it in a new tab
+  e.preventDefault();
   if (VIEW_NAMES[b.dataset.view] || (phone() && b.dataset.view === "random")) toggleMenu(false); // a page closes the menu (phone: Random too)
   setView(b.dataset.view);
 });
@@ -627,7 +658,7 @@ const img = (src, cls) => src
   : el("span", { class: cls + " empty" });
 
 /* tags under a title; clicking one searches for it */
-const HIDDEN_TAGS = new Set(["mix"]); // kept on the track for the Mixes page, never shown as a tag
+const HIDDEN_TAGS = new Set(); // (none now: "mix" is an ordinary tag again)
 const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g));
 function tagLine(tr, extra, list) {
   const tags = list || shownTags(tr);
@@ -694,7 +725,7 @@ function holdAt(node, offset) {
 /* bring an element fully into view (between the header and the player), moving as little as possible */
 function revealWhole(node, smooth = true) {
   const r = node.getBoundingClientRect(), top = headerBottom() + 8;
-  const bottom = innerHeight - ($("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height) - 8;
+  const bottom = innerHeight - (dockH()) - 8;
   let dy = 0;
   if (r.bottom > bottom) dy = r.bottom - bottom;
   if (r.top - dy < top) dy = r.top - top; // too tall: show its top
@@ -768,9 +799,8 @@ function toggleExpand(t, hits) {
   if (wasOpen) { setActive(null); pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8); } // collapsed: the thread at the top
   else setActive(t.id);
   fitList(fresh, !wasOpen);
-  if (!wasOpen && hits && phone()) { // phone search: the whole thread, with the (first) hit at the top
-    const hit = fresh.querySelector("li.track.hit, .head-row.hit");
-    if (hit) pageScrollBy(hit.getBoundingClientRect().top - headerBottom() - 8);
+  if (!wasOpen && hits && phone()) { // phone search: the whole thread, its main track at the top
+    pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8);
     return;
   }
   if (!wasOpen && hits && t.tracks.length > threadLimit()) pageScrollBy(fresh.getBoundingClientRect().top - headerBottom() - 8); // long thread: at the top
@@ -805,6 +835,7 @@ function fitList(node, scroll) {
   if (!node) return;
   const list = node.querySelector(".scroll-list");
   if (!list || !list.children.length) return;
+  requestAnimationFrame(() => updateFade(list));
   if (!list.classList.contains("open")) {
     const rows = [...list.querySelectorAll(":scope > li.track")];
     const last = rows[Math.min(rows.length, +list.dataset.show || TAG_PREVIEW) - 1];
@@ -822,7 +853,7 @@ function fitList(node, scroll) {
   // open: the whole frame fits between the header and the bottom of the window (or the player), with the same
   // small gap above and below it
   const GAP = 8;
-  const dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  const dock = dockH();
   const below = () => node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // Collapse, Add a track…
   const size = () => {
     const h = Math.max(200, innerHeight - dock - GAP - list.getBoundingClientRect().top - below()) + "px";
@@ -988,7 +1019,7 @@ function threadNode({ t, hits }) {
 /* "Thread": leave the search and show this thread where it sits in the feed */
 function goToThread(t, gap = 8) {
   $("#q").value = ""; syncClear(); $("#q").blur(); // (phone: the keyboard goes away first, so the page doesn't shift afterwards)
-  if (view !== "threads") { view = "threads"; history.replaceState(null, "", location.pathname); document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === "threads"))); }
+  if (view !== "threads") { view = "threads"; history.replaceState(null, "", location.pathname); document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === "threads"))); }
   expanded.delete(t.id);
   runSearch();
   const at = shown.findIndex((x) => x.t === t);
@@ -1010,6 +1041,7 @@ function renderMore(count = PAGE) {
   for (; rendered < end; rendered++) frag.append(threadNode(shown[rendered]));
   $("#threads").append(frag);
   markPlaying();
+  requestAnimationFrame(fadeAll);
 }
 
 new IntersectionObserver((e) => { if (e[0].isIntersecting && rendered < shown.length) renderMore(); }, { rootMargin: "1200px" }).observe($("#more"));
@@ -1510,7 +1542,6 @@ function addForm(thread, edit, row) {
   const tr = edit ? edit.t.tracks[edit.i] : null;
   const host = row ? row.querySelector(".tag-wrap") : null;
   const tags = tagEditor(tr ? shownTags(tr) : [], !tr && thread ? shownTags(thread.tracks[0]) : []);
-  const isMix = !!(tr && tr.tags && tr.tags.mix);
   const more = moreInfo(tr, edit, tags);
   const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
     "aria-label": "More info", onclick: (e) => {
@@ -1528,10 +1559,7 @@ function addForm(thread, edit, row) {
     el("div", { class: "af-actions" },
       tags.box,
       el("span", { class: "af-gap" }),
-      // a mix (DJ mix, full album…): it gets the "mix" tag and shows up on the Mixes page
-      el("button", { type: "button", class: "btn ghost mix-btn", "aria-pressed": String(isMix),
-        title: "A DJ mix, full album or other long recording: shows up under Mixes",
-        onclick: (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", String(on)); } }, "Mix"),
+
       edit ? arrow : null,
       el("span", { class: "af-msg hint", role: "status" }),
       edit ? el("button", { type: "button", class: "btn ghost danger", onclick: (e) => deleteTrack(form, edit, e.currentTarget) }, "Delete") : null,
@@ -1639,7 +1667,7 @@ function moreInfo(tr, edit, tags) {
   }
   return box;
 }
-const mixTags = (form) => { const g = form.tags.get().filter((x) => x !== "mix"); return form.querySelector(".mix-btn").getAttribute("aria-pressed") === "true" ? [...g, "mix"] : g; };
+const mixTags = (form) => form.tags.get(); // ("mix" is an ordinary tag: the Mixes page shows tracks tagged "mix")
 function closeAddForm(form, opts = {}) {
   if (!form) return;
   if (form.tags) form.tags.restore();
@@ -2057,7 +2085,7 @@ function focusTrack(threadId, tr, at = "third") {
 function focusRow(row, smooth, boxAt = "center", at = "third") {
   const box = row.closest(".scroll-list"); // inside a scrolling box: first bring it into the box's view
   if (box) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top - (boxAt === "top" ? 0 : (box.clientHeight - row.offsetHeight) / 2);
-  const top = headerBottom(), dock = $("#dock").hidden ? 0 : $("#dock").getBoundingClientRect().height;
+  const top = headerBottom(), dock = dockH();
   const under = contentTop();
   const y = at === "top" ? under + 8 : top + (innerHeight - dock - top) / 3; // right under the header (and History's bar), or a third of the way down
   pageScrollBy(row.getBoundingClientRect().top - y, smooth);
@@ -2187,9 +2215,10 @@ $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView(
   }
   const page = location.hash.match(/^#\/(\w+)/);
   if (page && VIEW_NAMES[page[1]]) view = page[1];
+  if (page && page[1] === "random") setTimeout(() => setView("random"), 0); // Random opened in a new tab
   const gq = location.hash.match(/^#\/genres\?g=(.+)$/);
   if (gq) gSel = gq[1].split(",").map(decodeURIComponent).filter(Boolean);
-  document.querySelectorAll("#menu button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
+  document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   document.body.dataset.view = view;
   runSearch();
   watchHistory();

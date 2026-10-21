@@ -624,13 +624,13 @@ html.inner-scroll body { overflow-y: auto; -webkit-overflow-scrolling: touch; ov
   padding: 8px 24px 10px; padding-right: inherit; background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .menu[hidden] { display: none; }
-.menu button {
-  all: unset; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1.4;
+.menu a {
+  all: unset; display: inline-block; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1.4;
   text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px;
 }
-.menu button:hover { color: var(--text); }
-.menu button[aria-current="true"] { color: var(--jade); }
-.menu button:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+.menu a:hover { color: var(--text); }
+.menu a[aria-current="true"] { color: var(--jade); }
+.menu a:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
 
 /* page intro, genre index, history jumps */
 .view-head { padding: 14px 0 4px; }
@@ -737,14 +737,14 @@ body:not(.can-add) #editBtn { display: none; }
 #volBtn .spk { width: 15px; height: 15px; flex: none; }
 #volBtn.muted { color: var(--jade); }
 /* uBlock: "Confirm" in the same place, lit */
-.menu button[data-view="ublock"] { text-align: center; }
-.menu button[data-view="ublock"][data-confirm] { color: var(--jade); }
+.menu a[data-view="ublock"] { text-align: center; }
+.menu a[data-view="ublock"][data-confirm] { color: var(--jade); }
 .add-form { grid-template-columns: minmax(0, 1fr); } .add-form > * { min-width: 0; } /* a long tag field scrolls instead of widening the card */
 .af-actions > .btn { flex: none; }
 
 #volBtn .vol-n { display: inline-block; width: 3ch; text-align: left; } /* the number never changes the button's width */
 #autoBtn, #infoBtn, #copyBtn { justify-content: center; }
-html.ios .menu button[data-view="ublock"] { display: none; }
+html.ios .menu a[data-view="ublock"] { display: none; }
 @media (max-width: 640px) { .menu { padding: 8px 16px 10px; } }
 
 /* move and promote */
@@ -846,8 +846,8 @@ html.ios .menu button[data-view="ublock"] { display: none; }
 .add-form button[type=submit].btn { background: var(--seek, var(--accent-dim)); }
 .add-form button[type=submit].btn:hover { background: var(--accent-dim); }
 /* Random: lights up in the Play button's colour when pressed */
-.menu button[data-view="random"].flash, .menu button[data-view="random"]:active { color: var(--jade); }
-.menu button[data-view="random"] { transition: color .25s; }
+.menu a[data-view="random"].flash, .menu a[data-view="random"]:active { color: var(--jade); }
+.menu a[data-view="random"] { transition: color .25s; }
 
 /* long titles in the player: click to make room */
 #nowTitle { cursor: default; }
@@ -916,7 +916,7 @@ body[data-view="genres"] #more { display: none; }
 .genre-mix .tag-side { justify-content: flex-start; }
 @media (max-width: 640px) {
   .gm-picker, .gm-field, .gm-pool-wrap { min-width: 0; max-width: 100%; }
-  .gm-pool { text-align: left; overflow-wrap: anywhere; }
+  .gm-pool { overflow-wrap: anywhere; }
   .gm-field .tag-field { max-width: 100%; }
 }
 /* phone player: flag */
@@ -938,4 +938,41 @@ body:not(.can-add) #flagBtn { display: none; }
   .genre-mix .tag-label { flex-direction: row; align-items: baseline; justify-content: space-between; width: 100%; }
   .genre-mix .gm-order { display: flex !important; gap: 14px; margin-top: 0 !important; }
   .gm-count { font-size: 19px; }
+}
+
+/* fades: a box with more tracks above / below fades out at that edge */
+.fade-down { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); }
+.fade-up { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to top, #000 calc(100% - 36px), transparent); }
+.fade-up.fade-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+/* Genres playlist: the genres one per line (centred, joined by a small &), the count under them,
+   Shuffle and Date added centred at the bottom */
+.genre-mix .tag-side { align-items: center; text-align: center; }
+.genre-mix .tag-label { align-items: center; width: 100%; }
+.gm-names { display: grid; justify-items: center; gap: 0; width: 100%; }
+.gm-name { display: block; color: var(--text); font-size: 17px; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+.gm-and { display: block; color: var(--muted); font-size: 12px; line-height: 1.2; }
+.gm-n { margin-top: 6px; }
+.genre-mix .gm-order { justify-items: center !important; text-align: center !important; margin-top: auto !important; align-self: stretch; }
+.genre-mix .gm-order .more-toggle { margin: 0; }
+.gm-order .more-toggle.on { color: var(--text); }
+/* search parts: name and count in the same small type; crossed out together */
+.sf { font-size: 12px; color: var(--muted); }
+.sf .gi-n { margin-left: 3px; font-size: 12px; color: inherit; }
+.sf-order { font-size: inherit; color: inherit; }
+@media (max-width: 640px) {
+  #resultInfo:not([hidden]) { grid-template-areas: "fields fields" "n order" !important; }
+  /* no zooming in when a field is tapped: phones zoom into text smaller than 16px */
+  input, textarea, .tag-input, .rel-input { font-size: 16px !important; }
+  /* Genres playlist on the phone */
+  .genre-mix, .gm-list { overflow-x: hidden; max-width: 100%; }
+  .gm-list .track { grid-template-columns: 56px 1fr; }
+  .gm-list .track .chip { width: 56px; height: 32px; }
+  .gm-list .tr-title { font-size: 14px; -webkit-line-clamp: 1; }
+  .gm-list .tr-sub .tag { font-size: 10px; margin-right: 5px; }
+  .gm-list .tr-sub { line-height: 1.2; white-space: normal; }
+  .genre-mix .tag-label { flex-direction: column; }
+  .genre-mix .gm-names { display: none; }
+  .gm-count, .gm-n { font-size: 13px; color: var(--muted); }
+  .genre-mix .tag-side { flex-direction: row; justify-content: space-between; }
+  .genre-mix .gm-order { display: flex !important; gap: 14px; margin-top: 0 !important; align-self: center; }
 }
