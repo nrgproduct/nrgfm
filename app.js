@@ -230,7 +230,7 @@ function runSearch() {
     $("#resultInfo").replaceChildren(
       el("span", { class: "result-n" }, n ? `${n} ${n === 1 ? "result" : "results"}` : `Nothing matches “${$("#q").value.trim()}”.`),
       el("button", { class: "sf sf-order", "aria-pressed": String(byNewest), onclick: () => { byNewest = !byNewest; runSearch(); } },
-        byNewest ? "Newest first" : "Best match"),
+        el("span", { class: "sort-label" }, "Sort: "), el("span", { class: "sort-val" }, byNewest ? "Newest first" : "Best match"), " ▾"),
       el("span", { class: "search-fields" }, FIELDS.filter(([k]) => used.has(k) || searchOff.has(k)).map(([k, name]) => el("button", {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
         onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name,
@@ -243,17 +243,19 @@ function runSearch() {
   renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
 }
 
-/* computer: the search line stays one line; filters too wide for their side get a little smaller */
+/* computer: the search line stays one line: the count, the filters after it, Sort on the right. Too many filters
+   for the room: smaller, in two rows centred on the line (the line keeps its height) */
 function placeFilters() {
   const info = $("#resultInfo"), f = info.querySelector(".search-fields");
   if (!f || info.hidden) return;
   f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.removeProperty("font-size"));
-  f.style.gap = ""; f.style.maxWidth = ""; info.classList.remove("two-rows");
+  f.style.maxWidth = ""; f.style.left = ""; info.classList.remove("two-rows");
   if (phone()) return;
-  const room = info.getBoundingClientRect().right - info.querySelector(".result-n").getBoundingClientRect().right - 20;
+  const n = info.querySelector(".result-n").getBoundingClientRect(), o = info.querySelector(".sf-order").getBoundingClientRect();
+  const room = o.left - n.right - 36;
   if (f.getBoundingClientRect().width <= room) return;
-  // too many for one line: smaller, in two rows centred on the line (the line itself keeps its height)
-  info.classList.add("two-rows"); f.style.maxWidth = room + "px";
+  info.classList.add("two-rows");
+  f.style.left = n.right - info.getBoundingClientRect().left + 18 + "px"; f.style.maxWidth = room + "px";
   f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.setProperty("font-size", "12px", "important"));
 }
 addEventListener("resize", placeFilters);
@@ -1743,7 +1745,18 @@ function moreInfo(tr, edit, tags) {
       el("span", { class: "af-label" }, "Suggested genres"),
       ...(x.g && x.g.length
         ? x.g.map((g) => tags.has(g) ? null : el("button", { type: "button", class: "tag-chip suggest", onclick: () => { tags.use(g); chips(); } }, "+ " + g))
-        : [el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")]).filter(Boolean));
+        : [addGenres()]).filter(Boolean));
+    // nothing suggested: "none found" (dotted) opens a field to type genres yourself; Enter adds them as tags
+    function addGenres() {
+      const b = el("button", { type: "button", class: "rel-name rel-none", onclick: () => {
+        const input = el("input", { type: "text", class: "rel-input", size: 18, placeholder: "genre, genre", "aria-label": "Genres" });
+        const done = (keep) => { if (keep) input.value.split(",").map((g) => g.trim().toLowerCase()).filter(Boolean).forEach((g) => tags.use(g)); input.replaceWith(b); };
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+        input.addEventListener("blur", () => input.isConnected && done(true));
+        b.replaceWith(input); input.focus();
+      } }, x.chk ? "none found" : "not looked up yet");
+      return b;
+    }
     chips();
     box.append(sug,
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
@@ -1965,7 +1978,7 @@ function stepBtn(up, step) {
 /* the suggested releases, each with a dotted underline: click one to correct it (× deletes it); saved with the card */
 function releaseEditor(tr, x, box) {
   const start = tr.release || x.rl || [], rel = [...start];
-  const wrap = el("span", { class: "rel-list" });
+  const wrap = el("span", { class: "rel-list rel-releases" });
   const draw = () => wrap.replaceChildren(...(rel.length ? rel.map((r, k) => {
     const item = el("span", { class: "rel-item" + (k ? " rel-other" : "") });
     const edit = () => {
@@ -2344,6 +2357,7 @@ $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView(
 /* Gemini's decision (from what the lookups found, or its own web search) replaces the lookups' suggested
    release, year and genres; the years the lookups found stay as "also" */
 function withGemini(x, ai) {
+  for (const o of Object.values(x)) if (o.rl) o.rl = [...new Set(o.rl.map((r) => String(r).replace(/[\u200b-\u200f\ufeff]/g, "").trim()).filter(Boolean))]; // "空​間" with hidden spaces = "空間"
   for (const [u, a] of Object.entries(ai || {})) {
     const o = x[u] || {};
     const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);

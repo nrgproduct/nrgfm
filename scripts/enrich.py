@@ -320,7 +320,8 @@ def main():
                 # suggested release: the earliest one first, then up to three others (different names)
                 seen, rl = set(), []
                 for _, name in sorted([x for r in (mb, dg) if r for x in r.get("rl", [])], key=lambda x: x[0]):
-                    if name.lower() not in seen:
+                    name = re.sub(r"[\u200b-\u200f\ufeff]", "", name).strip()  # hidden spaces (Bandcamp-style titles)
+                    if name and name.lower() not in seen:
                         seen.add(name.lower())
                         rl.append(name)
                 if rl:
