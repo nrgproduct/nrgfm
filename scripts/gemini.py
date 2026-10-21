@@ -200,7 +200,7 @@ def main():
     status["model"] = model
     print("model", model)
 
-    left = MAX
+    left, fails = MAX, 0
     status["state"] = "ok"
     for how in ("sources", "search"):
         items = todo[how]
@@ -215,14 +215,21 @@ def main():
             except urllib.error.HTTPError as e:
                 status["state"] = "error: " + why(e)
                 print(status["state"])
-                if e.code in (429, 403, 400, 401):  # out of quota today, or the key/model isn't allowed: stop
+                fails += 1
+                if e.code in (429, 403, 400, 401, 404) or fails >= 4:  # out of quota, key/model not allowed, or Google keeps failing: stop
                     return save()
                 time.sleep(30)
                 continue
             except Exception as e:  # noqa: BLE001
-                print("skipped a batch:", type(e).__name__, str(e)[:200])
+                status["state"] = "error: " + type(e).__name__ + " " + str(e)[:200]
+                print("skipped a batch:", status["state"])
+                fails += 1
+                if fails >= 4:
+                    return save()
                 time.sleep(PAUSE)
                 continue
+            fails = 0
+            status["state"] = "ok"
             for a in answers if isinstance(answers, list) else []:
                 k = a.get("i") if isinstance(a, dict) else None
                 if not isinstance(k, int) or not 0 <= k < len(batch):
