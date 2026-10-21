@@ -1188,3 +1188,6 @@ html, body { touch-action: manipulation; }
 .quick-tag.dirty { border-style: dashed; }
 .quick-tag.saving { opacity: .6; }
 .quick-tag.failed { border-color: var(--red); }
+.quick-drop.quick-drop-fixed { position: fixed; z-index: 40; }
+.no-fade { -webkit-mask-image: none !important; mask-image: none !important; }
+.quick-tag { padding-left: 2.5px; } /* the first tag as far from the left edge as from the top */

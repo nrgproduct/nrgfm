@@ -2273,9 +2273,21 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest && e.target.closest("button, a");
   if (b && !b.closest(".add-form, .quick-tag")) setTimeout(() => { if (document.activeElement === b) b.blur(); }, 0);
 });
-/* Cmd+Esc (Ctrl+Esc): like the player's × (computer: the video goes, the bar stays). Caught first, on the window. */
+/* Cmd+Esc (Ctrl+Esc, or Shift+Esc): like the player's × (computer: the video goes, the bar stays). Caught first.
+   Cmd+Left/Right: previous/next track in the thread or tag; Cmd+Up/Down: volume in steps of 2. */
 addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && (e.metaKey || e.ctrlKey) && playing) { e.preventDefault(); e.stopPropagation(); closeDock(); }
+  if (!(e.metaKey || e.ctrlKey || (e.shiftKey && e.key === "Escape")) || e.altKey) return;
+  const inField = e.target.closest && e.target.closest("input:not([type=range]), textarea, [contenteditable]");
+  if (e.key === "Escape" && playing) { e.preventDefault(); e.stopPropagation(); closeDock(); return; }
+  if (inField || $("#dock").hidden || e.shiftKey) return;
+  if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && playing) {
+    e.preventDefault(); e.stopPropagation(); // (instead of the browser's Back/Forward)
+    $(e.key === "ArrowLeft" ? "#prevBtn" : "#nextBtn").click();
+  } else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !IOS) {
+    e.preventDefault(); e.stopPropagation();
+    const v = Math.max(0, Math.min(100, volume + (e.key === "ArrowUp" ? 2 : -2)));
+    $("#vol").value = v; $("#vol").dispatchEvent(new Event("input"));
+  }
 }, true);
 /* Esc twice quickly: bring the playing track to the middle of the screen (when it is on the page) */
 let lastEsc = 0;
@@ -2484,7 +2496,7 @@ function showTagSide(g) {
 function closeQuick() {
   if (!quick) return;
   const q = quick; quick = null;
-  q.box.remove(); side.hide();
+  q.box.remove(); side.hide(); if (q.cleanup) q.cleanup();
   if (q.wrap) { // the tags line under the title, as it is now
     const list = q.row.closest(".genre-mix") ? genresOf(q.tr) : shownTags(q.tr);
     q.wrap.replaceChildren(...list.map((g) => el("span", { class: "tag" }, g)));
@@ -2508,7 +2520,9 @@ function openQuick(row, at) {
   const input = el("input", { type: "text", class: "quick-input", autocomplete: "off", spellcheck: "false", "aria-label": "Add a tag" });
   const chips = el("span", { class: "quick-chips" });
   const drop = el("ul", { class: "quick-drop", hidden: true });
-  const box = el("span", { class: "quick-tag" }, chips, input, drop);
+  const box = el("span", { class: "quick-tag" }, chips, input);
+  // the suggestions hang on the page itself (not inside the track's box, which can fade or cut them off)
+  drop.classList.add("quick-drop-fixed"); document.body.append(drop);
   quick = { row, tr, wrap, box, changed: false };
   const start = shownTags(tr), draft = [...start];
   let opts = [], active = -1, mark = -1; // mark: the tag in the field that is selected (Left / Backspace)
@@ -2534,12 +2548,20 @@ function openQuick(row, at) {
     drop.replaceChildren(...opts.map((g, j) => el("li", { onmouseenter: () => highlight(j),
       onmousedown: (e) => { e.preventDefault(); pick(g); } }, g, el("span", { class: "gi-n" }, tagCount.get(g)))));
     drop.hidden = !opts.length;
-    if (opts.length) { // opens upwards when there is no room under the field (above the player)
-      drop.classList.remove("up");
-      if (drop.getBoundingClientRect().bottom > innerHeight - dockH() - 8) drop.classList.add("up");
-    }
+    placeDrop();
     highlight(opts.length ? 0 : -1); // typing: the first suggestion is highlighted and its tracks show
   };
+  function placeDrop() { // under the field, or above it when there is no room (above the player)
+    if (drop.hidden) return;
+    const b = box.getBoundingClientRect();
+    drop.style.left = b.left + "px"; drop.style.top = b.bottom + 4 + "px";
+    const h = drop.getBoundingClientRect().height;
+    if (b.bottom + 4 + h > innerHeight - dockH() - 8) drop.style.top = Math.max(8, b.top - 4 - h) + "px";
+  }
+  addEventListener("scroll", placeDrop, { passive: true, capture: true });
+  quick.cleanup = () => { drop.remove(); removeEventListener("scroll", placeDrop, { capture: true }); if (fadeList) fadeList.classList.remove("no-fade"); };
+  const fadeList = row && row.closest(".scroll-list, .tracks, .tag-list");
+  if (fadeList) fadeList.classList.add("no-fade"); // no fading over the field while it's open
   function pick(g) { // into the field (not saved yet)
     g = normTag(g);
     if (g && !draft.includes(g)) draft.push(g);
