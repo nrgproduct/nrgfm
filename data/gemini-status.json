@@ -1,7 +1,6 @@
 {
- "date": "2026-10-21 10:13",
+ "date": "2026-10-21 10:18",
  "asked": 0,
  "done": 0,
- "model": "gemini-3.8-flash",
- "state": "error: HTTP 503 This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+ "state": "error: HTTP 404 This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Int"
 }
