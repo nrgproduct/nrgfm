@@ -249,7 +249,8 @@ document.body.append(whyBox);
 let whyTimer = 0, whyRow = null, whyXY = [0, 0];
 document.addEventListener("mousemove", (e) => {
   whyXY = [e.clientX, e.clientY];
-  const row = e.target.closest && e.target.closest(".thread.searching .track.hit, .thread.searching .head-row.hit");
+  const title = e.target.closest && e.target.closest(".tr-title, .t-title"); // only over the highlighted title itself
+  const row = title && title.closest(".thread.searching .track.hit, .thread.searching .head-row.hit");
   if (row === whyRow) return;
   whyRow = row; clearTimeout(whyTimer); whyBox.hidden = true;
   if (row) whyTimer = setTimeout(() => showWhy(row), 600);
@@ -491,20 +492,11 @@ function updateFade(list) {
     up = list.scrollTop > 2 && !list.classList.contains("gm-list");
     down = list.scrollTop + list.clientHeight < list.scrollHeight - 2;
   } else { // a search result showing a few tracks of its thread
-    const rows = [...list.querySelectorAll(":scope > li.track")];
-    fitPeek(list, rows);
-    up = rows.length && rows[0].classList.contains("peek"); down = rows.length && rows[rows.length - 1].classList.contains("peek");
+    const th = list.closest(".thread"), ks = [...list.querySelectorAll(":scope > li.track")].map((r) => +r.dataset.k.split(":").pop());
+    const n = th ? shown.find((x) => "th-" + x.t.id === th.id)?.t.tracks.length || 0 : 0;
+    up = ks.length && ks[0] > 1; down = ks.length && ks[ks.length - 1] < n - 1;
   }
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
-}
-const PEEK = 26; // how much of the track before and after shows
-function fitPeek(list, rows) {
-  const a = rows[0], z = rows[rows.length - 1];
-  if (!a || !(a.classList.contains("peek") || z.classList.contains("peek"))) return;
-  const top = a.classList.contains("peek") ? a.offsetHeight - PEEK : 0;
-  const bottom = z.classList.contains("peek") ? z.offsetHeight - PEEK : 0;
-  list.style.height = list.scrollHeight - top - bottom + "px";
-  list.scrollTop = top;
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
 const fadeAll = () => document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks").forEach(updateFade);
@@ -838,8 +830,14 @@ function nextMatch(node) {
   const list = node && node.querySelector(".scroll-list");
   if (!list) return;
   const hs = [...list.querySelectorAll(":scope > li.track.hit")];
-  const next = hs.find((h) => h.offsetTop > list.scrollTop + 2) || hs[0];
-  if (next) list.scrollTo({ top: next.offsetTop, behavior: "smooth" });
+  const at = (h) => h.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop; // inside the box
+  const cur = +(list.dataset.match ?? -1);
+  const k = cur >= 0 && cur < hs.length - 1 ? cur + 1 : 0; // each press: the next match, then round again
+  const next = hs[k];
+  if (!next) return;
+  list.dataset.match = k;
+  list.scrollTo({ top: Math.max(0, at(next) - (list.clientHeight - next.offsetHeight) / 2), behavior: "smooth" }); // in the middle of the box
+  hs.forEach((h) => h.classList.toggle("match-now", h === next));
 }
 function toggleScroll(t, hits) {
   setActive(t.id);
@@ -982,10 +980,6 @@ function threadNode({ t, hits }) {
   else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = SEARCH_AROUND; }
   else if (searching) { // a slice of the track before and after peeks out under the fades: there is more
     idx = searchRows(t, hits);
-    if (idx.length && idx[idx.length - 1] - idx[0] === idx.length - 1) {
-      if (idx[0] > 1) { peek.add(idx[0] - 1); idx.unshift(idx[0] - 1); }
-      if (idx[idx.length - 1] < n - 1) { peek.add(idx[idx.length - 1] + 1); idx.push(idx[idx.length - 1] + 1); }
-    }
   }
   else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
   else if (long && !mobile) { idx = range(1, n); listCls += " scroll-list"; }
@@ -1391,6 +1385,20 @@ $("#volBtn").onclick = (e) => {
   $("#volWrap").classList.toggle("open", open); $("#volBtn").setAttribute("aria-expanded", open ? "true" : "false");
 };
 $("#volPop").addEventListener("click", (e) => e.stopPropagation());
+/* computer: resting the pointer on the volume opens the slider; opened that way it closes 5 s after it was last touched */
+if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+  let volTimer = 0, byHover = false;
+  const arm = () => { if (!byHover) return; clearTimeout(volTimer); volTimer = setTimeout(() => { byHover = false; closeVol(); }, 5000); };
+  $("#volBtn").addEventListener("mouseenter", () => {
+    if ($("#volBtn").disabled || $("#volWrap").classList.contains("open")) return arm();
+    byHover = true; $("#volWrap").classList.add("open"); $("#volBtn").setAttribute("aria-expanded", "true"); arm();
+  });
+  for (const ev of ["mousemove", "input", "wheel", "pointerdown"]) $("#volWrap").addEventListener(ev, arm, { passive: true });
+  $("#volBtn").addEventListener("click", (e) => { // a click while it is open from hovering keeps it open (no timer)
+    if (!byHover) return;
+    byHover = false; clearTimeout(volTimer); e.stopImmediatePropagation();
+  }, true);
+}
 $("#volNum").onclick = (e) => $("#volBtn").onclick(e);
 document.addEventListener("click", closeVol);
 $("#vol").addEventListener("input", () => {

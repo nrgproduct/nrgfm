@@ -852,10 +852,10 @@ html.ios .menu a[data-view="ublock"] { display: none; }
 /* long titles in the player: click to make room */
 #nowTitle { cursor: default; }
 #autoBtn, #infoBtn, #copyBtn { transition: max-width .3s ease, opacity .25s ease, transform .3s ease, padding .3s ease; max-width: 200px; overflow: hidden; }
-.dock.wide #autoBtn, .dock.wide #infoBtn, .dock.wide #copyBtn { max-width: 0; opacity: 0; transform: translateX(60px); padding-left: 0; padding-right: 0; min-width: 0 !important; pointer-events: none; }
-.dock.wide #nowTitle { white-space: normal; overflow: visible; text-overflow: clip; }
+.dock.wide #infoBtn, .dock.wide #copyBtn { max-width: 0; opacity: 0; transform: translateX(60px); padding-left: 0; padding-right: 0; min-width: 0 !important; pointer-events: none; }
+.dock.wide #nowTitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* one line: the bar keeps its height */
 @media (max-width: 640px) {
-  .dock.wide #autoBtn, .dock.wide #infoBtn, .dock.wide #copyBtn { display: none; }
+  .dock.wide #infoBtn, .dock.wide #copyBtn { display: none; }
 }
 
 /* Genres: the picker (field + genres left to pick) and one playlist box below it */
@@ -979,7 +979,8 @@ body:not(.can-add) #flagBtn { display: none; }
 
 /* empty player bar (no track loaded): just the controls, greyed; volume and autoplay still work */
 .dock.idle .media-row { display: none; }
-.dock.idle .now > :not(#nowTitle) { display: none; }
+.dock.idle .now > :not(#nowTitle) { visibility: hidden; } /* hidden but keeping their room: the bar is as tall as with a track */
+.dock.idle #nowTitle::before { content: "\00a0"; }
 
 /* Genres playlist side: the picked genres under each other, a small gap between them, each on one line */
 .gm-names { gap: 4px; }
@@ -1003,14 +1004,6 @@ body:not(.can-add) #flagBtn { display: none; }
 .sf:not(.sf-order) { text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .sf:not(.sf-order) .gi-n { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 
-/* search results: the track box reaches a little up into the gap under the main track and down into the gap
-   above "N tracks", so the fades have room without covering the tracks; the thread stays the same height */
-.thread.searching > .tracks { margin-top: -8px; margin-bottom: -6px; }
-.thread.searching > .tracks:not(.scroll-list):has(> .peek) { overflow: hidden; }
-.thread.searching .tracks.fade-down { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent); }
-.thread.searching .tracks.fade-up { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to top, #000 calc(100% - 44px), transparent); }
-.thread.searching .tracks.fade-up.fade-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 44px, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 44px, #000 calc(100% - 44px), transparent); }
-
 /* no accidental text highlighting anywhere; typing fields still work as usual */
 body { -webkit-user-select: none; user-select: none; }
 input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
@@ -1022,3 +1015,15 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
   .genre-mix .gm-names { justify-items: start !important; }
   .genre-mix .gm-order { justify-items: end !important; text-align: right !important; }
 }
+
+/* Genres playlist and Tags threads (computer): the name and the count sit as far in from the box's left edge as
+   Shuffle / Date added sit from the tracks */
+@media (min-width: 641px) {
+  .genre-mix .tag-label, .tag-thread:not(.genre-mix) .tag-label { padding-left: 16px; box-sizing: border-box; }
+}
+
+/* search: the result count, the order and the filters all in capitals at one size */
+#resultInfo .result-n, #resultInfo .sf-order, .sf:not(.sf-order) { text-transform: uppercase; letter-spacing: .06em; font-size: 12px !important; color: var(--muted); }
+.sf:not(.sf-order) .gi-n { font-size: 12px !important; }
+/* "4 matches": the match it went to */
+.thread.searching .track.match-now { background: var(--surface-2); border-radius: var(--radius-sm); }
