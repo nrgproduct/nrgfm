@@ -1,0 +1,7 @@
+{
+ "date": "2026-10-21 10:13",
+ "asked": 0,
+ "done": 0,
+ "model": "gemini-3.8-flash",
+ "state": "error: HTTP 503 This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+}
