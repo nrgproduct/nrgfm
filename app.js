@@ -519,12 +519,13 @@ function updateFade(list) {
   } else { // a search result showing a few tracks of its thread
     const th = list.closest(".thread"), ks = [...list.querySelectorAll(":scope > li.track")].map((r) => +r.dataset.k.split(":").pop());
     const n = th ? shown.find((x) => "th-" + x.t.id === th.id)?.t.tracks.length || 0 : 0;
-    up = ks.length && ks[0] > 1; down = ks.length && ks[ks.length - 1] < n - 1;
+    const first = list.classList.contains("tag-list") ? 0 : 1; // a tag playlist has no main track above its list
+    up = ks.length && ks[0] > first; down = ks.length && ks[ks.length - 1] < n - 1;
   }
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
-const fadeAll = () => { document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks").forEach(updateFade); placeMidPos(); };
+const fadeAll = () => { document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks, #threads .tag-thread .tag-list").forEach(updateFade); placeMidPos(); };
 function placeMidPos() {
   document.querySelectorAll("#threads .thread .mid-pos").forEach((p) => {
     const th = p.closest(".thread"), list = th.querySelector(".tracks");
@@ -599,16 +600,17 @@ function drawViewHead() {
       head.querySelectorAll(".hist-years .when-link").forEach((b) => b.classList.toggle("on", b.textContent === y));
       monthRow.replaceChildren(...MONTHS.map((name, k) => {
         const id = `m-${y}-${String(k + 1).padStart(2, "0")}`, has = months.some((m) => m.id === id);
-        return el("button", { class: "when-link" + (has ? "" : " none"), disabled: !has, onclick: () => jumpTo(id) }, name.slice(0, 3));
-      }));
+        return el("button", { class: "when-link" + (has ? "" : " none"), disabled: !has, onclick: () => jumpTo(id) }, phone() ? String(k + 1) : name.slice(0, 3));
+      }).reverse()); // newest month first, like the list below
     };
     const size = (d) => { thumbSize = Math.max(0, Math.min(THUMB_SIZES.length - 1, thumbSize + d)); setThumbSize(); };
     const thumbsBtn = el("span", { class: "hist-size" },
       el("button", { class: "when-link", title: "Smaller thumbnails", onclick: () => size(-1) }, "−"),
       el("button", { class: "when-link", title: "Bigger thumbnails", onclick: () => size(1) }, "+"));
-    head.replaceChildren(
-      el("div", { class: "hist-years" }, years.map((y) => el("button", { class: "when-link", onclick: () => { pickYear(y); jumpTo(months.find((m) => m.month.startsWith(y)).id); } }, y))),
-      el("div", { class: "hist-months-row" }, monthRow, thumbsBtn));
+    const yearRow = el("div", { class: "hist-years" }, years.map((y) => el("button", { class: "when-link", onclick: () => { pickYear(y); jumpTo(months.find((m) => m.month.startsWith(y)).id); } }, y)));
+    const edgeFade = () => { yearRow.classList.toggle("fade-l", yearRow.scrollLeft > 2); yearRow.classList.toggle("fade-r", yearRow.scrollLeft + yearRow.clientWidth < yearRow.scrollWidth - 2); };
+    yearRow.addEventListener("scroll", edgeFade, { passive: true }); requestAnimationFrame(edgeFade);
+    head.replaceChildren(yearRow, el("div", { class: "hist-months-row" }, monthRow, thumbsBtn));
     head._pickYear = pickYear;
     if (years.length) pickYear(years[0]);
   } else if (view === "tags") {
@@ -911,7 +913,8 @@ function fitList(node, scroll) {
   const dock = dockH();
   const below = () => node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // Collapse, Add a track…
   const size = () => {
-    const h = Math.max(200, innerHeight - dock - GAP - list.getBoundingClientRect().top - below()) + "px";
+    const vh = window.visualViewport ? Math.min(innerHeight, visualViewport.height) : innerHeight; // iPhone: the part not under the browser bars
+    const h = Math.max(200, vh - dock - GAP - list.getBoundingClientRect().top - below()) + "px";
     list.style.maxHeight = h;
     if (node.classList.contains("tag-thread")) list.style.minHeight = h; // a playlist fills the screen even with few tracks
   };
@@ -1461,6 +1464,7 @@ const lockPlayerWidths = () => {
 /* a title too long for the player: click it and Autoplay and the Copy buttons step aside to make room
    (click again, or the next track, brings them back) */
 $("#nowTitle").onclick = () => {
+  if (phone()) return; // phone: the title is already shrunk to fit
   const t = $("#nowTitle"), d = $("#dock");
   if (d.classList.contains("wide") || t.scrollWidth > t.clientWidth + 1) d.classList.toggle("wide");
 };
@@ -1496,7 +1500,7 @@ function closeDock() {
   playing = null;
   setPlayState(false);
   markPlaying();
-  if (loaded) { idleDock(); return; }
+  if (loaded && !phone()) { idleDock(); return; } // phone: the × closes the video and the player together
   closeVol();
   $("#dock").hidden = true;
   syncDockSpace();
@@ -1505,7 +1509,7 @@ $("#closeBtn").onclick = closeDock;
 
 function syncDockSpace() {
   const d = $("#dock");
-  document.body.style.setProperty("--dock-h", d.hidden ? "0px" : d.offsetHeight + "px");
+  document.body.style.setProperty("--dock-h", d.hidden ? "0px" : dockH() + "px"); // the video beside the content doesn't count
   fitMix();
   document.querySelectorAll(".scroll-list.open").forEach((l) => { // an open box at the top ends above the player
     const th = l.closest(".thread"), top = th.getBoundingClientRect().top - headerBottom();

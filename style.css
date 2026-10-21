@@ -1038,7 +1038,7 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
    dotted like it, lit on hover. On a computer always one line (the filters get a little smaller if needed). */
 #resultInfo .sf, #resultInfo .sf .gi-n { font-size: 14px; color: var(--muted); }
 #resultInfo .result-n { font-size: 16px; color: var(--muted); }
-#resultInfo .sf.sf-order { font-size: 13px; }
+#resultInfo .sf.sf-order { font-size: 16px; }
 #resultInfo .sf { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 #resultInfo .sf .gi-n { margin-left: 4px; color: inherit; text-decoration: inherit; }
 #resultInfo .sf:hover { color: var(--text); }
@@ -1060,6 +1060,31 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
   #resultInfo:not([hidden]) { position: relative; }
   #resultInfo.two-rows .search-fields { position: absolute; right: 0; top: 50%; transform: translateY(-50%); flex-wrap: wrap; justify-content: flex-end; row-gap: 2px; column-gap: 10px; }
   /* "3 of 17" under the thumbnail, level with the middle of the tracks, like the date */
-  .thread.searching .mid-pos { position: absolute; z-index: 3; left: 8px; width: 160px; text-align: center; font-size: 13px; line-height: 18px; color: var(--muted); }
+  .thread.searching .mid-pos { position: absolute; z-index: 3; left: 0; width: 160px; text-align: right; font-size: 14px; line-height: 18px; color: var(--muted); } /* as far from the tracks as on the Tags page */
 }
 @media (max-width: 640px) { .mid-pos { display: none; } }
+
+/* History: no gap between the header and the sticky year line */
+.view-history { top: calc(var(--top-h, 60px) - 1px); box-shadow: 0 -2px 0 var(--bg); }
+/* phone History: years scroll sideways with a fade on the side where there are more */
+.hist-years.fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.hist-years.fade-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+.hist-years.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+@media (max-width: 640px) { .hist-months { gap: 0 12px; justify-content: space-between; } }
+
+/* the menu: whatever is under it fades out towards it, so the header stands apart from the page */
+.menu::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 36px; pointer-events: none;
+  background: linear-gradient(to bottom, var(--bg), transparent); }
+
+/* touch screens: a tapped button doesn't stay lit (iPhone keeps "hover" on the last thing tapped) */
+@media (hover: none) {
+  .more-toggle:hover { color: var(--muted); }
+  .more-toggle.on:hover, .gm-order .more-toggle.on { color: var(--text); }
+}
+/* no double-tap zoom (pinch zoom still works) */
+html, body { touch-action: manipulation; }
+
+/* phone, Tags: the pinned header of an expanded box reaches the box's dotted sides */
+@media (max-width: 640px) {
+  .tag-thread.expanded .tag-side { margin-left: -8px; margin-right: -8px; padding-left: 16px; padding-right: 16px; }
+}
