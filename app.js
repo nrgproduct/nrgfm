@@ -91,7 +91,7 @@ function haystack(t) {
       notes: j([t.notes]),
       tags: j(shownTags(t)),
       genres: j(x.g || []),
-      year: j([x.y]),
+      year: j([x.y, decadeOf(x.y)]),
       release: j(t.release || x.rl || []),
       uploader: j([m.author_name, channelArtist(m.author_name), m.wb_author, x.by]),
     };
@@ -270,7 +270,7 @@ function showWhy(row) {
     notes: () => "Notes: " + note(),
     tags: () => "Tags: " + shownTags(tr).filter(hit).join(", "),
     genres: () => "Genres: " + (x.g || []).filter(hit).join(", "),
-    year: () => "Year: " + x.y,
+    year: () => "Year: " + x.y + " (" + decadeOf(x.y) + ")",
     release: () => "Release: " + cut((tr.release || x.rl || []).filter(hit).join(", ")),
     uploader: () => "Uploader: " + ([m.author_name, m.wb_author, x.by].filter(Boolean).find(hit) || m.author_name || x.by),
   };
@@ -332,7 +332,9 @@ const SAME_GENRE = { "drum n bass": "drum and bass", "drum & bass": "drum and ba
   "dub step": "dubstep", "synthpop": "synth pop", "italodisco": "italo disco", "triphop": "trip hop", "kpop": "k pop", "jpop": "j pop", "electropop": "electro pop" };
 const sameGenre = (g) => { g = g.trim().toLowerCase().replace(/\s+/g, " "); g = SAME_GENRE[g] || g; g = g.replace(/\s*-\s*/g, " "); return SAME_GENRE[g] || g; };
 const NOT_GENRES = new Set(["broken link", "plays on youtube only"]); // housekeeping tags
-const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g))])]; };
+/* the decade of the earliest release year found: 1984 → "80s", 2004 → "2000s", 2014 → "2010s" */
+const decadeOf = (y) => { y = +y; if (!y) return ""; const d = Math.floor(y / 10) * 10; return d >= 1920 && d < 2000 ? String(d).slice(2) + "s" : d + "s"; };
+const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g)), decadeOf(x.y)].filter(Boolean))]; };
 function genreIndexAll() {
   if (gIndex) return gIndex;
   gIndex = new Map();
@@ -407,6 +409,7 @@ function genrePicker(keepFocus) {
   const box = el("div", { class: "gm-picker" + (gSel.length ? " picked" : "") }, el("span", { class: "tag-box gm-field" }, field, clear, drop),
     el("div", { class: "gm-pool-wrap" }, pool, moreArrow));
   if (keepFocus && !phone()) requestAnimationFrame(() => input.focus()); // (phone: no keyboard popping up again)
+  requestAnimationFrame(() => (field.scrollLeft = field.scrollWidth)); // the last genre picked stays in view
   requestAnimationFrame(() => fitMix());
   return box;
 }
@@ -426,19 +429,20 @@ function genreMixNode(t) {
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
-          el("span", { class: "gm-names" }, gSel.flatMap((g, k) => [k ? el("span", { class: "gm-and" }, "&") : null, el("span", { class: "gm-name" }, g)])),
+          el("span", { class: "gm-names" }, gSel.map((g) => el("span", { class: "gm-name" }, g))),
           el("span", { class: "tag-count gm-n" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
         el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added"))),
       list));
-  requestAnimationFrame(() => { fitMix(node); updateFade(list); });
+  requestAnimationFrame(() => { fitMix(node); fitNames(node); updateFade(list); });
   return node;
 }
 /* each "+ genre" line scaled to fill the width: short names big, long ones small */
+/* a genre name too long for the side of the playlist box gets smaller until it fits on one line */
 function fitNames(node) {
   node.querySelectorAll(".gm-name").forEach((n) => {
-    n.style.fontSize = "40px";
-    const w = n.parentElement.clientWidth, nat = n.scrollWidth;
-    n.style.fontSize = Math.max(12, Math.min(64, 40 * w / Math.max(1, nat))) + "px";
+    n.style.fontSize = "";
+    const w = n.parentElement.clientWidth, nat = n.scrollWidth, base = parseFloat(getComputedStyle(n).fontSize);
+    if (nat > w) n.style.fontSize = Math.max(9, Math.floor(base * w / nat * 10) / 10) + "px";
   });
 }
 /* the playlist box reaches down to the bottom of the window (or the player) and no further */
@@ -463,14 +467,16 @@ function fitMix(node = document.getElementById("th-genre-mix")) {
   list.style.height = "";
   const frame = node.getBoundingClientRect().height - list.getBoundingClientRect().height; // the box around the list
   const gap = node.getBoundingClientRect().top - pool.getBoundingClientRect().bottom;
-  const listNeed = list.scrollHeight + frame, poolNeed = pool.scrollHeight;
-  const listH = Math.min(listNeed, Math.max(avail / 2, avail - poolNeed - gap)); // half the window at least, if it needs it
+  const poolNeed = pool.scrollHeight, row = list.querySelector(".track")?.offsetHeight || 56;
+  // the box has one size: half the window plus two tracks (on a phone it reaches down to the bottom)
+  const fixed = Math.min(avail - 60 - gap, avail / 2 + 2 * row);
+  const listH = phone() ? Math.max(fixed, avail - poolNeed - gap) : fixed;
   const poolH = Math.min(poolNeed, avail - listH - gap);
   if (poolH < poolNeed) { pool.style.height = Math.max(60, poolH) + "px"; pool.parentElement.classList.add("scrolls"); }
   pool.parentElement.querySelector(".gm-more").hidden = !(poolH < poolNeed) || pool.scrollTop + pool.clientHeight >= pool.scrollHeight - 4;
   const below = node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // the box's edge under the list
   const room = innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - below - 12;
-  list.style.height = Math.max(120, Math.min(list.scrollHeight, room)) + "px";
+  list.style.height = Math.max(120, phone() ? room : Math.min(listH - frame, room)) + "px";
   const over = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) - innerHeight;
   if (over > 0) list.style.height = Math.max(120, list.getBoundingClientRect().height - over) + "px"; // the page itself doesn't scroll
 }
@@ -754,7 +760,7 @@ function setActive(id, clickedK) {
     if (fresh) fitList(fresh);
     const row = x === id && clickedK && fresh && fresh.querySelector(`.scroll-list [data-k="${CSS.escape(clickedK)}"]`);
     if (row) { const box = row.closest(".scroll-list"); if (row.offsetTop < box.scrollTop || row.offsetTop + row.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = row.offsetTop; }
-  }
+  }  requestAnimationFrame(fadeAll); // the fades come back when a result is unselected again
 }
 const selectable = (th) => !th.classList.contains("genre-mix") && (th.querySelector(".scroll-list") || (th.classList.contains("searching") && th.querySelector(".tracks")));
 document.addEventListener("click", (e) => {
@@ -1115,13 +1121,13 @@ function makeYouTube(tr) {
     controllable: true,
     play: () => yt.player && yt.player.playVideo(), pause: () => yt.player && yt.player.pauseVideo(),
     seek: (s) => yt.player && yt.player.seekTo(s, true),
-    setVolume: (v) => { if (yt.ready) { yt.player.setVolume(v); if (v > 0) yt.player.unMute(); } },
+    setVolume: (v) => { if (yt.ready) { yt.player.setVolume(v); v > 0 ? yt.player.unMute() : yt.player.mute(); } },
     destroy: () => { yt.active = false; try { yt.ready && yt.player.pauseVideo(); } catch {} ytSlot().hidden = true; },
   };
   if (yt.ready) {
     // load straight away, inside the click, so the browser still counts it as the person's action
     yt.player.loadVideoById(tr.yt);
-    try { yt.player.setVolume(volume); } catch {}
+    try { yt.player.setVolume(volume); volume ? yt.player.unMute() : yt.player.mute(); } catch {}
     a.ready = Promise.resolve();
     return a;
   }
@@ -1136,7 +1142,7 @@ function makeYouTube(tr) {
       events: {
         onReady: () => {
           yt.ready = true;
-          try { yt.player.setVolume(volume); } catch {}
+          try { yt.player.setVolume(volume); if (!volume) yt.player.mute(); } catch {}
           const vid = yt.player.getVideoData && yt.player.getVideoData().video_id;
           if (yt.pending && vid !== yt.pending) yt.player.loadVideoById(yt.pending);
           yt.timer = setInterval(() => { if (yt.active && yt.player.getCurrentTime) events.time(yt.player.getCurrentTime(), yt.player.getDuration()); }, 250);
@@ -1209,7 +1215,8 @@ function play(t, i) {
   if (adapter) adapter.destroy();
   adapter = null;
   const box = $("#otherSlot"); box.replaceChildren();
-  const dock = $("#dock"); dock.hidden = false;
+  const dock = $("#dock"); dock.hidden = false; dock.classList.remove("idle");
+  $("#infoBtn").disabled = $("#copyBtn").disabled = false;
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
   $("#dock").classList.remove("wide"); // a new track: the buttons come back
@@ -1392,15 +1399,32 @@ $("#autoBtn").onclick = () => {
 
 
 /* keep the end of the list reachable above the dock */
+/* The × first unloads the track (the video goes, the bar stays, empty); pressed again on the empty bar it closes
+   the bar. On a computer the empty bar is there from the start, so the volume can be set before anything plays. */
+function idleDock() {
+  const d = $("#dock");
+  d.hidden = false; d.classList.add("idle"); d.classList.remove("wide", "no-transport");
+  $("#media").dataset.kind = "";
+  $("#nowTitle").textContent = ""; closeThread();
+  setPlayState(false); setTime(0, 0);
+  for (const b of ["#prevBtn", "#playBtn", "#nextBtn", "#seek", "#infoBtn", "#copyBtn"]) $(b).disabled = true;
+  $("#volBtn").disabled = false;
+  if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
+  syncDockSpace();
+}
 function closeDock() {
+  const loaded = !!playing;
   try { adapter && adapter.pause(); } catch {}
   if (adapter) adapter.destroy();
   adapter = null;
+  ytSlot().hidden = true;
   $("#otherSlot").replaceChildren();
   playing = null;
   setPlayState(false);
-  $("#dock").hidden = true;
   markPlaying();
+  if (loaded) { idleDock(); return; }
+  closeVol();
+  $("#dock").hidden = true;
   syncDockSpace();
 }
 $("#closeBtn").onclick = closeDock;
@@ -2220,6 +2244,7 @@ $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView(
   if (gq) gSel = gq[1].split(",").map(decodeURIComponent).filter(Boolean);
   document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   document.body.dataset.view = view;
+  if (!phone()) idleDock(); // the empty player bar is there from the start on a computer
   runSearch();
   watchHistory();
   checkSetupHash();
