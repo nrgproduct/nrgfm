@@ -409,7 +409,9 @@ function genrePicker(keepFocus) {
   clear.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
   const box = el("div", { class: "gm-picker" + (gSel.length ? " picked" : "") }, el("span", { class: "tag-box gm-field" }, field, clear, drop),
     el("div", { class: "gm-pool-wrap" }, pool, moreArrow));
-  if (keepFocus && !phone()) requestAnimationFrame(() => input.focus()); // (phone: no keyboard popping up again)
+  // (phone: no keyboard popping up again; and never taken from the search bar or another field the person is in)
+  const busy = () => { const a = document.activeElement; return a && a.matches("input, textarea") && !a.closest(".gm-picker"); };
+  if (keepFocus && !phone() && !busy()) requestAnimationFrame(() => { if (!busy()) input.focus(); });
   requestAnimationFrame(() => (field.scrollLeft = field.scrollWidth)); // the last genre picked stays in view
   requestAnimationFrame(() => fitMix());
   return box;
@@ -426,7 +428,14 @@ function genreMixNode(t) {
     drawn += more.length; list.append(...more); markPlaying();
   }, { passive: true });
   list.addEventListener("scroll", () => updateListPos(list.closest(".thread")), { passive: true }); // "3 of 8" follows the scrolling
-  const order = (o, label) => el("button", { class: "more-toggle" + (o === "date" && gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
+  // only the playlist is redrawn (the genre field above is left alone); Date added pressed again goes back to shuffled
+  const order = (o, label) => el("button", { class: "more-toggle" + (o === "date" && gOrder === o ? " on" : ""), onclick: () => {
+    gOrder = o === "date" && gOrder === "date" ? "shuffle" : o;
+    const mix = genreMix(true), old = document.getElementById("th-genre-mix");
+    shown = [{ t: mix, hits: null }];
+    if (old) old.replaceWith(genreMixNode(mix));
+    if (playing && playing.thread.mix) markPlaying();
+  } }, label);
   const node = el("li", { class: "thread tag-thread framed genre-mix", id: "th-" + t.id },
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
@@ -950,6 +959,12 @@ function tagThreadNode({ t, hits }) {
 
 /* Search results: the hits next to each other, padded with the tracks around them to 5 replies.
    More than 5 hits: all hits, no padding. Returns reply indices (1 = first reply). */
+/* the small arrow saying there are more tracks (as under the genres on the Genres page) */
+function moreArrow() {
+  const a = el("span", { class: "more-arrow", "aria-hidden": "true" });
+  a.innerHTML = '<svg viewBox="0 0 16 10"><path d="M2 2l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+  return a;
+}
 function searchRows(t, hits) {
   const n = t.tracks.length, found = [...hits].filter((i) => i > 0).sort((x, y) => x - y);
   if (found.length > SEARCH_AROUND) return found;
@@ -1004,7 +1019,7 @@ function threadNode({ t, hits }) {
   if (hits && !mobile) {
     // laptop search: "175 tracks" under the tracks, centred, shows the whole thread (no Collapse)
     if (searching) foot = el("div", { class: "search-foot" }, el("span", {}),
-      btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}));
+      btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}), moreArrow());
     else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
@@ -1386,15 +1401,20 @@ $("#volBtn").onclick = (e) => {
   $("#volWrap").classList.toggle("open", open); $("#volBtn").setAttribute("aria-expanded", open ? "true" : "false");
 };
 $("#volPop").addEventListener("click", (e) => e.stopPropagation());
-/* computer: resting the pointer on the volume opens the slider; opened that way it closes 5 s after it was last touched */
+/* computer: resting the pointer on the volume opens the slider. Opened that way, it stays open while the pointer
+   is on the volume or the slider and closes 0.5 s after the pointer leaves them (Nielsen Norman Group's advice for
+   content shown on hover: wait about 0.5 s after the pointer leaves, so a slightly wobbly move doesn't close it). */
 if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
   let volTimer = 0, byHover = false;
-  const arm = () => { if (!byHover) return; clearTimeout(volTimer); volTimer = setTimeout(() => { byHover = false; closeVol(); }, 5000); };
-  $("#volBtn").addEventListener("mouseenter", () => {
-    if ($("#volBtn").disabled || $("#volWrap").classList.contains("open")) return arm();
-    byHover = true; $("#volWrap").classList.add("open"); $("#volBtn").setAttribute("aria-expanded", "true"); arm();
+  const wrap = $("#volWrap");
+  wrap.addEventListener("mouseenter", () => {
+    clearTimeout(volTimer);
+    if ($("#volBtn").disabled || wrap.classList.contains("open")) return;
+    byHover = true; wrap.classList.add("open"); $("#volBtn").setAttribute("aria-expanded", "true");
   });
-  for (const ev of ["mousemove", "input", "wheel", "pointerdown"]) $("#volWrap").addEventListener(ev, arm, { passive: true });
+  const later = () => { clearTimeout(volTimer); volTimer = setTimeout(() => { byHover = false; closeVol(); }, 500); };
+  wrap.addEventListener("mouseleave", (e) => { if (byHover && wrap.classList.contains("open") && !e.buttons) later(); }); // not while dragging the slider
+  document.addEventListener("mouseup", (e) => { if (byHover && wrap.classList.contains("open") && !wrap.contains(e.target) && !wrap.matches(":hover")) later(); });
   $("#volBtn").addEventListener("click", (e) => { // a click while it is open from hovering keeps it open (no timer)
     if (!byHover) return;
     byHover = false; clearTimeout(volTimer); e.stopImmediatePropagation();

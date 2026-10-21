@@ -1034,3 +1034,8 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 @media (max-width: 640px) { .genre-mix .gm-order .more-pos { display: none; } }
 /* Genres page: the genre field as far under the header as the first box on the Tags page */
 body[data-view="genres"] .gm-picker { margin-top: -6px; }
+
+/* search results: the "more tracks" arrow at the bottom of the track box, above "N tracks" */
+.search-foot { position: relative; }
+.search-foot .more-arrow { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); color: var(--muted); pointer-events: none; line-height: 0; }
+.search-foot .more-arrow svg { width: 16px; height: 10px; }
