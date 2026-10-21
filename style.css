@@ -985,11 +985,6 @@ body:not(.can-add) #flagBtn { display: none; }
 .gm-names { gap: 4px; }
 .gm-name { white-space: nowrap; overflow: hidden; max-width: 100%; overflow-wrap: normal; }
 
-/* search results: a long fade at the bottom that runs out where the "N tracks" button sits, a slightly longer one at the top */
-.thread.searching .tracks.fade-down { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 84px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 84px), transparent); }
-.thread.searching .tracks.fade-up { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to top, #000 calc(100% - 48px), transparent); }
-.thread.searching .tracks.fade-up.fade-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 48px, #000 calc(100% - 84px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 48px, #000 calc(100% - 84px), transparent); }
-.thread.searching .tracks.fade-down + .search-foot { margin-top: -26px; position: relative; }
 
 /* the Genres playlist scrolls by touch too (it is never "selected" like other boxes) */
 .genre-mix .scroll-list.gm-list { overflow-y: auto !important; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -1003,3 +998,7 @@ body:not(.can-add) #flagBtn { display: none; }
   .genre-mix .gm-order .more-toggle { font-size: 13px; height: auto; padding: 2px 0; }
 }
 @media (max-width: 640px) { .genre-mix .tag-label { padding-left: 8px; } }
+
+/* search filters: names in capitals, so letters and numbers are the same height */
+.sf:not(.sf-order) { text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+.sf:not(.sf-order) .gi-n { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }

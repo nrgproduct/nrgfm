@@ -471,8 +471,9 @@ function fitMix(node = document.getElementById("th-genre-mix")) {
   // the box has one size: half the window plus two tracks (on a phone it reaches down to the bottom)
   const fixed = Math.min(avail - 60 - gap, avail / 2 + 2 * row);
   const listH = phone() ? Math.max(fixed, avail - poolNeed - gap) : fixed;
-  const poolH = Math.min(poolNeed, avail - listH - gap);
-  if (poolH < poolNeed) { pool.style.height = Math.max(60, poolH) + "px"; pool.parentElement.classList.add("scrolls"); }
+  const poolH = phone() ? Math.min(poolNeed, avail - listH - gap) : avail - listH - gap; // computer: the genres area keeps its height, so the box stays put
+  pool.style.height = phone() && poolH >= poolNeed ? "" : Math.max(60, poolH) + "px";
+  if (poolH < poolNeed) pool.parentElement.classList.add("scrolls");
   pool.parentElement.querySelector(".gm-more").hidden = !(poolH < poolNeed) || pool.scrollTop + pool.clientHeight >= pool.scrollHeight - 4;
   const below = node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // the box's edge under the list
   const room = innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - below - 12;
@@ -493,6 +494,7 @@ function updateFade(list) {
     const n = th ? shown.find((x) => "th-" + x.t.id === th.id)?.t.tracks.length || 0 : 0;
     up = ks.length && ks[0] > 1; down = ks.length && ks[ks.length - 1] < n - 1;
   }
+  if (list.closest(".thread.searching")) up = false; // search results: only the fade at the bottom
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
@@ -547,7 +549,7 @@ function drawViewHead() {
   const head = $("#viewHead");
   head.className = "view-head view-" + view;
   if (view === "genres") {
-    head.replaceChildren(genrePicker());
+    head.replaceChildren(genrePicker(true)); // on a computer the cursor waits in the genre field
   } else if (view === "genreboxes") {
     const items = shown.map((x) => x.t);
     head.replaceChildren(
@@ -1664,7 +1666,7 @@ function moreInfo(tr, edit, tags) {
     const chips = () => sug.replaceChildren(
       el("span", { class: "af-label" }, "Suggested genres"),
       ...(x.g && x.g.length
-        ? x.g.map((g) => tags.has(g) ? null : el("button", { type: "button", class: "tag-chip suggest", title: "Use as a tag", onclick: () => { tags.use(g); chips(); } }, "+ " + g))
+        ? x.g.map((g) => tags.has(g) ? null : el("button", { type: "button", class: "tag-chip suggest", onclick: () => { tags.use(g); chips(); } }, "+ " + g))
         : [el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")]).filter(Boolean));
     chips();
     box.append(sug,
@@ -1672,7 +1674,7 @@ function moreInfo(tr, edit, tags) {
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
         el("span", {}, x.y ? String(x.y) : el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")),
         x.ys && x.ys.length ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null,
-        x.src ? el("span", { class: "hint" }, "from " + x.src.split("+").join(", ")) : null));
+        x.src ? el("span", { class: "hint" }, "from " + x.src.split("+").join(", ") + (x.conf ? ", " + x.conf + " confidence" : "")) : null));
     // Meta: uploader and upload date; inside it, Description
     const descBox = el("div", { class: "af-desc", hidden: true });
     const descBtn = el("button", { type: "button", class: "thread-btn", onclick: async () => {
@@ -2199,7 +2201,7 @@ document.addEventListener("keydown", (e) => {
 /* ---------- boot ---------- */
 let timer;
 function syncClear() { $("#clearQ").hidden = !$("#q").value; }
-$("#q").addEventListener("input", () => { syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 70); });
+$("#q").addEventListener("input", () => { if (!$("#menu").hidden) toggleMenu(false); syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 70); });
 $("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if (phone()) $("#q").blur(); else $("#q").focus(); };
 // phones: Enter, or touching anywhere outside the search field, puts the keyboard away
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
@@ -2217,14 +2219,26 @@ if (HOVER_MENU) {
 }
 $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
 
+/* Gemini's decision (from what the lookups found, or its own web search) replaces the lookups' suggested
+   release, year and genres; the years the lookups found stay as "also" */
+function withGemini(x, ai) {
+  for (const [u, a] of Object.entries(ai || {})) {
+    const o = x[u] || {};
+    const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);
+    x[u] = { ...o, g: a.g || [], gm: [...new Set((a.g || []).map(sameGenre))], y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
+      src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " from " + o.src : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
+  }
+  return x;
+}
 (async function boot() {
   try {
-    const [d, m, x] = await Promise.all([
+    const [d, m, x, ai] = await Promise.all([
       fetch("data/tracks.json", { cache: "no-cache" }).then((r) => r.json()),
       fetch("data/meta.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
       fetch("data/extra.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      fetch("data/ai.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
-    threads = d.threads; meta = m; extra = x;
+    threads = d.threads; meta = m; extra = withGemini(x, ai);
     threads.push(...makeTagThreads());
     sortThreads();
   } catch (e) {

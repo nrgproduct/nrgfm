@@ -1,0 +1,242 @@
+"""Gemini decides the suggested release, year and genres for each track (runs on GitHub Actions, in batches).
+
+For tracks where MusicBrainz, Discogs or the YouTube/Vimeo/SoundCloud description found something, Gemini
+weighs those findings (they are often wrong matches: a cover, a remix, another song with the same name) and
+picks the original release, its year and the genres. For tracks where nothing was found, Gemini looks the
+track up itself with Google Search.
+
+Writes data/ai.json, keyed by link:
+  {"rl": "release", "y": 1984, "g": ["genre", ...], "how": "sources" | "search", "conf": "high|medium|low",
+   "m": model, "in": fingerprint of what it was given (a track is asked again when that changes)}
+and data/gemini-status.json (whether it ran, how many, or why it stopped).
+
+The site uses these in place of the other sources' suggestions; a release you set by hand still wins.
+Needs the repository secret GEMINI_API_KEY. Usage: python3 scripts/gemini.py [max_tracks] [max_minutes]"""
+import hashlib, json, os, re, sys, time, urllib.error, urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(ROOT, "data")
+MAX = int(sys.argv[1]) if len(sys.argv) > 1 else 400
+MINUTES = float(sys.argv[2]) if len(sys.argv) > 2 else 50
+KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+MODEL = os.environ.get("GEMINI_MODEL", "").strip()
+API = "https://generativelanguage.googleapis.com/v1beta/"
+VERSION = 1
+PER_CALL = {"sources": 20, "search": 4}  # tracks per request
+PAUSE = 7  # seconds between requests (the free tier allows only a few per minute)
+START = time.time()
+
+
+def call(path, body=None):
+    req = urllib.request.Request(API + path, data=json.dumps(body).encode() if body is not None else None,
+                                 headers={"Content-Type": "application/json", "x-goog-api-key": KEY})
+    with urllib.request.urlopen(req, timeout=180) as r:
+        return json.load(r)
+
+
+def why(e):
+    """Google's reason for a failed request (the key itself is never printed)."""
+    try:
+        return f"HTTP {e.code} " + json.load(e).get("error", {}).get("message", "")[:200]
+    except Exception:  # noqa: BLE001
+        return f"HTTP {getattr(e, 'code', '')}"
+
+
+def pick_model():
+    """The newest stable Flash model this key can use (or GEMINI_MODEL if set)."""
+    if MODEL:
+        return MODEL
+    names = []
+    page = ""
+    while True:
+        d = call("models?pageSize=200" + (f"&pageToken={page}" if page else ""))
+        for m in d.get("models", []):
+            n = m["name"].split("/")[-1]
+            if "generateContent" in m.get("supportedGenerationMethods", []) and re.fullmatch(r"gemini-\d+(\.\d+)?-flash", n):
+                names.append(n)
+        page = d.get("nextPageToken")
+        if not page:
+            break
+    if not names:
+        raise SystemExit("no Gemini Flash model available for this key")
+    return max(names, key=lambda n: float(re.search(r"\d+(\.\d+)?", n).group()))
+
+
+def title_of(tr, meta):
+    m = meta.get(tr["url"], {})
+    return tr.get("title") or m.get("title") or m.get("wb_title") or ""
+
+
+def facts(tr, meta, extra, desc):
+    """What Gemini is told about one track."""
+    u, m, x = tr["url"], meta.get(tr["url"], {}), extra.get(tr["url"], {})
+    f = {"title": title_of(tr, meta), "uploader": x.get("by") or m.get("author_name") or m.get("wb_author") or "",
+         "uploaded": x.get("up") or "", "site": tr.get("platform", "")}
+    tags = [t for t in (tr.get("tags") or {}) if t not in ("flagged", "broken link", "plays on youtube only")] if isinstance(tr.get("tags"), dict) else list(tr.get("tags") or [])
+    if tags:
+        f["group_tags"] = tags
+    found = {}
+    if x.get("rl"):
+        found["releases"] = x["rl"][:8]
+    if x.get("y"):
+        found["years"] = [x["y"]] + [y for y in (x.get("ys") or []) if y != x["y"]][:6]
+    if x.get("g"):
+        found["genres"] = x["g"][:15]
+    if found:
+        found["from"] = x.get("src") or ""
+        f["found"] = found
+    d = (desc.get(u) or "").strip()
+    if d:
+        f["description"] = d[:700]
+    return f
+
+
+def has_sources(f):
+    return bool(f.get("found")) or bool(f.get("description"))
+
+
+PROMPT = """You help a music-sharing group catalogue the tracks people posted (mostly YouTube links).
+For each track below, decide:
+- "rl": the name of the ORIGINAL release (album, single or EP) the recording first came out on, or "" if unknown
+- "y": the year that release first came out (a number), or null if unknown. The original, not a reissue,
+  remaster, compilation or upload year. A remix or edit counts from when that remix or edit came out.
+- "g": 1 to 5 genres, lowercase, most fitting first. Prefer names from this list when one fits:
+  {vocab}
+- "conf": "high", "medium" or "low": how sure you are.
+{how}
+Answer with JSON only, no other text: an array with one object per track, in the same order, each
+{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "conf": ...}}.
+
+Tracks:
+{tracks}"""
+HOW = {
+    "sources": """Use the "found" data (from MusicBrainz, Discogs and the video description) and your own knowledge.
+The found data is often a wrong match: another song with the same name, a cover, a later compilation.
+Ignore what doesn't fit the title and uploader. Don't guess: leave a field empty when you aren't fairly sure.""",
+    "search": """Nothing was found about these tracks automatically. Look each one up with Google Search
+(Discogs, MusicBrainz, Bandcamp, Wikipedia and the artist's pages are good sources).
+Don't guess: leave a field empty when you can't find it.""",
+}
+
+
+def ask(model, how, batch, vocab):
+    tracks = "\n".join(json.dumps({"i": k, **f}, ensure_ascii=False) for k, (_, f) in enumerate(batch))
+    body = {"contents": [{"role": "user", "parts": [{"text": PROMPT.format(vocab=", ".join(vocab), how=HOW[how], tracks=tracks)}]}],
+            "generationConfig": {"temperature": 0.2}}
+    if how == "search":
+        body["tools"] = [{"google_search": {}}]
+    else:
+        body["generationConfig"]["responseMimeType"] = "application/json"
+    d = call(f"models/{model}:generateContent", body)
+    text = "".join(p.get("text", "") for c in d.get("candidates", [])[:1] for p in c.get("content", {}).get("parts", []))
+    s, e = text.find("["), text.rfind("]")
+    if s < 0 or e < s:
+        raise ValueError("no JSON in the answer: " + text[:200])
+    return json.loads(text[s:e + 1])
+
+
+def clean_answer(a):
+    y = a.get("y")
+    try:
+        y = int(str(y)[:4]) if y else None
+    except ValueError:
+        y = None
+    if y and not 1900 <= y <= time.gmtime().tm_year:
+        y = None
+    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:5]
+    rl = str(a.get("rl") or "").strip()[:200]
+    conf = a.get("conf") if a.get("conf") in ("high", "medium", "low") else "low"
+    return {"rl": rl, "y": y, "g": g, "conf": conf}
+
+
+def main():
+    tracks = json.load(open(os.path.join(DATA, "tracks.json"), encoding="utf-8"))
+    meta = json.load(open(os.path.join(DATA, "meta.json"), encoding="utf-8"))
+    extra = json.load(open(os.path.join(DATA, "extra.json"), encoding="utf-8"))
+    dp = os.path.join(DATA, "descriptions.json")
+    desc = json.load(open(dp, encoding="utf-8")) if os.path.exists(dp) else {}
+    ai_p = os.path.join(DATA, "ai.json")
+    ai = json.load(open(ai_p, encoding="utf-8")) if os.path.exists(ai_p) else {}
+    status = {"date": time.strftime("%Y-%m-%d %H:%M", time.gmtime()), "asked": 0, "done": len(ai)}
+
+    def save():
+        json.dump(ai, open(ai_p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+        status["done"] = len(ai)
+        json.dump(status, open(os.path.join(DATA, "gemini-status.json"), "w", encoding="utf-8"), indent=1)
+
+    if not KEY:
+        status["state"] = "off (no GEMINI_API_KEY secret)"
+        return save()
+
+    # the genres already in use, most used first: Gemini picks from these when one fits
+    count = {}
+    for x in extra.values():
+        for g in x.get("gm") or x.get("g") or []:
+            count[g] = count.get(g, 0) + 1
+    vocab = [g for g, _ in sorted(count.items(), key=lambda kv: -kv[1])][:250]
+
+    todo = {"sources": [], "search": []}
+    seen = set()
+    for th in tracks["threads"]:
+        for tr in th["tracks"]:
+            u = tr["url"]
+            if u in seen or meta.get(u, {}).get("dead") and not title_of(tr, meta):
+                continue
+            seen.add(u)
+            f = facts(tr, meta, extra, desc)
+            if not f["title"]:
+                continue
+            fp = hashlib.sha1(json.dumps(f, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:10]
+            if ai.get(u, {}).get("in") == fp and ai[u].get("v") == VERSION:
+                continue
+            todo["sources" if has_sources(f) else "search"].append((u, f, fp))
+    print("to ask:", len(todo["sources"]), "with sources,", len(todo["search"]), "to look up")
+
+    try:
+        model = pick_model()
+    except urllib.error.HTTPError as e:
+        status["state"] = "error: " + why(e)
+        return save()
+    status["model"] = model
+    print("model", model)
+
+    left = MAX
+    status["state"] = "ok"
+    for how in ("sources", "search"):
+        items = todo[how]
+        for i in range(0, len(items), PER_CALL[how]):
+            if left <= 0 or time.time() - START > MINUTES * 60:
+                status["state"] = "ok (stopped for this run, continues next run)"
+                return save()
+            batch = [(u, f) for u, f, _ in items[i:i + PER_CALL[how]]]
+            fps = {u: fp for u, _, fp in items[i:i + PER_CALL[how]]}
+            try:
+                answers = ask(model, how, batch, vocab)
+            except urllib.error.HTTPError as e:
+                status["state"] = "error: " + why(e)
+                print(status["state"])
+                if e.code in (429, 403, 400, 401):  # out of quota today, or the key/model isn't allowed: stop
+                    return save()
+                time.sleep(30)
+                continue
+            except Exception as e:  # noqa: BLE001
+                print("skipped a batch:", type(e).__name__, str(e)[:200])
+                time.sleep(PAUSE)
+                continue
+            for a in answers if isinstance(answers, list) else []:
+                k = a.get("i") if isinstance(a, dict) else None
+                if not isinstance(k, int) or not 0 <= k < len(batch):
+                    continue
+                u = batch[k][0]
+                ai[u] = {**clean_answer(a), "how": how, "m": model, "in": fps[u], "v": VERSION}
+            status["asked"] += len(batch)
+            left -= len(batch)
+            print(how, status["asked"], "asked")
+            if status["asked"] % 100 < PER_CALL[how]:
+                save()
+            time.sleep(PAUSE)
+    save()
+
+
+if __name__ == "__main__":
+    main()
