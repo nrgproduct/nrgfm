@@ -36,6 +36,8 @@ jobs:
         run: python3 scripts/ingest_inbox.py
       - name: Fetch missing titles
         run: python3 scripts/fetch_meta.py
+      - name: Automatic tags (duplicate, +10 min / +30 min / +1 hour)
+        run: python3 scripts/auto_tags.py
       - name: Commit changes
         run: |
           git config user.name "nrgproduct"
@@ -50,6 +52,7 @@ jobs:
             git fetch origin main && git reset --hard origin/main
             python3 scripts/ingest_inbox.py
             python3 scripts/fetch_meta.py
+            python3 scripts/auto_tags.py
             git add -A data inbox
             git diff --cached --quiet && exit 0
             git commit -m "Update tracks and titles"

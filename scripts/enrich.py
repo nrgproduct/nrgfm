@@ -2,6 +2,7 @@
 
 Writes two files, keyed by link:
   data/extra.json         {"g": [suggested genres], "y": suggested year, "by": uploader, "up": upload date,
+                           "d": length in seconds, "ar": suggested artist,
                            "src": where the suggestion came from, "chk": when it was looked up}
   data/descriptions.json  {"<link>": "<full description of the video>"}   (loaded by the site only on request)
 
@@ -98,7 +99,8 @@ def musicbrainz_once(artist, title):
         for rel in r.get("releases", []) or []:
             if rel.get("title"):
                 rels.append((year_of(rel.get("date")) or 9999, rel["title"]))
-    return {"y": min(years) if years else None, "ys": years, "rl": rels,
+    credit = "".join(c.get("name", "") + c.get("joinphrase", "") for c in (good[0].get("artist-credit") or []))
+    return {"y": min(years) if years else None, "ys": years, "rl": rels, "ar": credit.strip() or None,
             "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
 
 
@@ -222,7 +224,7 @@ def oembed_details(tr):
     try:
         if p == "vimeo":
             d = get_json("https://vimeo.com/api/oembed.json?url=" + urllib.parse.quote(u, safe=""))
-            return {"by": d.get("author_name"), "up": (d.get("upload_date") or "")[:10] or None}, d.get("description")
+            return {"by": d.get("author_name"), "up": (d.get("upload_date") or "")[:10] or None, "d": d.get("duration")}, d.get("description")
         if p == "soundcloud":
             d = get_json("https://soundcloud.com/oembed?format=json&url=" + urllib.parse.quote(u, safe=""))
             return {"by": d.get("author_name")}, d.get("description")
@@ -231,13 +233,22 @@ def oembed_details(tr):
     return {}, None
 
 
+def iso_seconds(s):
+    """"PT1H2M3S" → 3723 (the length of a YouTube video)"""
+    m = re.fullmatch(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", s or "")
+    if not m:
+        return None
+    dd, h, mi, se = (int(x or 0) for x in m.groups())
+    return dd * 86400 + h * 3600 + mi * 60 + se or None
+
+
 def youtube_details(ids):
     """{video id: ({by, up}, description)} for up to 50 ids at a time (needs YT_API_KEY)."""
     out = {}
     if not YTKEY or not ids:
         return out
     for i in range(0, len(ids), 50):
-        q = urllib.parse.urlencode({"part": "snippet", "id": ",".join(ids[i:i + 50]), "key": YTKEY, "maxResults": 50})
+        q = urllib.parse.urlencode({"part": "snippet,contentDetails", "id": ",".join(ids[i:i + 50]), "key": YTKEY, "maxResults": 50})
         try:
             d = get_json("https://www.googleapis.com/youtube/v3/videos?" + q)
         except urllib.error.HTTPError as e:
@@ -254,7 +265,8 @@ def youtube_details(ids):
             return out
         for it in d.get("items", []):
             sn = it.get("snippet", {})
-            out[it["id"]] = ({"by": sn.get("channelTitle"), "up": (sn.get("publishedAt") or "")[:10] or None}, sn.get("description"))
+            out[it["id"]] = ({"by": sn.get("channelTitle"), "up": (sn.get("publishedAt") or "")[:10] or None,
+                              "d": iso_seconds((it.get("contentDetails") or {}).get("duration"))}, sn.get("description"))
     return out
 
 
@@ -272,7 +284,12 @@ def main():
                 continue
             seen.add(u)
             e = extra.get(u, {})
-            if e.get("v") != VERSION or (YTKEY and tr["platform"] == "youtube" and "ytchk" not in e):
+            if not e.get("ar"):  # suggested artist: from the "Artist - Title" title until a lookup says better
+                at0 = artist_title(tr, meta)
+                if at0 and at0[0]:
+                    e["ar"] = at0[0]
+                    extra[u] = e
+            if e.get("v") != VERSION or (YTKEY and tr["platform"] == "youtube" and e.get("ytv", 0) < 2):  # ytv 2: with the length
                 todo.append(tr)
     todo = todo[:MAX]
     print("to look up", len(todo), "| discogs", "on" if DISCOGS else "off", "| youtube", "on" if YTKEY else "off")
@@ -291,7 +308,7 @@ def main():
         u = tr["url"]
         e = extra.get(u, {})
         if e.get("v") != VERSION:
-            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk")}  # look up again from scratch
+            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk", "ytv", "d", "ar")}  # look up again from scratch
             at = artist_title(tr, meta) if not meta.get(u, {}).get("dead") or tr.get("title") or meta.get(u, {}).get("wb_title") else None
             if at:
                 stats["parsed"] += 1
@@ -304,6 +321,8 @@ def main():
                     dg = discogs(*at)
                 except Exception as x:  # noqa: BLE001
                     print("discogs", type(x).__name__, x)
+                if mb and mb.get("ar"):
+                    e["ar"] = mb["ar"]  # the artist as MusicBrainz credits the recording
                 years = [y for r in (mb, dg) if r for y in r.get("ys", [])]
                 genres = []
                 for r in (dg, mb):
@@ -356,6 +375,7 @@ def main():
                         e["src"] = "+".join(x for x in (e.get("src"), "youtube") if x)
         if YTKEY and not YT_ERR and tr["platform"] == "youtube":
             e["ytchk"] = int(time.time())
+            e["ytv"] = 2
         extra[u] = e
         done += 1
         if done % 100 == 0:

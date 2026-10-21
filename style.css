@@ -1129,3 +1129,10 @@ html, body { touch-action: manipulation; }
 /* search results: no fades, no counter */
 .thread.searching .tracks.fade-up, .thread.searching .tracks.fade-down { -webkit-mask-image: none !important; mask-image: none !important; }
 .thread.searching .mid-pos { display: none !important; }
+.af-meta-line { display: flex; align-items: baseline; gap: 22px; flex-wrap: wrap; font-size: 14px; }
+
+/* search filters: grey as at first; switched off fainter; hovering shows the dotted line (no colour change) */
+#resultInfo .search-fields .sf, #resultInfo .search-fields .sf.off:hover { color: var(--muted) !important; }
+#resultInfo .search-fields .sf.off { opacity: .45; }
+#resultInfo .search-fields .sf:hover { text-decoration: underline dotted !important; text-decoration-thickness: 1px !important; text-underline-offset: 3px !important; }
+#resultInfo .search-fields .sf.off:hover { opacity: .7; }

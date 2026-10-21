@@ -1352,7 +1352,9 @@ seekEl.addEventListener("input", () => {
   $("#tCur").textContent = fmtTime(+seekEl.value);
   seekEl.style.setProperty("--p", (seekEl.value / seekEl.max) * 100 + "%");
 });
-seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); });
+seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); seekEl.blur(); });
+/* after using the position or volume slider, keys work as before (Space plays/pauses, not scroll or move the slider) */
+for (const s of [seekEl, $("#vol")]) s.addEventListener("pointerup", () => setTimeout(() => s.blur(), 0));
 
 /* thread menu: list the playing thread above the bar; picking a track plays it and closes the menu */
 function closeThread() { $("#threadPop").hidden = true; $("#threadBtn").setAttribute("aria-expanded", "false"); }
@@ -1688,7 +1690,7 @@ function addForm(thread, edit, row) {
       edit ? null : arrow,
       el("button", { type: "submit", class: "btn" }, "Save")),
     more);
-  if (tr) { form.title.value = tr.title || info(tr).title; form.url.value = tr.url; }
+  if (tr) { form.title.value = tr.title ? flipDotTitle(tr.title) : info(tr).title; form.url.value = tr.url; } // YouTube's "Title · Artist" shown as "Artist – Title", as on the page
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
   form.tags = tags;
   form.addEventListener("submit", (ev) => { ev.preventDefault(); edit ? saveEdit(form, edit) : saveTrack(form, thread); });
@@ -1777,7 +1779,10 @@ function moreInfo(tr, edit, tags) {
       el("div", {}, el("span", { class: "af-label" }, "Uploader"), x.by || el("span", { class: "hint" }, "unknown")),
       el("div", {}, el("span", { class: "af-label" }, "Uploaded"), x.up ? fmtDay(x.up) : el("span", { class: "hint" }, "unknown")),
       el("div", {}, descBtn), descBox);
-    box.append(el("div", {}, el("button", { type: "button", class: "thread-btn", onclick: () => (metaBox.hidden = !metaBox.hidden) }, "Meta")), metaBox);
+    // Meta, then the track's length and the suggested artist on the same line
+    box.append(el("div", { class: "af-meta-line" }, el("button", { type: "button", class: "thread-btn", onclick: () => (metaBox.hidden = !metaBox.hidden) }, "Meta"),
+      el("span", {}, el("span", { class: "af-label" }, "Duration"), x.d ? fmtTime(x.d) : el("span", { class: "hint" }, "unknown")),
+      el("span", {}, el("span", { class: "af-label" }, "Artist"), x.ar || el("span", { class: "hint" }, "unknown"))), metaBox);
   } else {
     box.append(el("p", { class: "hint af-later" }, "Suggested genres, year and the uploader are looked up after saving (every few hours)."));
   }
@@ -1882,9 +1887,11 @@ function rerenderThread(t, flashIndex) {
   const old = document.getElementById("th-" + t.id);
   if (!old) return;
   if (!t.tracks.length) { old.remove(); return; }
-  const node = threadNode({ t, hits: null });
+  const entry = shown.find((x) => x.t === t); // in search results it stays a search result (no "Add a track here")
+  const node = threadNode({ t, hits: entry ? entry.hits : null });
   old.replaceWith(node);
   markPlaying();
+  if (entry && entry.hits) requestAnimationFrame(() => { fitList(node); fadeAll(); });
   if (flashIndex != null) {
     const row = node.querySelector(`[data-k="${t.id}:${flashIndex}"]`);
     if (row) { row.classList.add("just-saved"); setTimeout(() => row.classList.remove("just-saved"), 3000); }
@@ -2248,6 +2255,7 @@ function copyLink(t, btn) {
 /* Escape: close every add/edit card and leave the search */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  if ((e.metaKey || e.ctrlKey) && playing) { e.preventDefault(); closeDock(); return; } // Cmd+Esc: like the player's × (computer: the video goes, the bar stays)
   const cards = document.querySelectorAll(".add-form");
   if (cards.length) { cards.forEach((f) => closeAddForm(f)); return; } // an open card closes first, nothing else
   if (view === "genres" && gSel.length && !$("#q").value) { setGenres([]); return; } // Genres: Esc empties the field
@@ -2350,7 +2358,7 @@ function editPlaying(more) {
 document.addEventListener("keydown", (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target;
-  if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+  if (t.closest && t.closest("input:not([type=range]), textarea, select, [contenteditable]")) return; // the sliders don't keep the keys
   if ($("#dock").hidden) return;
   if (e.code === "Space") { e.preventDefault(); if (!$("#playBtn").disabled) $("#playBtn").click(); }
   else if ((e.key === "ArrowUp" || e.key === "ArrowDown") && !IOS) { // volume in steps of 5
@@ -2401,7 +2409,7 @@ function withGemini(x, ai) {
     const o = x[u] || {};
     const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);
     const gs = [...new Set((a.g || []).map(sameGenre))]; // "synth-pop" → "synth pop", as the site writes it
-    x[u] = { ...o, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
+    x[u] = { ...o, ar: a.ar || o.ar, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
       src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
   return x;

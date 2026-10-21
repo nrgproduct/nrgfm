@@ -113,10 +113,11 @@ For each track below, decide:
   remaster, compilation or upload year. A remix or edit counts from when that remix or edit came out.
 - "g": 1 to 5 genres, lowercase, most fitting first. Prefer names from this list when one fits:
   {vocab}
+- "ar": the artist as credited on that release (e.g. "Röyksopp", "Daft Punk feat. Romanthony"), or "" if unknown
 - "conf": "high", "medium" or "low": how sure you are.
 {how}
 Answer with JSON only, no other text: an array with one object per track, in the same order, each
-{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "conf": ...}}.
+{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "ar": ..., "conf": ...}}.
 
 Tracks:
 {tracks}"""
@@ -160,7 +161,8 @@ def clean_answer(a):
     g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:5]
     rl = str(a.get("rl") or "").strip()[:200]
     conf = a.get("conf") if a.get("conf") in ("high", "medium", "low") else "low"
-    return {"rl": rl, "y": y, "g": g, "conf": conf}
+    ar = str(a.get("ar") or "").strip()[:200]
+    return {"rl": rl, "y": y, "g": g, "ar": ar, "conf": conf}
 
 
 def main():
