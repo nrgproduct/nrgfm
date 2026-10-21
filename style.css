@@ -1073,8 +1073,9 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
 @media (max-width: 640px) { .hist-months { gap: 0 12px; justify-content: space-between; } }
 
 /* the menu: whatever is under it fades out towards it, so the header stands apart from the page */
-.menu::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 38px; pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0 1px, var(--bg) 1px, transparent); } /* starts on the dotted line: no gap */
+/* the dotted line and the fade are one piece, drawn over the menu's own bottom edge: nothing can show between them */
+.menu::after { content: ""; position: absolute; left: 0; right: 0; top: calc(100% - 2px); height: 40px; pointer-events: none;
+  border-top: 1px dotted var(--dots, var(--line-strong)); background: linear-gradient(to bottom, var(--bg) 0 3px, transparent); }
 
 /* touch screens: a tapped button doesn't stay lit (iPhone keeps "hover" on the last thing tapped) */
 @media (hover: none) {
@@ -1112,10 +1113,11 @@ html, body { touch-action: manipulation; }
 .af-sug .rel-releases { flex: 1 1 0; min-width: 0; }
 .rel-none { color: var(--muted) !important; }
 /* the menu: a dotted line under it again (the fade starts below the line) */
-.menu { border-bottom: 1px dotted var(--dots, var(--line-strong)) !important; }
+.menu { border-bottom: 0 !important; padding-bottom: 12px !important; }
 
 /* search filters (design C): switched off = crossed out (not dimmed); hover lights them, crossed out or not */
-#resultInfo .search-fields .sf.off { opacity: 1; text-decoration: line-through !important; color: var(--muted); }
+#resultInfo .search-fields .sf.off { opacity: .45; text-decoration: none !important; }
+#resultInfo .search-fields .sf.off:hover { opacity: 1; }
 #resultInfo .search-fields .sf.off:hover { color: var(--jade); }
 /* the count has a fixed width, so the filters after it don't move when it changes */
 @media (min-width: 641px) { #resultInfo .result-n { min-width: 9.5em; font-variant-numeric: tabular-nums; } }
@@ -1123,3 +1125,7 @@ html, body { touch-action: manipulation; }
 .track:has(+ .edit-wrap) .tag.tag-rm, .head-row:has(+ .edit-wrap) .tag.tag-rm { cursor: pointer; }
 .track:has(+ .edit-wrap) .tag.tag-rm:hover, .head-row:has(+ .edit-wrap) .tag.tag-rm:hover { color: var(--jade); text-decoration: line-through; }
 .af-sug { align-items: baseline; }
+
+/* search results: no fades, no counter */
+.thread.searching .tracks.fade-up, .thread.searching .tracks.fade-down { -webkit-mask-image: none !important; mask-image: none !important; }
+.thread.searching .mid-pos { display: none !important; }
