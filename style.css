@@ -1036,7 +1036,9 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
 
 /* search line: Best match left, the count in the middle, the filters right; normal text the size of "N tracks",
    dotted like it, lit on hover. On a computer always one line (the filters get a little smaller if needed). */
-#resultInfo .result-n, #resultInfo .sf, #resultInfo .sf .gi-n { font-size: 14px; color: var(--muted); }
+#resultInfo .sf, #resultInfo .sf .gi-n { font-size: 14px; color: var(--muted); }
+#resultInfo .result-n { font-size: 16px; color: var(--muted); }
+#resultInfo .sf.sf-order { font-size: 13px; }
 #resultInfo .sf { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 #resultInfo .sf .gi-n { margin-left: 4px; color: inherit; text-decoration: inherit; }
 #resultInfo .sf:hover { color: var(--text); }
@@ -1047,7 +1049,6 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
   #resultInfo .result-n { grid-area: n; justify-self: center !important; text-align: center !important; }
   #resultInfo .search-fields { grid-area: fields; justify-self: end; flex-wrap: nowrap; margin: 0; }
 }
-@media (min-width: 641px) { #resultInfo.tight:not([hidden]) { grid-template-columns: auto auto minmax(0, 1fr); } }
 /* search filters: no underline (Best match keeps its dotted one) */
 #resultInfo .sf:not(.sf-order) { text-decoration: none; }
 #resultInfo .sf.off { text-decoration: line-through; }
@@ -1055,3 +1056,10 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
 @media (min-width: 641px) {
   .thread.searching .search-foot > .more-pos { justify-self: start; width: 160px; text-align: right; font-size: 13px; color: var(--muted); visibility: visible; }
 }
+@media (min-width: 641px) {
+  #resultInfo:not([hidden]) { position: relative; }
+  #resultInfo.two-rows .search-fields { position: absolute; right: 0; top: 50%; transform: translateY(-50%); flex-wrap: wrap; justify-content: flex-end; row-gap: 2px; column-gap: 10px; }
+  /* "3 of 17" under the thumbnail, level with the middle of the tracks, like the date */
+  .thread.searching .mid-pos { position: absolute; z-index: 3; left: 8px; width: 160px; text-align: center; font-size: 13px; line-height: 18px; color: var(--muted); }
+}
+@media (max-width: 640px) { .mid-pos { display: none; } }

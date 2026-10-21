@@ -248,14 +248,13 @@ function placeFilters() {
   const info = $("#resultInfo"), f = info.querySelector(".search-fields");
   if (!f || info.hidden) return;
   f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.removeProperty("font-size"));
-  f.style.gap = ""; info.classList.remove("tight");
+  f.style.gap = ""; f.style.maxWidth = ""; info.classList.remove("two-rows");
   if (phone()) return;
-  const fits = () => f.getBoundingClientRect().width <= info.getBoundingClientRect().right - info.querySelector(".result-n").getBoundingClientRect().right - 20;
-  for (let size = 14; !fits() && size > 11; size -= 0.5) {
-    f.style.gap = Math.max(6, size - 2) + "px";
-    f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.setProperty("font-size", size + "px", "important"));
-  }
-  if (!fits()) info.classList.add("tight"); // still too many: the count moves left, next to Best match
+  const room = info.getBoundingClientRect().right - info.querySelector(".result-n").getBoundingClientRect().right - 20;
+  if (f.getBoundingClientRect().width <= room) return;
+  // too many for one line: smaller, in two rows centred on the line (the line itself keeps its height)
+  info.classList.add("two-rows"); f.style.maxWidth = room + "px";
+  f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.setProperty("font-size", "12px", "important"));
 }
 addEventListener("resize", placeFilters);
 /* Search results: rest the pointer on a found track for a moment and a small note says where the words
@@ -525,7 +524,16 @@ function updateFade(list) {
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
-const fadeAll = () => document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks").forEach(updateFade);
+const fadeAll = () => { document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks").forEach(updateFade); placeMidPos(); };
+function placeMidPos() {
+  document.querySelectorAll("#threads .thread .mid-pos").forEach((p) => {
+    const th = p.closest(".thread"), list = th.querySelector(".tracks");
+    if (!list) return;
+    const mid = list.getBoundingClientRect().top + list.getBoundingClientRect().height / 2 - th.getBoundingClientRect().top;
+    p.style.top = mid - p.offsetHeight / 2 + "px";
+  });
+}
+addEventListener("resize", placeMidPos);
 
 /* History: every thread by the month it was posted, newest first, as short rows */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -1028,7 +1036,7 @@ function threadNode({ t, hits }) {
     hits && hits.size > 1 ? el("button", { class: "when-link", title: "Next match", onclick: (e) => nextMatch(e.currentTarget.closest(".thread")) }, `${hits.size} matches`) : null);
   if (hits && !mobile) {
     // laptop search: "175 tracks" under the tracks, centred, shows the whole thread (no Collapse)
-    if (searching) foot = el("div", { class: "search-foot" }, pos(), // "1 of 8" under the thumbnail, as in the Tags threads
+    if (searching) foot = el("div", { class: "search-foot" }, el("span", {}),
       btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}));
     else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {
@@ -1057,6 +1065,8 @@ function threadNode({ t, hits }) {
     side,
     n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => { const row = trackRow(t, t.tracks[i], i, hits); if (peek.has(i)) row.classList.add("peek"); return row; })) : null,
     foot, after,
+    // search results (computer): "3 of 17" under the thumbnail, level with the middle of the tracks (placed by placeMidPos)
+    hits && !mobile && (searching || scrolling) ? el("span", { class: "more-pos mid-pos" }, posText) : null,
     hits ? null : el("div", { class: "thread-foot" }, // no "Add a track here" in search results
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
   const list = li.querySelector(".scroll-list");
