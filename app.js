@@ -603,7 +603,7 @@ function drawViewHead() {
       monthRow.replaceChildren(...MONTHS.map((name, k) => {
         const id = `m-${y}-${String(k + 1).padStart(2, "0")}`, has = months.some((m) => m.id === id);
         return el("button", { class: "when-link" + (has ? "" : " none"), disabled: !has, onclick: () => jumpTo(id) }, phone() ? String(k + 1) : name.slice(0, 3));
-      }).reverse()); // newest month first, like the list below
+      }));
     };
     const size = (d) => { thumbSize = Math.max(0, Math.min(THUMB_SIZES.length - 1, thumbSize + d)); setThumbSize(); };
     const thumbsBtn = el("span", { class: "hist-size" },
@@ -1647,6 +1647,24 @@ function addForm(thread, edit, row) {
   const host = row ? row.querySelector(".tag-wrap") : null;
   const tags = tagEditor(tr ? shownTags(tr) : [], !tr && thread ? shownTags(thread.tracks[0]) : []);
   const more = moreInfo(tr, edit, tags);
+  // editing: the genres/tags under the track's title can be clicked away (a tag leaves the tags, a suggested genre the
+  // suggested genres); closing without saving puts them back
+  if (row && tr) {
+    const gone = [], dec = decadeOf((extra[tr.url] || {}).y);
+    row.querySelectorAll(".tag-wrap .tag").forEach((sp) => {
+      const g = sp.textContent.trim();
+      if (!g || g === dec) return; // the decade comes from the year
+      sp.classList.add("tag-rm");
+      sp.addEventListener("click", (e) => {
+        if (!(row.nextElementSibling && row.nextElementSibling.classList.contains("edit-wrap"))) return; // only while its card is open
+        e.stopPropagation(); e.preventDefault();
+        if (tags.has(g)) tags.drop(g);
+        more.removeGenre && more.removeGenre(g);
+        gone.push([sp, sp.parentNode, sp.nextSibling]); sp.remove();
+      });
+    });
+    tags.restore = () => { for (const [sp, parent, next] of gone.reverse()) if (parent && parent.isConnected) parent.insertBefore(sp, next && next.parentNode === parent ? next : null); };
+  }
   const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
     "aria-label": "More info", onclick: (e) => {
       const open = more.hidden; more.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open));
@@ -1740,24 +1758,7 @@ function moreInfo(tr, edit, tags) {
       stepBtn(true, step), stepBtn(false, step), note));
   }
   if (tr) {
-    const sug = el("div", { class: "af-sug" });
-    const chips = () => sug.replaceChildren(
-      el("span", { class: "af-label" }, "Suggested genres"),
-      ...(x.g && x.g.length
-        ? x.g.map((g) => tags.has(g) ? null : el("button", { type: "button", class: "tag-chip suggest", onclick: () => { tags.use(g); chips(); } }, "+ " + g))
-        : [addGenres()]).filter(Boolean));
-    // nothing suggested: "none found" (dotted) opens a field to type genres yourself; Enter adds them as tags
-    function addGenres() {
-      const b = el("button", { type: "button", class: "rel-name rel-none", onclick: () => {
-        const input = el("input", { type: "text", class: "rel-input", size: 18, placeholder: "genre, genre", "aria-label": "Genres" });
-        const done = (keep) => { if (keep) input.value.split(",").map((g) => g.trim().toLowerCase()).filter(Boolean).forEach((g) => tags.use(g)); input.replaceWith(b); };
-        input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
-        input.addEventListener("blur", () => input.isConnected && done(true));
-        b.replaceWith(input); input.focus();
-      } }, x.chk ? "none found" : "not looked up yet");
-      return b;
-    }
-    chips();
+    const sug = el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested genres"), genreEditor(tr, x, box));
     box.append(sug,
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
@@ -1907,6 +1908,8 @@ async function saveEdit(form, { t, i }) {
   if (rel) item.release = rel;
   const yr = form.querySelector(".af-more")?.yearChanged?.();
   if (yr !== undefined) item.year = yr;
+  const gn = form.querySelector(".af-more")?.genresChanged?.();
+  if (gn !== undefined) item.genres = gn;
   if (form.date && i === 0) {
     if (!form.date.value) { form.date.reportValidity(); return; }
     const pos = form.querySelector(".af-more").feedPos();
@@ -1924,6 +1927,7 @@ async function saveEdit(form, { t, i }) {
   if ("notes" in item) { if (notes) tr.notes = notes; else delete tr.notes; }
   if (item.release) tr.release = item.release;
   if ("year" in item) { tr.year = item.year; setYear(tr); }
+  if ("genres" in item) { tr.genres = item.genres; setGenresOf(tr); }
   if (item.date) { // option A: the thread takes its place by this date (on the next load of the feed)
     if (item.date === tr.date && !item.pos) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
     else {
@@ -1997,6 +2001,41 @@ function releaseEditor(tr, x, box) {
   draw();
   box.releaseChanged = () => (JSON.stringify(rel) !== JSON.stringify(start) ? [...rel] : undefined);
   return wrap;
+}
+/* the suggested genres, each clicked to change or delete it; "+ add" for one more. Saved as the track's genres. */
+function genreEditor(tr, x, box) {
+  const start = [...new Set(x.gm || (x.g || []).map(sameGenre))], gs = [...start]; // written as the site writes them
+  const wrap = el("span", { class: "rel-list rel-releases" });
+  const editAt = (k) => {
+    const item = wrap.children[k] || wrap.appendChild(el("span", { class: "rel-item" }));
+    const input = el("input", { type: "text", class: "rel-input", value: gs[k] || "", size: Math.max(8, (gs[k] || "").length + 2), "aria-label": "Genre" });
+    let finished = false;
+    const done = (keep) => {
+      if (finished) return; finished = true;
+      if (keep) { const v = sameGenre(input.value || ""); if (v && !gs.some((g, j) => g === v && j !== k)) gs[k] = v; else gs.splice(k, 1); } else if (gs[k] === undefined) gs.splice(k, 1);
+      draw();
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+    input.addEventListener("blur", () => done(true));
+    item.replaceChildren(input, el("button", { type: "button", class: "rel-x", "aria-label": "Delete this genre",
+      onmousedown: (e) => { e.preventDefault(); finished = true; gs.splice(k, 1); draw(); } }, "×"));
+    input.focus(); input.select();
+  };
+  const draw = () => wrap.replaceChildren(
+    ...gs.map((g, k) => el("span", { class: "rel-item" }, el("button", { type: "button", class: "rel-name", onclick: () => editAt(k) }, g))),
+    el("span", { class: "rel-item" }, el("button", { type: "button", class: "rel-name rel-none", onclick: () => { gs.push(undefined); gs.pop(); editAt(gs.length); } },
+      gs.length ? "+ add" : start.length || tr.genres ? "none" : x.chk ? "none found" : "not looked up yet")));
+  draw();
+  box.genresChanged = () => (JSON.stringify(gs) !== JSON.stringify(start) ? [...gs] : undefined);
+  box.removeGenre = (g) => { const k = gs.indexOf(g); if (k > -1) { gs.splice(k, 1); draw(); } };
+  return wrap;
+}
+/* genres set by hand replace the suggested ones everywhere */
+function setGenresOf(tr) {
+  if (!Array.isArray(tr.genres)) return;
+  const x = extra[tr.url] || (extra[tr.url] = {});
+  x.g = [...tr.genres]; x.gm = [...new Set(tr.genres.map(sameGenre))];
+  tr._hay = null; gIndex = null;
 }
 /* the suggested year, clicked to change it (like the release); emptied it means "no year" */
 function yearEditor(tr, x, box) {
@@ -2376,7 +2415,7 @@ function withGemini(x, ai) {
       fetch("data/ai.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
     threads = d.threads; meta = m; extra = withGemini(x, ai);
-    for (const t of threads) for (const tr of t.tracks) setYear(tr);
+    for (const t of threads) for (const tr of t.tracks) { setYear(tr); setGenresOf(tr); }
     threads.push(...makeTagThreads());
     sortThreads();
   } catch (e) {

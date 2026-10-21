@@ -5,7 +5,7 @@
 Every applied change is also appended to data/changes.jsonl (with the time it was made), so a
 rebuild from the Facebook export (scripts/build_from_group.py) can replay it.
 Everything is in git history, so any change can be undone."""
-import json, os, glob, time, datetime, sys
+import json, os, glob, re, time, datetime, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -110,6 +110,8 @@ def apply_edit(data, item):
     if "release" in item:  # the suggested releases as corrected by hand ([] removes them all)
         rel = [str(x).strip()[:200] for x in (item["release"] or []) if str(x).strip()][:8]
         tr["release"] = rel
+    if "genres" in item:  # the suggested genres as corrected by hand ([] = none)
+        tr["genres"] = [re.sub(r"\s+", " ", str(g)).strip().lower()[:60] for g in (item["genres"] or []) if str(g).strip()][:12]
     if "year" in item:  # the year as set by hand (0: no year)
         try:
             y = int(item["year"] or 0)

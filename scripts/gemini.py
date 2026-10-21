@@ -84,6 +84,8 @@ def facts(tr, meta, extra, desc):
         f["group_year"] = tr["year"] or "none"
     if tr.get("release") is not None:
         f["group_release"] = tr["release"]
+    if tr.get("genres") is not None:
+        f["group_genres"] = tr["genres"]
     found = {}
     if x.get("rl"):
         found["releases"] = x["rl"][:8]
@@ -122,12 +124,12 @@ HOW = {
     "sources": """Use the "found" data (from MusicBrainz, Discogs and the video description) and your own knowledge.
 The found data is often a wrong match: another song with the same name, a cover, a later compilation.
 Ignore what doesn't fit the title and uploader. Don't guess: leave a field empty when you aren't fairly sure.
-"group_year" and "group_release", when given, were set by hand by the group and are right: keep them.
+"group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.
 A year written in "title" or "link_title" is a strong hint (it can also be a remaster's year).""",
     "search": """Nothing was found about these tracks automatically. Look each one up with Google Search
 (Discogs, MusicBrainz, Bandcamp, Wikipedia and the artist's pages are good sources).
 Don't guess: leave a field empty when you can't find it.
-"group_year" and "group_release", when given, were set by hand by the group and are right: keep them.""",
+"group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.""",
 }
 
 
