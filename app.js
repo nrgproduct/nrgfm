@@ -2255,7 +2255,6 @@ function copyLink(t, btn) {
 /* Escape: close every add/edit card and leave the search */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if ((e.metaKey || e.ctrlKey) && playing) { e.preventDefault(); closeDock(); return; } // Cmd+Esc: like the player's × (computer: the video goes, the bar stays)
   const cards = document.querySelectorAll(".add-form");
   if (cards.length) { cards.forEach((f) => closeAddForm(f)); return; } // an open card closes first, nothing else
   if (view === "genres" && gSel.length && !$("#q").value) { setGenres([]); return; } // Genres: Esc empties the field
@@ -2268,6 +2267,16 @@ document.addEventListener("keydown", (e) => {
   if ($("#q").value) { $("#q").value = ""; syncClear(); runSearch(); }
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 });
+/* a button clicked with the mouse doesn't keep the focus: no ring after the next key, and Enter doesn't press it again */
+document.addEventListener("click", (e) => {
+  if (!e.detail) return; // a keyboard "click" keeps it
+  const b = e.target.closest && e.target.closest("button, a");
+  if (b && !b.closest(".add-form, .quick-tag")) setTimeout(() => { if (document.activeElement === b) b.blur(); }, 0);
+});
+/* Cmd+Esc (Ctrl+Esc): like the player's × (computer: the video goes, the bar stays). Caught first, on the window. */
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && (e.metaKey || e.ctrlKey) && playing) { e.preventDefault(); e.stopPropagation(); closeDock(); }
+}, true);
 /* Esc twice quickly: bring the playing track to the middle of the screen (when it is on the page) */
 let lastEsc = 0;
 function showPlaying() {
@@ -2483,6 +2492,10 @@ function closeQuick() {
   }
   if (q.changed) refreshTags(); // the tag playlists follow (after the field is gone, so nothing jumps under it)
 }
+/* The field works on a draft: picking a suggestion (Enter, click, ",") puts it in the field, × or Backspace takes
+   tags out, and nothing is saved until Enter on the empty field (or Shift+Enter at any time). Esc: nothing changes.
+   Left/Right step through the tags already in the field (the side space shows the one you are on);
+   Backspace once marks the tag before the cursor, twice takes it out. */
 function openQuick(row, at) {
   if (!getToken() || phone()) return;
   closeQuick();
@@ -2492,28 +2505,34 @@ function openQuick(row, at) {
     if (room < 140) pageScrollBy(140 - room);
   }
   const wrap = row && row.querySelector(".tag-wrap");
-  const input = el("input", { type: "text", class: "quick-input", placeholder: "tag", autocomplete: "off", spellcheck: "false", "aria-label": "Add a tag" });
+  const input = el("input", { type: "text", class: "quick-input", autocomplete: "off", spellcheck: "false", "aria-label": "Add a tag" });
   const chips = el("span", { class: "quick-chips" });
   const drop = el("ul", { class: "quick-drop", hidden: true });
   const box = el("span", { class: "quick-tag" }, chips, input, drop);
   quick = { row, tr, wrap, box, changed: false };
-  let opts = [], active = -1;
-  const drawChips = () => chips.replaceChildren(...shownTags(tr).map((g) => el("button", { type: "button", class: "quick-chip",
-    onmousedown: (e) => e.preventDefault(), onclick: () => save(g, false) }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
-  const counts = () => { const n = new Map(); for (const t of threads) if (isBase(t)) for (const x of t.tracks) for (const g of shownTags(x)) n.set(g, (n.get(g) || 0) + 1); return n; };
-  let tagCount = counts();
+  const start = shownTags(tr), draft = [...start];
+  let opts = [], active = -1, mark = -1; // mark: the tag in the field that is selected (Left / Backspace)
+  const dirty = () => draft.length !== start.length || draft.some((g, k) => g !== start[k]);
+  const tagCount = new Map();
+  for (const t of threads) if (isBase(t)) for (const x of t.tracks) for (const g of shownTags(x)) tagCount.set(g, (tagCount.get(g) || 0) + 1);
+  const drawChips = () => {
+    chips.replaceChildren(...draft.map((g, k) => el("button", { type: "button", class: "quick-chip" + (k === mark ? " marked" : ""), tabindex: "-1",
+      onmousedown: (e) => e.preventDefault(), onclick: () => { draft.splice(k, 1); mark = -1; drawChips(); showTagSide(null); input.focus(); } },
+      g, el("span", { class: "x", "aria-hidden": "true" }, "×"))));
+    box.classList.toggle("dirty", dirty());
+  };
+  const markAt = (k) => { mark = k; drawChips(); showTagSide(k > -1 ? draft[k] : opts[active] || null); };
   const highlight = (k) => {
     active = k;
     [...drop.children].forEach((li, j) => li.classList.toggle("on", j === k));
-    showTagSide(opts[k] || null);
+    if (mark < 0) showTagSide(opts[k] || null);
   };
   const drawDrop = () => {
     const q = fold(input.value.trim());
-    const have = new Set(shownTags(tr));
-    opts = q ? [...tagCount.keys()].filter((g) => !have.has(g) && fold(g).includes(q))
+    opts = q ? [...tagCount.keys()].filter((g) => !draft.includes(g) && fold(g).includes(q))
       .sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q) || tagCount.get(b) - tagCount.get(a)).slice(0, 8) : [];
     drop.replaceChildren(...opts.map((g, j) => el("li", { onmouseenter: () => highlight(j),
-      onmousedown: (e) => { e.preventDefault(); save(g, true); } }, g, el("span", { class: "gi-n" }, tagCount.get(g)))));
+      onmousedown: (e) => { e.preventDefault(); pick(g); } }, g, el("span", { class: "gi-n" }, tagCount.get(g)))));
     drop.hidden = !opts.length;
     if (opts.length) { // opens upwards when there is no room under the field (above the player)
       drop.classList.remove("up");
@@ -2521,32 +2540,47 @@ function openQuick(row, at) {
     }
     highlight(opts.length ? 0 : -1); // typing: the first suggestion is highlighted and its tracks show
   };
-  async function save(g, add) {
+  function pick(g) { // into the field (not saved yet)
     g = normTag(g);
-    if (!g) return;
-    const has = shownTags(tr).includes(g);
-    if (add === has) { input.value = ""; drawDrop(); return; }
-    const ts = Math.floor(Date.now() / 1000);
-    try { await writeInbox({ action: "tag", ids: [tr.id], add: add ? [g] : [], remove: add ? [] : [g], ts }, "tag"); }
-    catch (e) { input.placeholder = "not saved"; return; }
-    applyTags(tr, add ? [...Object.keys(tr.tags || {}), g] : Object.keys(tr.tags || {}).filter((x) => x !== g), ts);
-    tr._hay = null; gIndex = null; quick && (quick.changed = true);
-    tagCount = counts(); input.value = ""; drawChips(); drawDrop(); input.focus();
+    if (g && !draft.includes(g)) draft.push(g);
+    input.value = ""; mark = -1; drawChips(); drawDrop(); input.focus();
   }
-  input.addEventListener("input", drawDrop);
+  async function save() {
+    const add = draft.filter((g) => !start.includes(g)), remove = start.filter((g) => !draft.includes(g));
+    if (!add.length && !remove.length) { closeQuick(); return; }
+    const ts = Math.floor(Date.now() / 1000);
+    box.classList.add("saving");
+    try { await writeInbox({ action: "tag", ids: [tr.id], add, remove, ts }, "tag"); }
+    catch (e) { box.classList.remove("saving"); box.classList.add("failed"); return; }
+    applyTags(tr, draft, ts);
+    tr._hay = null; gIndex = null; quick.changed = true;
+    closeQuick();
+  }
+  input.addEventListener("input", () => { if (mark > -1) markAt(-1); drawDrop(); });
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeQuick(); }
-    else if (e.key === "Enter" || e.key === ",") { // Enter: save it; ",": save it and type the next one
-      e.preventDefault(); e.stopPropagation();
-      const g = opts[active] || input.value;
-      if (g.trim()) save(g, true);
-    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && opts.length) {
+    e.stopPropagation(); // the page's own keys (search, Space, Esc) stay out of it
+    const typed = input.value.trim(), atStart = input.selectionStart === 0 && input.selectionEnd === 0;
+    if (e.key === "Escape") { e.preventDefault(); closeQuick(); }
+    else if (e.key === "Enter") {
       e.preventDefault();
-      highlight((active + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length);
-    }
-    e.stopPropagation(); // the page's own keys (search, Space) stay out of it
+      if (typed) pick(opts[active] || typed);       // a suggestion (or what you typed) goes into the field
+      if (e.shiftKey || !typed) save();             // Enter on the empty field, or Shift+Enter: save
+    } else if (e.key === ",") { e.preventDefault(); if (typed) pick(opts[active] || typed); }
+    else if (e.key === "Backspace" && !input.value) {
+      e.preventDefault();
+      if (mark > -1) { draft.splice(mark, 1); markAt(-1); }
+      else if (draft.length) markAt(draft.length - 1); // first press marks it, the second takes it out
+    } else if (e.key === "ArrowLeft" && (atStart || !input.value) && draft.length) {
+      e.preventDefault(); markAt(mark < 0 ? draft.length - 1 : Math.max(0, mark - 1));
+    } else if (e.key === "ArrowRight" && mark > -1) {
+      e.preventDefault(); markAt(mark + 1 < draft.length ? mark + 1 : -1);
+    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && opts.length) {
+      e.preventDefault(); highlight((active + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length);
+    } else if (mark > -1 && e.key.length === 1) markAt(-1);
   });
-  input.addEventListener("blur", () => setTimeout(() => { if (quick && quick.box === box && !box.contains(document.activeElement)) closeQuick(); }, 150));
+  // clicking elsewhere closes it, unless there are changes not saved yet
+  input.addEventListener("blur", () => setTimeout(() => { if (quick && quick.box === box && !box.contains(document.activeElement) && !dirty()) closeQuick(); }, 150));
+  box.addEventListener("mousedown", (e) => { if (e.target !== input) { e.preventDefault(); input.focus(); } });
   drawChips();
   // it lies over the tags line (the line itself is inside the track's play button, where a field can't go)
   const anchor = wrap || (row && row.querySelector(".tr-title, .t-title"));
@@ -2560,6 +2594,7 @@ function openQuick(row, at) {
   } else { box.classList.add("quick-float"); document.body.append(box); } // the playing track isn't on the page: over the player
   input.focus();
 }
+/* a click outside an open field with unsaved changes: it stays (Esc or Enter decides) */
 /* Cmd+click (Ctrl+click) on a track */
 document.addEventListener("click", (e) => {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey || !getToken() || phone()) return;
@@ -2584,6 +2619,26 @@ document.addEventListener("keydown", (e) => {
   quick ? closeQuick() : quickPlaying();
 });
 $("#nowTitle").addEventListener("click", (e) => { if ((e.metaKey || e.ctrlKey) && getToken()) { e.stopImmediatePropagation(); quickPlaying(); } }, true);
+
+/* "Please fill in this field" and the like: our own note (the browser's can't take the site's colours) */
+const invalidBox = el("div", { class: "invalid-note", hidden: true }, el("span", { class: "invalid-i", "aria-hidden": "true" }, "!"), el("span", { class: "invalid-msg" }));
+document.body.append(invalidBox);
+let invalidAt = 0;
+document.addEventListener("invalid", (e) => {
+  e.preventDefault();
+  if (Date.now() - invalidAt < 100) return; // a form with several: only the first one
+  invalidAt = Date.now();
+  const f = e.target, r = f.getBoundingClientRect();
+  invalidBox.querySelector(".invalid-msg").textContent = f.validationMessage;
+  invalidBox.hidden = false;
+  invalidBox.style.left = Math.max(8, r.left) + "px";
+  invalidBox.style.top = r.bottom + 6 + "px";
+  f.focus({ preventScroll: true });
+  const hide = () => { invalidBox.hidden = true; f.removeEventListener("input", hide); f.removeEventListener("blur", hide); };
+  f.addEventListener("input", hide); f.addEventListener("blur", hide);
+  setTimeout(hide, 4000);
+}, true);
+addEventListener("scroll", () => { invalidBox.hidden = true; }, { passive: true, capture: true });
 
 (async function boot() {
   try {

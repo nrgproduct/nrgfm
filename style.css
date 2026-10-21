@@ -1139,7 +1139,7 @@ html, body { touch-action: manipulation; }
 
 /* ===== side space (the empty column above the video) ===== */
 .side { position: fixed; z-index: 15; right: 16px; width: 358px; box-sizing: border-box; display: flex; flex-direction: column;
-  background: var(--bg); border: 1px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-sm); }
+  background: var(--bg); border: 1px dotted var(--dots, var(--line-strong)); border-radius: var(--radius-lg); }
 .side[hidden] { display: none; }
 .side-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 12px 8px; border-bottom: 1px dotted var(--dots, var(--line-strong)); }
 .side-title { color: var(--text); font-size: 16px; }
@@ -1167,3 +1167,24 @@ html, body { touch-action: manipulation; }
 .quick-drop .gi-n { color: var(--muted); font-size: 12px; }
 .quick-drop.up { top: auto; bottom: calc(100% + 4px); }
 .thread:has(.quick-tag), .month-row:has(.quick-tag) { z-index: 7; position: relative; } /* its suggestions go over the threads below */
+
+/* our own "Please fill in this field": the ! in the Play button's colours */
+.invalid-note { position: fixed; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 14px; color: var(--text);
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 6px 18px #0008; }
+.invalid-note[hidden] { display: none; }
+.invalid-i { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: var(--jade); color: var(--jade-ink); font-weight: 800; font-size: 13px; }
+
+/* search filters: on in the blue they had at first, off greyed; hovering shows the dotted line */
+#resultInfo .search-fields .sf { color: var(--jade) !important; }
+#resultInfo .search-fields .sf .gi-n { color: inherit; opacity: .75; }
+#resultInfo .search-fields .sf.off, #resultInfo .search-fields .sf.off:hover { color: var(--muted) !important; }
+
+/* quick tags: chips centred in the field with a small gap; the side space exactly as wide as the video */
+.quick-tag { align-items: center; }
+.quick-chips { display: inline-flex; align-items: center; gap: 5px; }
+.quick-chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; line-height: 1; padding: 0 6px 1px; }
+.quick-chip .x { line-height: 1; }
+.quick-chip.marked { border-color: var(--jade); color: var(--jade); }
+.quick-tag.dirty { border-style: dashed; }
+.quick-tag.saving { opacity: .6; }
+.quick-tag.failed { border-color: var(--red); }
