@@ -1035,7 +1035,13 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 /* Genres page: the genre field as far under the header as the first box on the Tags page */
 body[data-view="genres"] .gm-picker { margin-top: -6px; }
 
-/* search results: the "more tracks" arrow at the bottom of the track box, above "N tracks" */
-.search-foot { position: relative; }
-.search-foot .more-arrow { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); color: var(--muted); pointer-events: none; line-height: 0; }
-.search-foot .more-arrow svg { width: 16px; height: 10px; }
+/* search line (computer): count left, order right, filters placed in the middle by placeFilters(); one line */
+@media (min-width: 641px) {
+  #resultInfo:not([hidden]) { display: flex !important; position: relative; flex-wrap: nowrap; white-space: nowrap; }
+  #resultInfo .sf-order { margin-left: auto; }
+  #resultInfo .search-fields { position: absolute; top: 0; flex-wrap: nowrap; margin: 0; }
+}
+/* search results: "N tracks" a little closer to the tracks */
+.thread.searching .search-foot { margin-top: -6px; }
+/* Tags threads: the name and count a few pixels further left than on the Genres page */
+@media (min-width: 641px) { .tag-thread:not(.genre-mix) .tag-label { padding-left: 4px !important; } }

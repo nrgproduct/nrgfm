@@ -235,6 +235,7 @@ function runSearch() {
         class: "sf" + (searchOff.has(k) ? " off" : ""), "aria-pressed": String(!searchOff.has(k)),
         onclick: () => { searchOff.has(k) ? searchOff.delete(k) : searchOff.add(k); runSearch(); } }, name,
         el("span", { class: "gi-n" }, perField.get(k) || 0)))));
+    requestAnimationFrame(placeFilters);
   }
   rendered = 0;
   $("#threads").replaceChildren();
@@ -242,6 +243,28 @@ function runSearch() {
   renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
 }
 
+/* computer: the search line is always one line: the count on the left, the order on the right, the filters
+   centred in the line; when they don't fit in the middle they move left towards the count */
+function placeFilters() {
+  const info = $("#resultInfo"), f = info.querySelector(".search-fields");
+  if (!f || info.hidden) return;
+  f.style.left = "";
+  f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.removeProperty("font-size"));
+  if (phone()) return;
+  const box = info.getBoundingClientRect(), n = info.querySelector(".result-n").getBoundingClientRect(), o = info.querySelector(".sf-order").getBoundingClientRect();
+  const GAP = 24, room = o.left - n.right - 2 * GAP;
+  f.style.fontSize = ""; f.style.gap = "";
+  for (let size = 12; f.getBoundingClientRect().width > room && size > 9; size -= 0.5) { // a narrow window: a bit smaller, still one line
+    f.style.fontSize = size + "px"; f.style.gap = Math.max(6, size - 2) + "px";
+    f.querySelectorAll(".sf, .gi-n").forEach((x) => x.style.setProperty("font-size", size + "px", "important"));
+  }
+  const w = f.getBoundingClientRect().width;
+  let left = (box.width - w) / 2;                                   // centred in the whole line
+  left = Math.min(left, o.left - box.left - GAP - w);               // not into the order button
+  left = Math.max(left, n.right - box.left + GAP);                  // not into the count
+  f.style.left = left + "px";
+}
+addEventListener("resize", placeFilters);
 /* Search results: rest the pointer on a found track for a moment and a small note says where the words
    were found ("Title", "Uploader: …"). 0.6 s: long enough not to pop up while just moving past. */
 const whyBox = el("div", { class: "why", hidden: true });
@@ -440,7 +463,7 @@ function genreMixNode(t) {
     el("div", { class: "tag-frame" },
       el("div", { class: "tag-side" },
         el("div", { class: "tag-label" },
-          el("span", { class: "gm-names" }, gSel.map((g) => el("span", { class: "gm-name" }, g))),
+          el("span", { class: "gm-names" }, gSel.map((g) => el("span", { class: "gm-name" }, "+ " + g))),
           el("span", { class: "tag-count gm-n" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
         el("div", { class: "gm-order" }, n > 1 ? el("span", { class: "more-pos" }, `1 of ${n}`) : null, order("shuffle", "Shuffle"), order("date", "Date added"))),
       list));
@@ -959,12 +982,6 @@ function tagThreadNode({ t, hits }) {
 
 /* Search results: the hits next to each other, padded with the tracks around them to 5 replies.
    More than 5 hits: all hits, no padding. Returns reply indices (1 = first reply). */
-/* the small arrow saying there are more tracks (as under the genres on the Genres page) */
-function moreArrow() {
-  const a = el("span", { class: "more-arrow", "aria-hidden": "true" });
-  a.innerHTML = '<svg viewBox="0 0 16 10"><path d="M2 2l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
-  return a;
-}
 function searchRows(t, hits) {
   const n = t.tracks.length, found = [...hits].filter((i) => i > 0).sort((x, y) => x - y);
   if (found.length > SEARCH_AROUND) return found;
@@ -1019,7 +1036,7 @@ function threadNode({ t, hits }) {
   if (hits && !mobile) {
     // laptop search: "175 tracks" under the tracks, centred, shows the whole thread (no Collapse)
     if (searching) foot = el("div", { class: "search-foot" }, el("span", {}),
-      btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}), moreArrow());
+      btn("tg-expand", `${n} ${n === 1 ? "track" : "tracks"}`, () => toggleExpand(t, hits)), el("span", {}));
     else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
