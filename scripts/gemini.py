@@ -37,7 +37,7 @@ def call(path, body=None):
 def why(e):
     """Google's reason for a failed request (the key itself is never printed)."""
     try:
-        return f"HTTP {e.code} " + json.load(e).get("error", {}).get("message", "")[:200]
+        return f"HTTP {e.code} " + json.load(e).get("error", {}).get("message", "")[:900]
     except Exception:  # noqa: BLE001
         return f"HTTP {getattr(e, 'code', '')}"
 
