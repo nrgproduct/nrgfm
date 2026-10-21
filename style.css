@@ -1005,4 +1005,20 @@ body:not(.can-add) #flagBtn { display: none; }
 
 /* search results: the track box reaches a little up into the gap under the main track and down into the gap
    above "N tracks", so the fades have room without covering the tracks; the thread stays the same height */
-.thread.searching > .tracks { margin-top: -10px; padding-top: 10px; margin-bottom: -6px; padding-bottom: 6px; box-sizing: border-box; }
+.thread.searching > .tracks { margin-top: -8px; margin-bottom: -6px; }
+.thread.searching > .tracks:not(.scroll-list):has(> .peek) { overflow: hidden; }
+.thread.searching .tracks.fade-down { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent); }
+.thread.searching .tracks.fade-up { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to top, #000 calc(100% - 44px), transparent); }
+.thread.searching .tracks.fade-up.fade-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 44px, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 44px, #000 calc(100% - 44px), transparent); }
+
+/* no accidental text highlighting anywhere; typing fields still work as usual */
+body { -webkit-user-select: none; user-select: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
+
+/* Genres playlist side (computer): genres and track count on the left, Shuffle and Date added on the right */
+@media (min-width: 641px) {
+  .genre-mix .tag-side { align-items: stretch !important; text-align: left !important; }
+  .genre-mix .tag-label { align-items: flex-start !important; text-align: left !important; }
+  .genre-mix .gm-names { justify-items: start !important; }
+  .genre-mix .gm-order { justify-items: end !important; text-align: right !important; }
+}

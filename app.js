@@ -491,11 +491,20 @@ function updateFade(list) {
     up = list.scrollTop > 2 && !list.classList.contains("gm-list");
     down = list.scrollTop + list.clientHeight < list.scrollHeight - 2;
   } else { // a search result showing a few tracks of its thread
-    const th = list.closest(".thread"), ks = [...list.querySelectorAll(":scope > li.track")].map((r) => +r.dataset.k.split(":").pop());
-    const n = th ? shown.find((x) => "th-" + x.t.id === th.id)?.t.tracks.length || 0 : 0;
-    up = ks.length && ks[0] > 1; down = ks.length && ks[ks.length - 1] < n - 1;
+    const rows = [...list.querySelectorAll(":scope > li.track")];
+    fitPeek(list, rows);
+    up = rows.length && rows[0].classList.contains("peek"); down = rows.length && rows[rows.length - 1].classList.contains("peek");
   }
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
+}
+const PEEK = 26; // how much of the track before and after shows
+function fitPeek(list, rows) {
+  const a = rows[0], z = rows[rows.length - 1];
+  if (!a || !(a.classList.contains("peek") || z.classList.contains("peek"))) return;
+  const top = a.classList.contains("peek") ? a.offsetHeight - PEEK : 0;
+  const bottom = z.classList.contains("peek") ? z.offsetHeight - PEEK : 0;
+  list.style.height = list.scrollHeight - top - bottom + "px";
+  list.scrollTop = top;
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
 const fadeAll = () => document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks").forEach(updateFade);
@@ -963,6 +972,7 @@ function threadNode({ t, hits }) {
   const long = n > limit, open = expanded.has(t.id) && (long || !!hits);
   const searching = !!hits && !open && n - 1 > SEARCH_AROUND; // results: hits with a few tracks around them
   const scrolling = searching && activeId === t.id; // selected: the whole thread in a box that scrolls
+  const peek = new Set();
   let idx, listCls = "tracks", show = long ? TAG_PREVIEW : limit - 1; // long threads show 5, like tags
   const addingHere = addingId === t.id && !hits && !long && n - 1 > TAG_PREVIEW; // adding a track here: 5 replies in a box
   if (addingHere) { idx = range(1, n); listCls += " scroll-list"; show = TAG_PREVIEW; }
@@ -970,13 +980,20 @@ function threadNode({ t, hits }) {
   else if (open && long) { idx = range(1, n); listCls += " scroll-list open"; } // fills the window, scrolls inside
   else if (open) { idx = range(1, n); }                                 // short thread: simply all of it
   else if (scrolling) { idx = range(1, n); listCls += " scroll-list"; show = SEARCH_AROUND; }
-  else if (searching) { idx = searchRows(t, hits); }
+  else if (searching) { // a slice of the track before and after peeks out under the fades: there is more
+    idx = searchRows(t, hits);
+    if (idx.length && idx[idx.length - 1] - idx[0] === idx.length - 1) {
+      if (idx[0] > 1) { peek.add(idx[0] - 1); idx.unshift(idx[0] - 1); }
+      if (idx[idx.length - 1] < n - 1) { peek.add(idx[idx.length - 1] + 1); idx.push(idx[idx.length - 1] + 1); }
+    }
+  }
   else if (searching) { idx = fixedRows.get(t.id) || searchRows(t, hits); }
   else if (long && !mobile) { idx = range(1, n); listCls += " scroll-list"; }
   else if (long) { idx = range(1, 1 + TAG_PREVIEW); }
   else { idx = range(1, n); }
   const head = t.tracks[0], hi = info(head);
-  const lo = idx.length ? idx[0] + 1 : 1, hiIdx = idx.length ? idx[idx.length - 1] + 1 : 1;
+  const core = idx.filter((i) => !peek.has(i)); // the peeking slices don't count
+  const lo = core.length ? core[0] + 1 : 1, hiIdx = core.length ? core[core.length - 1] + 1 : 1;
   const posText = `${!searching || lo === 2 ? 1 : lo} of ${n}`;
   const pos = () => el("span", { class: "more-pos" }, posText);
   const expandBtn = (cls = "") => btn("tg-expand " + cls, open ? "Collapse" : "Expand", () => toggleExpand(t, hits));
@@ -1018,7 +1035,7 @@ function threadNode({ t, hits }) {
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
     when,
     side,
-    n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => trackRow(t, t.tracks[i], i, hits))) : null,
+    n > 1 ? el("ol", { class: listCls, "data-show": show }, idx.map((i) => { const row = trackRow(t, t.tracks[i], i, hits); if (peek.has(i)) row.classList.add("peek"); return row; })) : null,
     foot, after,
     hits ? null : el("div", { class: "thread-foot" }, // no "Add a track here" in search results
       el("button", { class: "linkbtn add-here", onclick: (e) => toggleAddForm(t, e.currentTarget.closest(".thread")) }, "Add a track here")));
@@ -2257,9 +2274,17 @@ const HOVER_MENU = window.matchMedia("(hover: hover) and (pointer: fine)").match
 if (HOVER_MENU) {
   let tClose;
   $("#home").addEventListener("mouseenter", () => { clearTimeout(tClose); if ($("#menu").hidden) toggleMenu(true); });
-  $(".top").addEventListener("mouseenter", () => clearTimeout(tClose));
-  $(".top").addEventListener("mouseleave", () => { clearTimeout(tClose); tClose = setTimeout(() => toggleMenu(false), 400); });
+  // it stays open while the pointer is anywhere in the header or the menu's row (also on the way from a menu
+  // item to the search bar); it closes ~0.4 s after the pointer goes down into the page or leaves the window
+  addEventListener("mousemove", (e) => {
+    if ($("#menu").hidden) return;
+    const bottom = Math.max($(".top").getBoundingClientRect().bottom, $("#menu").getBoundingClientRect().bottom) + 12;
+    if (e.clientY <= bottom) { clearTimeout(tClose); tClose = null; }
+    else if (!tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 400);
+  }, { passive: true });
+  document.documentElement.addEventListener("mouseleave", () => { if (!$("#menu").hidden && !tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 400); });
 }
+$("#q").addEventListener("mousedown", () => { if (!$("#menu").hidden) toggleMenu(false); }); // clicking in the search closes the menu
 $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
 
 /* Gemini's decision (from what the lookups found, or its own web search) replaces the lookups' suggested
