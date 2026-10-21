@@ -221,6 +221,10 @@ def main():
                         if e.code == 404 and len(models) > 1:  # retired for this key: drop it
                             print(models.pop(0), "not available:", why(e))
                             continue
+                        if e.code == 429 and attempt == 0:  # a per-minute limit passes; a daily one doesn't (stop then)
+                            print("rate limit:", why(e)[:120], "- waiting a minute")
+                            time.sleep(65)
+                            continue
                         if e.code not in (500, 503) or attempt == 3:
                             raise
                         print(models[0], "busy:", why(e), "- waiting")
