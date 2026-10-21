@@ -22,7 +22,7 @@ KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 MODEL = os.environ.get("GEMINI_MODEL", "").strip()
 API = "https://generativelanguage.googleapis.com/v1beta/"
 VERSION = 1
-PER_CALL = {"sources": 20, "search": 4}  # tracks per request
+PER_CALL = {"sources": 50, "search": 10}  # tracks per request
 PAUSE = 7  # seconds between requests (the free tier allows only a few per minute)
 START = time.time()
 
@@ -76,6 +76,14 @@ def facts(tr, meta, extra, desc):
     tags = [t for t in (tr.get("tags") or {}) if t not in ("flagged", "broken link", "plays on youtube only")] if isinstance(tr.get("tags"), dict) else list(tr.get("tags") or [])
     if tags:
         f["group_tags"] = tags
+    # the title as written by the group and the link's own title, when they differ (a year in either is a hint)
+    fetched = m.get("title") or m.get("wb_title") or ""
+    if tr.get("title") and fetched and fetched.strip().lower() != tr["title"].strip().lower():
+        f["link_title"] = fetched
+    if tr.get("year") is not None:  # set by hand in the group's edit card: these are right
+        f["group_year"] = tr["year"] or "none"
+    if tr.get("release") is not None:
+        f["group_release"] = tr["release"]
     found = {}
     if x.get("rl"):
         found["releases"] = x["rl"][:8]
@@ -113,10 +121,13 @@ Tracks:
 HOW = {
     "sources": """Use the "found" data (from MusicBrainz, Discogs and the video description) and your own knowledge.
 The found data is often a wrong match: another song with the same name, a cover, a later compilation.
-Ignore what doesn't fit the title and uploader. Don't guess: leave a field empty when you aren't fairly sure.""",
+Ignore what doesn't fit the title and uploader. Don't guess: leave a field empty when you aren't fairly sure.
+"group_year" and "group_release", when given, were set by hand by the group and are right: keep them.
+A year written in "title" or "link_title" is a strong hint (it can also be a remaster's year).""",
     "search": """Nothing was found about these tracks automatically. Look each one up with Google Search
 (Discogs, MusicBrainz, Bandcamp, Wikipedia and the artist's pages are good sources).
-Don't guess: leave a field empty when you can't find it.""",
+Don't guess: leave a field empty when you can't find it.
+"group_year" and "group_release", when given, were set by hand by the group and are right: keep them.""",
 }
 
 

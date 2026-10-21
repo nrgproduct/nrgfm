@@ -1002,3 +1002,7 @@ body:not(.can-add) #flagBtn { display: none; }
 /* search filters: names in capitals, so letters and numbers are the same height */
 .sf:not(.sf-order) { text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
 .sf:not(.sf-order) .gi-n { font-size: 11px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+
+/* search results: the track box reaches a little up into the gap under the main track and down into the gap
+   above "N tracks", so the fades have room without covering the tracks; the thread stays the same height */
+.thread.searching > .tracks { margin-top: -10px; padding-top: 10px; margin-bottom: -6px; padding-bottom: 6px; box-sizing: border-box; }

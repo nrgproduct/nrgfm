@@ -105,6 +105,13 @@ def apply_edit(data, item):
     if "release" in item:  # the suggested releases as corrected by hand ([] removes them all)
         rel = [str(x).strip()[:200] for x in (item["release"] or []) if str(x).strip()][:8]
         tr["release"] = rel
+    if "year" in item:  # the year as set by hand (0: no year)
+        try:
+            y = int(item["year"] or 0)
+        except (TypeError, ValueError):
+            y = None
+        if y == 0 or (y and 1900 <= y <= 2100):
+            tr["year"] = y
     if "notes" in item:
         notes = (item["notes"] or "").strip()[:4000]
         if notes:

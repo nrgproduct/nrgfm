@@ -467,7 +467,7 @@ function fitMix(node = document.getElementById("th-genre-mix")) {
   list.style.height = "";
   const frame = node.getBoundingClientRect().height - list.getBoundingClientRect().height; // the box around the list
   const gap = node.getBoundingClientRect().top - pool.getBoundingClientRect().bottom;
-  const poolNeed = pool.scrollHeight, row = list.querySelector(".track")?.offsetHeight || 56;
+  const poolNeed = pool.scrollHeight, row = 56; // a fixed row height, so the box is always in the same place
   // the box has one size: half the window plus two tracks (on a phone it reaches down to the bottom)
   const fixed = Math.min(avail - 60 - gap, avail / 2 + 2 * row);
   const listH = phone() ? Math.max(fixed, avail - poolNeed - gap) : fixed;
@@ -477,7 +477,8 @@ function fitMix(node = document.getElementById("th-genre-mix")) {
   pool.parentElement.querySelector(".gm-more").hidden = !(poolH < poolNeed) || pool.scrollTop + pool.clientHeight >= pool.scrollHeight - 4;
   const below = node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // the box's edge under the list
   const room = innerHeight - dock - (list.getBoundingClientRect().top + pageY()) - below - 12;
-  list.style.height = Math.max(120, phone() ? room : Math.min(listH - frame, room)) + "px";
+  // the top stays put; the box is only as tall as its tracks need (up to its full size)
+  list.style.height = Math.max(phone() ? 120 : 60, Math.min(phone() ? room : Math.min(listH - frame, room), list.scrollHeight)) + "px";
   const over = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) - innerHeight;
   if (over > 0) list.style.height = Math.max(120, list.getBoundingClientRect().height - over) + "px"; // the page itself doesn't scroll
 }
@@ -494,7 +495,6 @@ function updateFade(list) {
     const n = th ? shown.find((x) => "th-" + x.t.id === th.id)?.t.tracks.length || 0 : 0;
     up = ks.length && ks[0] > 1; down = ks.length && ks[ks.length - 1] < n - 1;
   }
-  if (list.closest(".thread.searching")) up = false; // search results: only the fade at the bottom
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
@@ -758,8 +758,14 @@ function setActive(id, clickedK) {
     if (!entry || !node || expanded.has(x)) continue;
     const old = node.querySelector(".tracks");
     if (x === id && old) keptHeight.set(x, old.getBoundingClientRect().height); // the box keeps its height
+    // the first track on screen stays where it is when the box starts scrolling (no jump)
+    const oldTop = old ? old.getBoundingClientRect().top : 0;
+    const first = old && [...old.querySelectorAll(":scope > li.track")].find((r) => r.getBoundingClientRect().bottom > oldTop + 2);
+    const firstK = first && first.dataset.k, firstAt = first ? first.getBoundingClientRect().top - oldTop : 0;
     const fresh = rerenderKeep(entry.t, entry.hits);
     if (fresh) fitList(fresh);
+    const same = x === id && firstK && fresh && fresh.querySelector(`.scroll-list [data-k="${CSS.escape(firstK)}"]`);
+    if (same) { const box = same.closest(".scroll-list"); box.dataset.centred = "1"; box.scrollTop += same.getBoundingClientRect().top - box.getBoundingClientRect().top - firstAt; }
     const row = x === id && clickedK && fresh && fresh.querySelector(`.scroll-list [data-k="${CSS.escape(clickedK)}"]`);
     if (row) { const box = row.closest(".scroll-list"); if (row.offsetTop < box.scrollTop || row.offsetTop + row.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = row.offsetTop; }
   }  requestAnimationFrame(fadeAll); // the fades come back when a result is unselected again
@@ -1672,7 +1678,7 @@ function moreInfo(tr, edit, tags) {
     box.append(sug,
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
-        el("span", {}, x.y ? String(x.y) : el("span", { class: "hint" }, x.chk ? "none found" : "not looked up yet")),
+        yearEditor(tr, x, box),
         x.ys && x.ys.length ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null,
         x.src ? el("span", { class: "hint" }, "from " + x.src.split("+").join(", ") + (x.conf ? ", " + x.conf + " confidence" : "")) : null));
     // Meta: uploader and upload date; inside it, Description
@@ -1815,6 +1821,8 @@ async function saveEdit(form, { t, i }) {
   if (notes !== (tr.notes || "")) item.notes = notes;
   const rel = form.querySelector(".af-more")?.releaseChanged?.();
   if (rel) item.release = rel;
+  const yr = form.querySelector(".af-more")?.yearChanged?.();
+  if (yr !== undefined) item.year = yr;
   if (form.date && i === 0) {
     if (!form.date.value) { form.date.reportValidity(); return; }
     const pos = form.querySelector(".af-more").feedPos();
@@ -1831,6 +1839,7 @@ async function saveEdit(form, { t, i }) {
   applyTags(tr, item.tags, item.ts);
   if ("notes" in item) { if (notes) tr.notes = notes; else delete tr.notes; }
   if (item.release) tr.release = item.release;
+  if ("year" in item) { tr.year = item.year; setYear(tr); }
   if (item.date) { // option A: the thread takes its place by this date (on the next load of the feed)
     if (item.date === tr.date && !item.pos) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
     else {
@@ -1905,13 +1914,47 @@ function releaseEditor(tr, x, box) {
   box.releaseChanged = () => (JSON.stringify(rel) !== JSON.stringify(start) ? [...rel] : undefined);
   return wrap;
 }
+/* the suggested year, clicked to change it (like the release); emptied it means "no year" */
+function yearEditor(tr, x, box) {
+  const start = x.y || 0;
+  let year = start;
+  const wrap = el("span", { class: "rel-list" });
+  const draw = () => wrap.replaceChildren(el("span", { class: "rel-item" }, year
+    ? el("button", { type: "button", class: "rel-name", onclick: edit }, String(year))
+    : el("button", { type: "button", class: "rel-name rel-none", onclick: edit }, tr.year === 0 ? "none" : x.chk ? "none found" : "not looked up yet")));
+  function edit() {
+    const input = el("input", { type: "text", class: "rel-input", value: year || "", size: 6, inputmode: "numeric", maxlength: 4, "aria-label": "Year" });
+    let finished = false;
+    const done = (keep) => {
+      if (finished) return; finished = true;
+      if (keep) { const v = input.value.trim(), n = parseInt(v, 10); if (!v) year = 0; else if (/^\d{4}$/.test(v) && n >= 1900 && n <= new Date().getFullYear()) year = n; }
+      draw();
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+    input.addEventListener("blur", () => done(true));
+    wrap.replaceChildren(el("span", { class: "rel-item" }, input));
+    input.focus(); input.select();
+  }
+  draw();
+  box.yearChanged = () => (year !== start ? year : undefined);
+  return wrap;
+}
+/* a year set by hand replaces the suggested one everywhere (search, decades, Genres); the suggestion stays as "also" */
+function setYear(tr) {
+  if (tr.year === undefined) return;
+  const x = extra[tr.url] || (extra[tr.url] = {});
+  if (x.y0 === undefined) x.y0 = x.y || null;
+  x.y = tr.year || null;
+  x.ys = [x.y0, ...(x.ys || [])].filter((y, k, all) => y && y !== x.y && all.indexOf(y) === k);
+  tr._hay = null; gIndex = null;
+}
 function movePanel(formOf, edit) {
   const input = el("input", { type: "search", placeholder: "Search a track in the thread you want to move it to", autocomplete: "off", spellcheck: "false" });
   const list = el("ul", { class: "move-results" });
   // Promote (replies only): the track becomes its own thread, at the top of the feed or at its own date
   const promote = edit.i > 0 ? el("span", { class: "promote" }) : null;
   const drawPromote = (ask) => promote && promote.replaceChildren(
-    ask ? null : el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => drawPromote(true) }, "Promote"),
+    ...(ask ? [] : [el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => drawPromote(true) }, "Promote")]),
     ...(ask ? [
       el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "main") }, "To the top"),
       el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "top") }, "Own thread (new)"),
@@ -2240,6 +2283,7 @@ function withGemini(x, ai) {
       fetch("data/ai.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
     threads = d.threads; meta = m; extra = withGemini(x, ai);
+    for (const t of threads) for (const tr of t.tracks) setYear(tr);
     threads.push(...makeTagThreads());
     sortThreads();
   } catch (e) {
