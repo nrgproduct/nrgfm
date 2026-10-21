@@ -93,6 +93,11 @@ def apply_edit(data, item):
         for k in ("platform", "url", "yt", "vimeo"):
             tr.pop(k, None)
         tr.update(t)
+        # a new link: the old link's problems no longer apply (the next link check tags it again if needed)
+        if isinstance(item.get("tags"), list):
+            item["tags"] = [g for g in item["tags"] if g not in ("broken link", "plays on youtube only")]
+        for g in ("broken link", "plays on youtube only"):
+            (tr.get("tags") or {}).pop(g, None)
     if "title" in item:
         title = (item["title"] or "").strip()[:200]
         if title:

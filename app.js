@@ -425,6 +425,7 @@ function genreMixNode(t) {
     const more = t.tracks.slice(drawn, drawn + BATCH).map((tr, k) => trackRow(t, tr, drawn + k, null));
     drawn += more.length; list.append(...more); markPlaying();
   }, { passive: true });
+  list.addEventListener("scroll", () => updateListPos(list.closest(".thread")), { passive: true }); // "3 of 8" follows the scrolling
   const order = (o, label) => el("button", { class: "more-toggle" + (o === "date" && gOrder === o ? " on" : ""), onclick: () => { gOrder = o; setGenres(gSel); } }, label);
   const node = el("li", { class: "thread tag-thread framed genre-mix", id: "th-" + t.id },
     el("div", { class: "tag-frame" },
@@ -432,7 +433,7 @@ function genreMixNode(t) {
         el("div", { class: "tag-label" },
           el("span", { class: "gm-names" }, gSel.map((g) => el("span", { class: "gm-name" }, g))),
           el("span", { class: "tag-count gm-n" }, `${n} ${n === 1 ? "track" : "tracks"}`)),
-        el("div", { class: "gm-order" }, order("shuffle", "Shuffle"), order("date", "Date added"))),
+        el("div", { class: "gm-order" }, n > 1 ? el("span", { class: "more-pos" }, `1 of ${n}`) : null, order("shuffle", "Shuffle"), order("date", "Date added"))),
       list));
   requestAnimationFrame(() => { fitMix(node); fitNames(node); updateFade(list); });
   return node;
@@ -1842,6 +1843,7 @@ async function saveEdit(form, { t, i }) {
     return;
   }
   const item = { action: "edit", thread: t.id, id: tr.id, title, url, tags: mixTags(form), ts: Math.floor(Date.now() / 1000) };
+  if (url !== tr.url) item.tags = item.tags.filter((g) => g !== "broken link" && g !== "plays on youtube only"); // a new link: those tags go
   const notes = form.notes.value.trim();
   if (notes !== (tr.notes || "")) item.notes = notes;
   const rel = form.querySelector(".af-more")?.releaseChanged?.();

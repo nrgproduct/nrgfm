@@ -1019,7 +1019,7 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 /* Genres playlist and Tags threads (computer): the name and the count sit as far in from the box's left edge as
    Shuffle / Date added sit from the tracks */
 @media (min-width: 641px) {
-  .genre-mix .tag-label, .tag-thread:not(.genre-mix) .tag-label { padding-left: 16px; box-sizing: border-box; }
+  .genre-mix .tag-label, .tag-thread:not(.genre-mix) .tag-label { padding-left: 8px; box-sizing: border-box; }
 }
 
 /* search: the result count, the order and the filters all in capitals at one size */
@@ -1027,3 +1027,10 @@ input, textarea, [contenteditable] { -webkit-user-select: text; user-select: tex
 .sf:not(.sf-order) .gi-n { font-size: 12px !important; }
 /* "4 matches": the match it went to */
 .thread.searching .track.match-now { background: var(--surface-2); border-radius: var(--radius-sm); }
+
+/* Genres playlist: Shuffle / Date added like Expand on the Tags page, a touch smaller; "3 of 8" above them as there */
+.genre-mix .gm-order .more-toggle { font-size: 13px; }
+.genre-mix .gm-order .more-pos { font-size: 13px; color: var(--muted); margin: 0 8px 4px 0; }
+@media (max-width: 640px) { .genre-mix .gm-order .more-pos { display: none; } }
+/* Genres page: the genre field as far under the header as the first box on the Tags page */
+body[data-view="genres"] .gm-picker { margin-top: -6px; }
