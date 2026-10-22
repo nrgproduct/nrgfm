@@ -354,3 +354,5 @@
 {"action": "edit", "thread": "p2636420993041275", "id": "t2636420993041275_0", "title": "Christoph de Babalon", "url": "https://www.youtube.com/watch?v=X7FWKsQptY8", "tags": ["+1 hour"], "ts": 1792656053, "genres": ["drum and bass"]}
 {"action": "tag", "ids": ["t1792341703_0"], "add": ["synth pop"], "remove": [], "ts": 1792660249}
 {"action": "tag", "ids": ["t4536140989735923_0"], "add": ["full release"], "remove": [], "ts": 1792674945}
+{"action": "tag", "ids": ["t4436611806355509_0"], "add": ["anime"], "remove": [], "ts": 1792674994}
+{"action": "tag", "ids": ["t4719196911430329_0"], "add": ["anime"], "remove": [], "ts": 1792675014}
