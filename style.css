@@ -1194,3 +1194,21 @@ body[data-view="threads"] #threads > .thread:first-child:not(.searching) { borde
 .tag-drop .drop-list li:hover { background: none; }
 .tag-drop .drop-list li.on { background: var(--surface-2); }
 .tag-drop .gi-n { margin-left: 0; }
+
+/* phone search results: the post date on the left, the counter (the Scroll button) on the right */
+.phone-foot { display: flex !important; justify-content: space-between; align-items: center; padding-left: 10px !important; padding-right: 10px !important; }
+.phone-foot .foot-date { font-size: 14px; }
+.phone-foot .scroll-link { margin-right: -2px; }
+.phone-foot .scroll-link .more-pos { font-size: inherit; visibility: visible; }
+.phone-foot .scroll-link.on { color: var(--text); background: var(--surface-2); }
+@media (max-width: 640px) {
+  /* the first thread's line keeps a little distance from the header's line */
+  body[data-view="threads"] #threads > .thread:first-child:not(.searching) { margin-top: 6px; }
+  /* "duplicate" is for the computer only */
+  .tag.tag-dup, #th-tag-duplicate { display: none !important; }
+}
+/* computer: "duplicate" can be clicked (searches for the title) */
+@media (min-width: 641px) {
+  .tag.tag-dup { cursor: pointer; }
+  .tag.tag-dup:hover { color: var(--text); }
+}

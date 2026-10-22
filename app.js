@@ -13,6 +13,8 @@ const el = (tag, attrs = {}, ...kids) => {
     else n.setAttribute(k, v === true ? "" : v);
   }
   for (const k of kids.flat()) if (k != null) n.append(k.nodeType ? k : String(k));
+  // typing fields: no autofill (on an iPhone, fewer password/card/address buttons above the keyboard)
+  if ((tag === "input" || tag === "textarea") && !("autocomplete" in attrs)) n.setAttribute("autocomplete", "off");
   return n;
 };
 
@@ -714,8 +716,26 @@ const HIDDEN_TAGS = new Set(); // (none now: "mix" is an ordinary tag again)
 const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g));
 function tagLine(tr, extra, list) {
   const tags = list || shownTags(tr);
-  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
+  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
+/* phone search: touching the page outside a result that scrolls makes it stop scrolling (the page scrolls again) */
+document.addEventListener("touchmove", (e) => {
+  if (!phone() || !activeId || !$("#q").value.trim()) return;
+  const node = document.getElementById("th-" + activeId);
+  if (!node || !node.querySelector(".scroll-list") || node.contains(e.target) || e.target.closest(".dock, .top")) return;
+  setActive(null);
+}, { passive: true });
+/* computer: clicking a track's "duplicate" tag searches for its title (without "(Official Video)" and the like), so the
+   threads it was posted in show together */
+const coreTitle = (title) => title.replace(/\s*[\(\[][^\)\]]*[\)\]]/g, " ").replace(/\b(19|20)\d\d\b/g, " ").replace(/[^\p{L}\p{N}&']+/gu, " ").replace(/\s+/g, " ").trim();
+document.addEventListener("click", (e) => {
+  const tag = e.target.closest && e.target.closest(".tag.tag-dup");
+  if (!tag || phone() || e.metaKey || e.ctrlKey) return;
+  const row = tag.closest("[data-k]"), at = row && trackAt(row.dataset.k);
+  if (!at || (row.nextElementSibling && row.nextElementSibling.classList.contains("edit-wrap"))) return; // (editing: the tag is being removed)
+  e.preventDefault(); e.stopPropagation();
+  searchFor(coreTitle(info(at.tr).title));
+}, true);
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
 const RECOVERED = "title recovered from Internet Archive";
@@ -1054,9 +1074,15 @@ function threadNode({ t, hits }) {
     else if (open && long) foot = el("div", { class: "search-foot" }, el("span", {}), expandBtn(), el("span", {})); // long threads: Collapse
   } else if (hits && mobile) {
     // phone search: counter, Scroll and Expand under the tracks; Expand shows the whole thread (no Collapse)
-    if (searching) foot = el("div", { class: "search-foot" }, pos(),
-      el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), onclick: (e) => { e.stopPropagation(); setActive(scrolling ? null : t.id); } }, "Scroll"),
-      expandBtn("foot-right"));
+    // phone search: the post date (to the thread, as on a computer) and, when there is more, the counter as the
+    // button that lets the box scroll (lit while it does)
+    foot = el("div", { class: "search-foot phone-foot" },
+      el("button", { class: "when-link foot-date", onclick: (e) => { e.stopPropagation(); goToThread(t); } }, day),
+      searching ? el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), onclick: (e) => {
+        e.stopPropagation();
+        setActive(scrolling ? null : t.id);
+        if (!scrolling) { const n = document.getElementById("th-" + t.id); if (n) pageScrollBy(n.getBoundingClientRect().top - headerBottom() - 8); } // the box's top border just under the header
+      } }, el("span", { class: "more-pos" }, posText)) : el("span", {}));
   } else if (long) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
@@ -1376,7 +1402,7 @@ function openThread() {
         img(x.thumb, "chip"),
         el("span", { class: "tl-text" },
           el("span", { class: "tr-title" }, x.title),
-          el("span", { class: "tr-sub" }, [i === 0 ? "Main track" : null, x.author].filter(Boolean).join(", ")))));
+          el("span", { class: "tr-sub" }, [i === 0 ? "Main track" : null, shownTags(tr).filter((g) => g !== "duplicate" || !phone()).join(", ")].filter(Boolean).join(" · ")))));
   }));
   const room = $(".bar").getBoundingClientRect().top - headerBottom() - 16;
   $("#threadPop").style.maxHeight = phone() ? Math.max(120, room) + "px" : "";
@@ -2268,6 +2294,7 @@ function copyLink(t, btn) {
 /* Escape: close every add/edit card and leave the search */
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
+  if (!$("#threadPop").hidden) { closeThread(); return; } // the "1 of 5 in this thread" list closes first
   const cards = document.querySelectorAll(".add-form");
   if (cards.length) { cards.forEach((f) => closeAddForm(f)); return; } // an open card closes first, nothing else
   if (view === "genres" && gSel.length && !$("#q").value) { setGenres([]); return; } // Genres: Esc empties the field
