@@ -847,9 +847,11 @@ document.addEventListener("wheel", (e) => {
   }
   // inside a selected box but not over its list (the name, the thumbnail, the counter): scroll the list anyway
   const sel = e.target.closest && e.target.closest(".thread.active");
-  if (sel && !sel.querySelector(".edit-wrap") && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
-    const list = sel.querySelector(".scroll-list");
-    if (list) { e.preventDefault(); list.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY); return; }
+  const selList = sel && sel.querySelector(".scroll-list");
+  const fits = selList && selList.scrollHeight <= selList.clientHeight + 1; // nothing to scroll to: the page scrolls
+  if (selList) selList.classList.toggle("no-overflow", !!fits);
+  if (sel && !fits && !sel.querySelector(".edit-wrap") && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
+    e.preventDefault(); selList.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY); return;
   }
   const box = e.target.closest && e.target.closest(".scroll-list");
   if (!box || box.closest(".thread").classList.contains("active") || box.querySelector(".edit-wrap") || box.closest(".genre-mix")) return; // selected, editing in it, or the Genres playlist
