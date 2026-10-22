@@ -112,6 +112,9 @@ def apply_edit(data, item):
         tr["release"] = rel
     if "genres" in item:  # the suggested genres as corrected by hand ([] = none)
         tr["genres"] = [re.sub(r"\s+", " ", str(g)).strip().lower()[:60] for g in (item["genres"] or []) if str(g).strip()][:12]
+    for k in ("artist", "country"):  # set by hand ("" = none)
+        if k in item:
+            tr[k] = str(item[k] or "").strip()[:120]
     if "year" in item:  # the year as set by hand (0: no year)
         try:
             y = int(item["year"] or 0)

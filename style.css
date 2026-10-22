@@ -1246,7 +1246,7 @@ html.inner-scroll { color-scheme: dark; }
 
 /* computer: track titles (in the lists and the player) can be selected with the mouse */
 @media (hover: hover) and (pointer: fine) {
-  .tr-title, .t-title, #nowTitle { -webkit-user-select: text; user-select: text; cursor: text; }
+  #nowTitle { -webkit-user-select: text; user-select: text; cursor: text; } /* only the player's title */
 }
 #yearBtn[hidden] { display: none; }
 .af-about { margin: 4px 0 0; font-size: 14px; color: var(--muted); }

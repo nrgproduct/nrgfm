@@ -82,7 +82,7 @@ function info(t) {
 
 /* What search looks in, field by field (the filters next to the result count switch fields off) */
 // in order of importance: a match in an earlier field ranks a result higher
-const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["tags", "Tags"], ["release", "Release"], ["year", "Year"], ["genres", "Genres"], ["uploader", "Meta"]];
+const FIELDS = [["title", "Titles"], ["notes", "Notes"], ["tags", "Tags"], ["release", "Releases"], ["year", "Year"], ["genres", "Genres"], ["uploader", "Meta"]];
 function haystack(t) {
   if (t._hay == null) {
     const m = meta[t.url] || {}, x = extra[t.url] || {};
@@ -961,7 +961,7 @@ function fitList(node, scroll) {
   const top = scroll ? headerBottom() + GAP : node.getBoundingClientRect().top;             // where the box will be
   const h = Math.max(200, visibleBottom() - GAP - (top + listOffset) - below) + "px";
   list.style.maxHeight = h;
-  if (node.classList.contains("tag-thread")) list.style.minHeight = h; // a playlist fills the screen even with few tracks
+  // (a playlist with few tracks keeps just their height: no stretching to the bottom)
   if (scroll) {
     const room = INNER_SCROLL ? $("main") : document.body; // room to scroll that far even near the end of the page
     room.style.minHeight = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) + innerHeight + "px";
@@ -1833,7 +1833,7 @@ function moreInfo(tr, edit, tags) {
   if (tr) {
     const sug = el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested genres"), genreEditor(tr, x, box));
     box.append(sug,
-      el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
+      el("div", { class: "af-sug rel-line" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
         yearEditor(tr, x, box),
         // other years only when the suggestion is uncertain; where it came from shows when hovering the line
@@ -1842,6 +1842,8 @@ function moreInfo(tr, edit, tags) {
     const yearNote = [x.conf ? `Confidence: ${x.conf}` : null, x.ys && x.ys.length ? `Also found: ${x.ys.join(", ")}` : null,
       x.src ? `From: ${x.src.split("+").join(", ")}` : null].filter(Boolean);
     if (yearNote.length) hoverNote(yearLine, yearNote);
+    const relNote = [x.conf ? `Confidence: ${x.conf}` : null, x.src ? `From: ${x.src.split("+").join(", ")}` : null].filter(Boolean);
+    if (relNote.length) hoverNote(box.querySelector(".rel-line"), relNote);
     // Meta: uploader and upload date; inside it, Description
     const descBox = el("div", { class: "af-desc", hidden: true });
     const descBtn = el("button", { type: "button", class: "thread-btn", onclick: async () => {
@@ -1857,8 +1859,8 @@ function moreInfo(tr, edit, tags) {
     // Meta, then the track's length and the suggested artist on the same line
     box.append(el("div", { class: "af-meta-line" }, el("button", { type: "button", class: "thread-btn", onclick: () => (metaBox.hidden = !metaBox.hidden) }, "Meta"),
       el("span", {}, el("span", { class: "af-label" }, "Duration"), x.d ? fmtTime(x.d) : el("span", { class: "hint" }, "unknown")),
-      el("span", {}, el("span", { class: "af-label" }, "Artist"), x.ar || el("span", { class: "hint" }, "unknown")),
-      el("span", {}, el("span", { class: "af-label" }, "Country"), countryName(x.co) || el("span", { class: "hint" }, "unknown"))), metaBox);
+      el("span", {}, el("span", { class: "af-label" }, "Artist"), textEditor(box, "artist", x.ar || "", (v) => v)),
+      el("span", {}, el("span", { class: "af-label" }, "Country"), textEditor(box, "country", x.co || "", countryName))), metaBox);
     if (x.about) box.append(el("p", { class: "af-about" }, x.about)); // what Gemini found out about it
   } else {
     box.append(el("p", { class: "hint af-later" }, "Suggested genres, year and the uploader are looked up after saving (every few hours)."));
@@ -1994,6 +1996,9 @@ async function saveEdit(form, { t, i }) {
   if (yr !== undefined) item.year = yr;
   const gn = form.querySelector(".af-more")?.genresChanged?.();
   if (gn !== undefined) item.genres = gn;
+  const ar = form.querySelector(".af-more")?.artistChanged?.(), co = form.querySelector(".af-more")?.countryChanged?.();
+  if (ar !== undefined) item.artist = ar;
+  if (co !== undefined) item.country = co;
   if (form.date && i === 0) {
     if (!form.date.value) { form.date.reportValidity(); return; }
     const pos = form.querySelector(".af-more").feedPos();
@@ -2012,6 +2017,9 @@ async function saveEdit(form, { t, i }) {
   if (item.release) tr.release = item.release;
   if ("year" in item) { tr.year = item.year; setYear(tr); }
   if ("genres" in item) { tr.genres = item.genres; setGenresOf(tr); }
+  if ("artist" in item) tr.artist = item.artist;
+  if ("country" in item) tr.country = item.country;
+  setArtistCountry(tr);
   if (item.date) { // option A: the thread takes its place by this date (on the next load of the feed)
     if (item.date === tr.date && !item.pos) { delete tr.shown_date; delete t.pos_ts; delete t.pos_set; }
     else {
@@ -2121,6 +2129,32 @@ function setGenresOf(tr) {
   const x = extra[tr.url] || (extra[tr.url] = {});
   x.g = [...tr.genres]; x.gm = [...new Set(tr.genres.map(sameGenre))];
   tr._hay = null; gIndex = null;
+}
+/* one value (Artist, Country), clicked to change it like the year; emptied it means "none". box[name + "Changed"]()
+   gives the new value when it was changed */
+function textEditor(box, name, start, show) {
+  let val = start;
+  const wrap = el("span", { class: "rel-list" });
+  const draw = () => wrap.replaceChildren(el("span", { class: "rel-item" }, el("button", { type: "button", class: "rel-name" + (val ? "" : " rel-none"), onclick: edit }, val ? show(val) : "unknown")));
+  function edit() {
+    const input = el("input", { type: "text", class: "rel-input", value: show(val), size: Math.max(10, show(val).length + 2), "aria-label": name });
+    let finished = false;
+    const done = (keep) => { if (finished) return; finished = true; if (keep) val = input.value.trim().slice(0, 120); draw(); };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); done(true); } else if (e.key === "Escape") { e.stopPropagation(); done(false); } });
+    input.addEventListener("blur", () => done(true));
+    wrap.replaceChildren(el("span", { class: "rel-item" }, input));
+    input.focus(); input.select();
+  }
+  draw();
+  box[name + "Changed"] = () => (val !== start && show(val) !== show(start) ? val : undefined);
+  return wrap;
+}
+/* artist and country set by hand replace the looked-up ones */
+function setArtistCountry(tr) {
+  if (tr.artist === undefined && tr.country === undefined) return;
+  const x = extra[tr.url] || (extra[tr.url] = {});
+  if (tr.artist !== undefined) x.ar = tr.artist;
+  if (tr.country !== undefined) x.co = tr.country;
 }
 /* the suggested year, clicked to change it (like the release); emptied it means "no year" */
 function yearEditor(tr, x, box) {
@@ -2358,6 +2392,7 @@ addEventListener("keydown", (e) => {
   if (!(e.metaKey || e.ctrlKey || (e.shiftKey && e.key === "Escape")) || e.altKey) return;
   const inField = e.target.closest && e.target.closest("input:not([type=range]), textarea, [contenteditable]");
   if (e.key === "Escape" && playing) { e.preventDefault(); e.stopPropagation(); closeDock(); return; }
+  if (e.key === "Backspace" && playing && (e.metaKey || e.ctrlKey) && !inField) { e.preventDefault(); e.stopPropagation(); closeDock(); return; } // Cmd+Backspace: the same
   if (inField || $("#dock").hidden || e.shiftKey) return;
   if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && playing) {
     e.preventDefault(); e.stopPropagation(); // (instead of the browser's Back/Forward)
@@ -2414,8 +2449,6 @@ $("#sourceBtn").onclick = () => {
 function showFlag() {
   const tr = playing && playing.thread.tracks[playing.index];
   $("#flagBtn").classList.toggle("on", !!(tr && tr.tags && tr.tags.flagged));
-  const y = tr && (extra[tr.url] || {}).y; // the suggested year, after "discogs" (for later use)
-  $("#yearBtn").textContent = y || ""; $("#yearBtn").hidden = !y;
 }
 $("#flagBtn").onclick = async () => {
   if (!playing) return;
@@ -2793,7 +2826,7 @@ document.addEventListener("click", (e) => {
       fetch("data/ai.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]);
     threads = d.threads; meta = m; extra = withGemini(x, ai);
-    for (const t of threads) for (const tr of t.tracks) { setYear(tr); setGenresOf(tr); }
+    for (const t of threads) for (const tr of t.tracks) { setYear(tr); setGenresOf(tr); setArtistCountry(tr); }
     threads.push(...makeTagThreads());
     sortThreads();
   } catch (e) {

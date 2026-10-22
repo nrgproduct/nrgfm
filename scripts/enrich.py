@@ -129,9 +129,21 @@ def discogs(artist, title):
         y = int(r["year"]) if str(r.get("year", "")).isdigit() else 9999
         if name:
             rels.append((y, name))
+    countries = [(int(r["year"]) if str(r.get("year", "")).isdigit() else 9999, DG_COUNTRY.get(r["country"], r["country"]))
+                 for r in res if r.get("country") and r["country"] not in DG_NOT_COUNTRY]
     return {"y": min(years) if years else None, "ys": years, "rl": rels,
+            "co": min(countries)[1] if countries else None,  # the country of the earliest release
             "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])][:6]}
 
+
+# Discogs writes countries as names; the common ones as two-letter codes like MusicBrainz (others stay as names)
+DG_COUNTRY = {"UK": "GB", "US": "US", "USA": "US", "Japan": "JP", "Germany": "DE", "France": "FR", "Netherlands": "NL",
+              "Italy": "IT", "Spain": "ES", "Sweden": "SE", "Norway": "NO", "Denmark": "DK", "Finland": "FI", "Belgium": "BE",
+              "Canada": "CA", "Australia": "AU", "Brazil": "BR", "Russia": "RU", "Poland": "PL", "Austria": "AT",
+              "Switzerland": "CH", "Ireland": "IE", "Iceland": "IS", "Portugal": "PT", "Greece": "GR", "Mexico": "MX",
+              "South Korea": "KR", "China": "CN", "Taiwan": "TW", "Hong Kong": "HK", "New Zealand": "NZ", "South Africa": "ZA",
+              "Argentina": "AR", "Jamaica": "JM", "Turkey": "TR", "Czech Republic": "CZ", "Hungary": "HU", "Israel": "IL"}
+DG_NOT_COUNTRY = {"Europe", "Worldwide", "Unknown", "UK & Europe", "USA & Canada", "UK, Europe & US", "Scandinavia", "Benelux", "Germany, Austria, & Switzerland"}
 
 VERSION = 3  # entries looked up by an older version of this script are looked up again
 BASE_GENRES = """ambient,acid house,alternative rock,art rock,bass music,breakbeat,breaks,chillwave,classical,coldwave,dancehall,
@@ -326,8 +338,9 @@ def main():
                     print("discogs", type(x).__name__, x)
                 if mb and mb.get("ar"):
                     e["ar"] = mb["ar"]  # the artist as MusicBrainz credits the recording
-                if mb and mb.get("co"):
-                    e["co"] = mb["co"]
+                co = (mb or {}).get("co") or (dg or {}).get("co")  # MusicBrainz first, else Discogs
+                if co:
+                    e["co"] = co
                 years = [y for r in (mb, dg) if r for y in r.get("ys", [])]
                 genres = []
                 for r in (dg, mb):
