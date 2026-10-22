@@ -445,3 +445,4 @@
 {"url": "https://www.youtube.com/watch?v=tb3EV4RvlWc", "title": "Venter På Far - Tilbage til kødgryden (1994)", "thread": "p1668127149870669", "tags": ["dansk"], "ts": 1792699905}
 {"action": "tag", "ids": ["t1785803108103072_0"], "add": ["city pop"], "remove": [], "ts": 1792699982}
 {"action": "edit", "thread": "p1668127149870669", "id": "t1785803108103072_0", "title": "EPO  ナチュラル・ミステリー (1987)", "url": "https://www.youtube.com/watch?v=IYrxuHuIjG0", "tags": ["city pop"], "ts": 1792700008}
+{"action": "tag", "ids": ["t1686941024655948_0"], "add": ["minimalism", "latin", "prog"], "remove": [], "ts": 1792700108}
