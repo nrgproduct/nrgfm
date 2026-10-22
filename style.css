@@ -1212,3 +1212,16 @@ body[data-view="threads"] #threads > .thread:first-child:not(.searching) { borde
   .tag.tag-dup { cursor: pointer; }
   .tag.tag-dup:hover { color: var(--text); }
 }
+
+/* History: the year line sits at the same place at the top of the page as when it is pinned while scrolling */
+body[data-view="history"] .view-history { margin-top: -9px; }
+@media (max-width: 640px) {
+  body[data-view="threads"] #threads > .thread:first-child:not(.searching) { border-top: 0; margin-top: 0; }
+}
+/* phone search results: the date small, starting where the dividing line starts; the counter (Scroll) in the middle,
+   when on just white text without its dotted line */
+.phone-foot { display: grid !important; grid-template-columns: 1fr auto 1fr; padding-left: 0 !important; padding-right: 0 !important; }
+.phone-foot .foot-date { font-size: 12px !important; justify-self: start; }
+.phone-foot .scroll-link { justify-self: center; margin: 0 !important; }
+.phone-foot .scroll-link.on { background: none !important; color: var(--text) !important; text-decoration: none !important; }
+.phone-foot .scroll-link.on .more-pos { color: var(--text) !important; }

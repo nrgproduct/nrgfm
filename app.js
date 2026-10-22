@@ -836,7 +836,7 @@ function setActive(id, clickedK) {
 }
 const selectable = (th) => !th.classList.contains("genre-mix") && (th.querySelector(".scroll-list") || (th.classList.contains("searching") && th.querySelector(".tracks")));
 document.addEventListener("click", (e) => {
-  if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap")) return; // the player and editing leave it as it is
+  if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap, .scroll-link")) return; // the player, editing and the phone's Scroll counter (it does its own) leave it as it is
   if (addingId) return; // adding a track: stays selected until the card closes
   const th = e.target.closest("#threads > .thread");
   if (th && th.classList.contains("active") && e.target.closest("button, a")) return; // playing, matches, links: stays selected
@@ -1080,8 +1080,13 @@ function threadNode({ t, hits }) {
       el("button", { class: "when-link foot-date", onclick: (e) => { e.stopPropagation(); goToThread(t); } }, day),
       searching ? el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), onclick: (e) => {
         e.stopPropagation();
-        setActive(scrolling ? null : t.id);
-        if (!scrolling) { const n = document.getElementById("th-" + t.id); if (n) pageScrollBy(n.getBoundingClientRect().top - headerBottom() - 8); } // the box's top border just under the header
+        const on = activeId !== t.id; // (the tap may already have selected it: ask the page, not this button)
+        setActive(on ? t.id : null);
+        if (on) { // the box's top border just under the header; held there while the keyboard closes and things settle
+          $("#q").blur();
+          const n = document.getElementById("th-" + t.id);
+          if (n) holdAt(n, () => headerBottom() + 8);
+        }
       } }, el("span", { class: "more-pos" }, posText)) : el("span", {}));
   } else if (long) {
     side = el("div", { class: "thread-more" },
@@ -1402,7 +1407,7 @@ function openThread() {
         img(x.thumb, "chip"),
         el("span", { class: "tl-text" },
           el("span", { class: "tr-title" }, x.title),
-          el("span", { class: "tr-sub" }, [i === 0 ? "Main track" : null, shownTags(tr).filter((g) => g !== "duplicate" || !phone()).join(", ")].filter(Boolean).join(" · ")))));
+          el("span", { class: "tr-sub" }, shownTags(tr).filter((g) => g !== "duplicate" || !phone()).join(", ")))));
   }));
   const room = $(".bar").getBoundingClientRect().top - headerBottom() - 16;
   $("#threadPop").style.maxHeight = phone() ? Math.max(120, room) + "px" : "";
