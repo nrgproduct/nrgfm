@@ -385,3 +385,4 @@
 {"action": "delete", "thread": "p1792340200", "id": "t1792340200_0", "ts": 1792678197}
 {"url": "https://www.youtube.com/watch?v=jTvlcsSKtF0", "title": "Brian Eno With Daniel Lanois & Roger Eno — Apollo - Atmospheres & Soundtracks (1983 full album)", "thread": "", "tags": ["minimalism", "reduced listening", "ambient"], "ts": 1792688501}
 {"url": "https://vimeo.com/428929978", "title": "Wendy Carlos – Sonic Seasonings + (1972 full album)", "thread": "p1792688501", "tags": ["reduced listening"], "ts": 1792688587}
+{"action": "tag", "ids": ["t28666636782926340_0"], "add": ["zoomer"], "remove": [], "ts": 1792688732}
