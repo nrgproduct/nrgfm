@@ -845,6 +845,11 @@ document.addEventListener("click", (e) => {
   else if (activeId) setActive(null); // a click in the selected box or anywhere else unselects
 }, true);
 document.addEventListener("wheel", (e) => {
+  // computer: scrolling with the pointer outside the selected box unselects it (its list stops scrolling)
+  if (activeId && !phone() && e.target.closest && !e.target.closest(".thread.active, .dock, .top, .side, .quick-drop")) {
+    const a = document.getElementById("th-" + activeId);
+    if (a && !a.querySelector(".edit-wrap, .add-form")) setActive(null);
+  }
   // inside a selected box but not over its list (the name, the thumbnail, the counter): scroll the list anyway
   const sel = e.target.closest && e.target.closest(".thread.active");
   if (sel && !sel.querySelector(".edit-wrap") && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
@@ -889,8 +894,7 @@ const keptHeight = new Map(); // search results: Scroll keeps the box as tall as
 /* "2 matches" in a selected result: the next match goes to the top of the box */
 function nextMatch(node) {
   node = node && document.getElementById(node.id); // the first press re-draws the result (it gets selected)
-  if (node) pageScrollBy(node.getBoundingClientRect().top - headerBottom() - 8, true); // the thread at the top
-  const list = node && node.querySelector(".scroll-list");
+  const list = node && node.querySelector(".scroll-list"); // (the page stays where it is)
   if (!list) return;
   const hs = [...list.querySelectorAll(":scope > li.track.hit")];
   const at = (h) => h.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop; // inside the box
@@ -915,6 +919,24 @@ function toggleScroll(t, hits) {
 /* Expanded: the thread moves to the top of the window and its list fills the rest of it
    (down to the player) and scrolls inside. Collapsed boxes on a laptop show a few tracks and
    scroll for the rest. The counter follows the scrolling. */
+/* phone: a selected search result that scrolls shows its own scroll bar all the time (the iPhone's only shows while
+   moving), so you can see which way there is more */
+function scrollIndicator(node, list) {
+  node.querySelector(":scope > .scroll-ind")?.remove();
+  if (!phone() || !node.classList.contains("active") || list.scrollHeight <= list.clientHeight + 2) { list._ind = null; return; }
+  const thumb = el("span", { class: "scroll-ind-thumb" }), bar = el("span", { class: "scroll-ind", "aria-hidden": "true" }, thumb);
+  node.append(bar);
+  list._ind = () => {
+    if (!bar.isConnected) return;
+    const nr = node.getBoundingClientRect(), lr = list.getBoundingClientRect();
+    bar.style.top = lr.top - nr.top + "px"; bar.style.height = lr.height + "px";
+    const h = Math.max(24, lr.height * list.clientHeight / list.scrollHeight);
+    thumb.style.height = h + "px";
+    thumb.style.transform = `translateY(${(lr.height - h) * list.scrollTop / Math.max(1, list.scrollHeight - list.clientHeight)}px)`;
+  };
+  list.addEventListener("scroll", list._ind, { passive: true });
+  list._ind();
+}
 function fitList(node, scroll) {
   if (!node) return;
   if (!document.querySelector(".scroll-list.open")) { $("main").style.minHeight = ""; document.body.style.minHeight = ""; } // nothing open: no extra room
@@ -927,6 +949,7 @@ function fitList(node, scroll) {
     const id = node.id.slice(3);
     if (keptHeight.has(id) && node.classList.contains("searching")) list.style.maxHeight = keptHeight.get(id) + "px";
     else if (last) list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
+    requestAnimationFrame(() => scrollIndicator(node, list));
     const hitsIn = list.querySelectorAll(":scope > li.track.hit"), focus = hitsIn[0];
     if (focus && list.dataset.centred !== "1") { // search: one hit in the middle, several: the first at the top
       list.dataset.centred = "1";
@@ -970,8 +993,12 @@ function updateListPos(node) {
   let first = 0, last = 0;
   rows.forEach((r, k) => { if (r.offsetTop + r.offsetHeight > top && !first) first = k + 1; if (r.offsetTop < bottom) last = k + 1; });
   const total = +list.dataset.total || rows.length + offset;
-  const text = `${offset && top < 4 ? 1 : (first || 1) + offset} of ${total}`;
-  pos.forEach((p) => (p.textContent = text));
+  const n = offset && top < 4 ? 1 : (first || 1) + offset, text = `${n} of ${total}`;
+  pos.forEach((p) => { // a split counter keeps "of" in place: the numbers change on either side of it
+    if (p.classList.contains("pos-split")) { p.querySelector(".pos-a").textContent = n; p.querySelector(".pos-b").textContent = total; }
+    else p.textContent = text;
+  });
+  if (list._ind) list._ind();
 }
 addEventListener("resize", () => {
   document.documentElement.style.setProperty("--top-h", $(".top").offsetHeight + "px");
@@ -1078,7 +1105,7 @@ function threadNode({ t, hits }) {
     // button that lets the box scroll (lit while it does)
     foot = el("div", { class: "search-foot phone-foot" },
       el("button", { class: "when-link foot-date", onclick: (e) => { e.stopPropagation(); goToThread(t); } }, day),
-      searching ? el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), onclick: (e) => {
+      searching ? el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), style: `--digits:${String(n).length}`, onclick: (e) => {
         e.stopPropagation();
         const on = activeId !== t.id; // (the tap may already have selected it: ask the page, not this button)
         setActive(on ? t.id : null);
@@ -1087,7 +1114,9 @@ function threadNode({ t, hits }) {
           const n = document.getElementById("th-" + t.id);
           if (n) holdAt(n, () => headerBottom() + 8);
         }
-      } }, el("span", { class: "more-pos" }, posText)) : el("span", {}));
+      } }, scrolling // off: how many tracks; on: where you are ("7 of 12", the "of" stays put)
+        ? el("span", { class: "more-pos pos-split" }, el("span", { class: "pos-a" }, lo), el("span", { class: "pos-of" }, " of "), el("span", { class: "pos-b" }, n))
+        : `${n} tracks`) : el("span", {}));
   } else if (long) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
@@ -1103,7 +1132,7 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" + (hi.recovered ? "" : " only-date") },
             hits ? null : el("span", { class: "t-date-phone" }, day + (hi.recovered ? " · " : "")), // phone: the date under the title
-            hi.recovered ? RECOVERED : null))),
+            hi.recovered ? el("span", { class: "sub-note" }, RECOVERED) : null))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
     when,
     side,
@@ -2645,6 +2674,8 @@ function openQuick(row, at) {
       else if (draft.length) markAt(draft.length - 1); // first press marks it, the second takes it out
     } else if (e.key === "ArrowLeft" && (atStart || !input.value) && draft.length) {
       e.preventDefault(); markAt(mark < 0 ? draft.length - 1 : Math.max(0, mark - 1));
+    } else if (e.key === "ArrowRight" && mark < 0 && typed && input.selectionStart === input.value.length) {
+      e.preventDefault(); pick(typed); // what you typed, as it is (a new tag), not the suggestion
     } else if (e.key === "ArrowRight" && mark > -1) {
       e.preventDefault(); markAt(mark + 1 < draft.length ? mark + 1 : -1);
     } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && opts.length) {

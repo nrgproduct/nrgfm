@@ -1225,3 +1225,20 @@ body[data-view="history"] .view-history { margin-top: -9px; }
 .phone-foot .scroll-link { justify-self: center; margin: 0 !important; }
 .phone-foot .scroll-link.on { background: none !important; color: var(--text) !important; text-decoration: none !important; }
 .phone-foot .scroll-link.on .more-pos { color: var(--text) !important; }
+
+/* phone search results */
+.phone-foot .foot-date { margin-left: 5px; }                 /* clear of the selected box's dotted side */
+.phone-foot .scroll-link { font-size: 12px !important; color: var(--muted); text-decoration: none !important;
+  border-bottom: 1px dotted currentColor; border-radius: 0; height: auto; padding: 0 0 1px; line-height: 1.4; }  /* one continuous dotted line */
+.phone-foot .scroll-link.on, .phone-foot .scroll-link.on .more-pos { color: var(--text) !important; }
+.pos-split { display: inline-flex; font-variant-numeric: tabular-nums; }
+.pos-split .pos-a { min-width: calc(var(--digits, 2) * 1ch); text-align: right; }
+.pos-split .pos-b { min-width: calc(var(--digits, 2) * 1ch); text-align: left; }
+.pos-split .pos-of { white-space: pre; }
+.scroll-ind { position: absolute; right: 3px; width: 3px; z-index: 5; pointer-events: none; }
+.scroll-ind-thumb { display: block; width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--text) 55%, transparent); }
+@media (max-width: 640px) {
+  .sub-note { display: none; } /* "title recovered from Internet Archive": not on the phone */
+}
+/* iPhone: the page's own scroll bar light, like the ones inside the boxes */
+html.inner-scroll { color-scheme: dark; }
