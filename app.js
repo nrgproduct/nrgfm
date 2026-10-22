@@ -148,6 +148,11 @@ function makeTagThreads() {
     return { id: "tag-" + fold(g).replace(/ /g, "-"), name: g, kind: "tag", ts: list[list.length - 1].ts, last: list[0].ts, tracks: list.map((x) => x.tr) };
   });
 }
+function tagCounts() { // tag -> how many tracks have it
+  const n = new Map();
+  for (const t of threads) if (isBase(t)) for (const tr of t.tracks) for (const g of shownTags(tr)) n.set(g, (n.get(g) || 0) + 1);
+  return n;
+}
 function allTags() {
   const n = new Map();
   for (const t of threads) if (isBase(t)) for (const tr of t.tracks) for (const g of shownTags(tr)) n.set(g, (n.get(g) || 0) + 1);
@@ -910,37 +915,32 @@ function fitList(node, scroll) {
     updateListPos(node);
     return;
   }
-  // open: the whole frame fits between the header and the bottom of the window (or the player), with the same
-  // small gap above and below it
+  // open: the box goes right under the header and its list reaches down to the lowest point of the screen that is
+  // surely visible (see visibleBottom), with the same small gap above and below. Worked out in one go: the place the
+  // list will have once the box is at the top, then the page is scrolled there (instantly, no animation).
   const GAP = 8;
-  const dock = dockH();
-  const below = () => node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // Collapse, Add a track…
-  const size = () => {
-    const vh = window.visualViewport ? Math.min(innerHeight, visualViewport.height) : innerHeight; // iPhone: the part not under the browser bars
-    const h = Math.max(200, vh - dock - GAP - list.getBoundingClientRect().top - below()) + "px";
-    list.style.maxHeight = h;
-    if (node.classList.contains("tag-thread")) list.style.minHeight = h; // a playlist fills the screen even with few tracks
-  };
+  const below = node.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom; // Collapse, Add a track…
+  const listOffset = list.getBoundingClientRect().top - node.getBoundingClientRect().top;  // the box's top to its list
+  const top = scroll ? headerBottom() + GAP : node.getBoundingClientRect().top;             // where the box will be
+  const h = Math.max(200, visibleBottom() - GAP - (top + listOffset) - below) + "px";
+  list.style.maxHeight = h;
+  if (node.classList.contains("tag-thread")) list.style.minHeight = h; // a playlist fills the screen even with few tracks
   if (scroll) {
-    const above = list.getBoundingClientRect().top - node.getBoundingClientRect().top;
-    list.style.maxHeight = Math.max(200, innerHeight - dock - headerBottom() - 2 * GAP - above - below()) + "px";
-    const room = INNER_SCROLL ? $("main") : document.body;
-    room.style.minHeight = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) + innerHeight + "px"; // room to scroll even near the end
-    pageScrollBy(node.getBoundingClientRect().top - headerBottom() - GAP);
-    size();
-    updateListPos(node);
-    // a moment later (iPhone: after its own scrolling settles), once more exactly: the box's top under the header
-    // and its bottom at the bottom of the screen; the extra room under the page stays while it is open
-    setTimeout(() => {
-      if (!node.isConnected || !list.classList.contains("open")) return;
-      const d = node.getBoundingClientRect().top - headerBottom() - GAP;
-      if (Math.abs(d) > 1) pageScrollBy(d);
-      size();
-    }, 400);
-    return;
+    const room = INNER_SCROLL ? $("main") : document.body; // room to scroll that far even near the end of the page
+    room.style.minHeight = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) + innerHeight + "px";
+    scroller().scrollTo({ top: pageY() + node.getBoundingClientRect().top - top, behavior: "instant" });
   }
-  size();
   updateListPos(node);
+}
+/* the lowest point of the screen that is surely visible: the smallest of the window, the visual viewport and the
+   "small viewport" (the iPhone's browser bars showing), above the iPhone's home bar and the player */
+const vbProbe = el("div", { style: "position:fixed;left:0;top:0;width:0;height:100vh;height:100svh;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none", "aria-hidden": "true" });
+document.body.append(vbProbe);
+function visibleBottom() {
+  const inset = parseFloat(getComputedStyle(vbProbe).paddingBottom) || 0, svh = vbProbe.getBoundingClientRect().height; // (border-box: the padding is inside)
+  const vv = window.visualViewport ? visualViewport.height : innerHeight;
+  const dock = $("#dock").hidden ? inset : dockH(); // the player already keeps clear of the home bar
+  return Math.min(innerHeight, vv, svh) - dock;
 }
 function updateListPos(node) {
   const list = node.querySelector(".scroll-list"), pos = node.querySelectorAll(".more-pos");
@@ -1618,7 +1618,12 @@ function tagEditor(initial, suggested = []) {
     const parts = [];
     if (sug.length) parts.push(el("div", { class: "drop-sug" }, sug.map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag",
       onmousedown: (e) => { e.preventDefault(); add(g); } }, "+ " + g))));
-    if (opts.length) parts.push(el("ul", { class: "drop-list" }, opts.map((g, k) => el("li", { class: k === active ? "on" : "", onmousedown: (e) => { e.preventDefault(); add(g); } }, g))));
+    if (opts.length) { // like the quick tag field: name left, how many tracks have it right; the pointer highlights
+      const n = tagCounts();
+      parts.push(el("ul", { class: "drop-list" }, opts.map((g, k) => el("li", { class: k === active ? "on" : "",
+        onmouseenter: (e) => { active = k; [...e.currentTarget.parentNode.children].forEach((li, j) => li.classList.toggle("on", j === k)); },
+        onmousedown: (e) => { e.preventDefault(); add(g); } }, g, el("span", { class: "gi-n" }, n.get(g) || 0)))));
+    }
     drop.replaceChildren(...parts);
     drop.hidden = !parts.length || document.activeElement !== input;
   };
@@ -2465,13 +2470,12 @@ const side = (() => {
     box.style.maxHeight = Math.max(120, bottom - top) + "px";
   }
   addEventListener("resize", () => { if (!fits()) box.hidden = true; place(); });
-  // while it is open, the page itself stands still: the wheel only scrolls the box
+  // while it is open the page stands still and the wheel scrolls the box, wherever the pointer is
   addEventListener("wheel", (e) => {
     if (box.hidden) return;
-    if (!box.contains(e.target)) { e.preventDefault(); return; }
-    const l = list, atTop = l.scrollTop <= 0, atEnd = l.scrollTop + l.clientHeight >= l.scrollHeight - 1;
-    if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atEnd)) e.preventDefault(); // not passed on to the page at the ends
-  }, { passive: false });
+    e.preventDefault();
+    list.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? list.clientHeight : 1);
+  }, { passive: false, capture: true });
   return {
     fits,
     show(title, items) {

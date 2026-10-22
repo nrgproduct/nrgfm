@@ -449,10 +449,6 @@ img.broken { visibility: hidden; }
   .tag-frame { grid-template-columns: 1fr; }
   .tag-side { min-height: 0; flex-direction: row; justify-content: space-between; align-items: flex-start; }
   .tag-collapse-bottom { display: none; }
-  /* expanded on a phone: the box with Collapse stays pinned under the header */
-  .thread.expanded .tag-side, .thread.expanded .thread-more {
-    position: sticky; top: var(--top-h, 60px); z-index: 3; background: var(--bg);
-  }
   .ctl.close-btn { display: inline-flex; margin-left: auto; }
   .thread { border-bottom: 1px dotted var(--dots, var(--line-strong)); }
   .dock { padding-bottom: 0 !important; }
@@ -476,10 +472,6 @@ img.broken { visibility: hidden; }
   .more-after > .more-toggle:last-child { margin-right: -8px; }
   .tag-label .more-pos { display: block; padding-top: 2px; }
   .tag-more .more-pos { display: none; }
-  .thread.expanded .tag-name { font-size: 13px; color: var(--muted); }
-  .thread.expanded .tag-count { display: none; }
-  .thread.expanded .thread-more { padding: 6px 0; border-bottom: 1px solid var(--line); }
-  .thread.expanded:not(.framed) .thread-more .more-title { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
   .tag-more { align-items: flex-end; align-self: center; margin-top: 0; }
   .tag-more .more-toggle { margin: 0 -8px 0 0; }
   /* phone: transport bar on top, full-width video underneath */
@@ -1085,10 +1077,6 @@ body[data-view="genres"] .gm-picker { margin-top: -6px; }
 /* no double-tap zoom (pinch zoom still works) */
 html, body { touch-action: manipulation; }
 
-/* phone, Tags: the pinned header of an expanded box reaches the box's dotted sides */
-@media (max-width: 640px) {
-  .tag-thread.expanded .tag-side { margin-left: -8px; margin-right: -8px; padding-left: 16px; padding-right: 16px; }
-}
 
 /* ===== search line, design C: "176 results  Titles 107  Release 99 …        Sort: Best match ▾", a thin line under it ===== */
 #resultInfo:not([hidden]) { display: flex !important; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; position: relative;
@@ -1198,6 +1186,11 @@ body[data-view="threads"] #threads > .thread:first-child:not(.searching) { borde
 /* phone: an expanded thread's or tag's header (counter, Collapse) stays with the thread instead of pinning to the
    screen, and takes the box's colours (also the highlight when selected); the tag's name keeps its size and colour */
 @media (max-width: 640px) {
-  .thread.expanded .tag-side, .thread.expanded .thread-more { position: static !important; background: transparent !important; }
-  .thread.expanded .tag-name { font-size: inherit !important; color: inherit !important; }
 }
+
+/* the tag suggestions in the edit and add cards look like the quick tag field's */
+.tag-drop { padding: 4px !important; background: var(--surface) !important; border: 1px solid var(--line) !important; border-radius: var(--radius-sm) !important; box-shadow: 0 8px 24px #0008 !important; }
+.tag-drop .drop-list li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 14px; color: var(--text); }
+.tag-drop .drop-list li:hover { background: none; }
+.tag-drop .drop-list li.on { background: var(--surface-2); }
+.tag-drop .gi-n { margin-left: 0; }
