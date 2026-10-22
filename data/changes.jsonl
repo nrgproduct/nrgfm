@@ -367,3 +367,4 @@
 {"action": "tag", "ids": ["t27835388682717825_0"], "add": ["dansk"], "remove": [], "ts": 1792676532}
 {"action": "tag", "ids": ["t27779132325010128_0"], "add": ["synth pop"], "remove": [], "ts": 1792676556}
 {"action": "edit", "thread": "p28633183966271622", "id": "t28633183966271622_0", "title": "Samuel Yang - Skyward Bound", "url": "https://www.youtube.com/watch?v=nnE53uO1izU", "tags": [], "ts": 1792676766}
+{"action": "tag", "ids": ["t28633183966271622_0"], "add": ["synth theme"], "remove": [], "ts": 1792676837}
