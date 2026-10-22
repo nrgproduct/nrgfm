@@ -352,3 +352,4 @@
 {"action": "delete", "thread": "p1309451165738271", "id": "t1309451165738271_0", "ts": 1792655878}
 {"action": "delete", "thread": "p1309451165738271", "id": "t1309451225738265_0", "ts": 1792655918}
 {"action": "edit", "thread": "p2636420993041275", "id": "t2636420993041275_0", "title": "Christoph de Babalon", "url": "https://www.youtube.com/watch?v=X7FWKsQptY8", "tags": ["+1 hour"], "ts": 1792656053, "genres": ["drum and bass"]}
+{"action": "tag", "ids": ["t1792341703_0"], "add": ["synth pop"], "remove": [], "ts": 1792660249}
