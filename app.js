@@ -527,7 +527,7 @@ function updateFade(list) {
   list.classList.toggle("fade-up", !!up); list.classList.toggle("fade-down", !!down);
 }
 document.addEventListener("scroll", (e) => { if (e.target.classList && e.target.classList.contains("scroll-list")) updateFade(e.target); }, { passive: true, capture: true });
-const fadeAll = () => { document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks, #threads .tag-thread .tag-list").forEach(updateFade); placeMidPos(); };
+const fadeAll = () => { document.querySelectorAll("#threads .scroll-list, #threads .thread.searching .tracks, #threads .tag-thread .tag-list, #threads .thread.long > .tracks").forEach(updateFade); placeMidPos(); };
 function placeMidPos() {
   document.querySelectorAll("#threads .thread .mid-pos").forEach((p) => {
     const th = p.closest(".thread"), list = th.querySelector(".tracks");
@@ -892,6 +892,7 @@ function toggleScroll(t, hits) {
    scroll for the rest. The counter follows the scrolling. */
 function fitList(node, scroll) {
   if (!node) return;
+  if (!document.querySelector(".scroll-list.open")) { $("main").style.minHeight = ""; document.body.style.minHeight = ""; } // nothing open: no extra room
   const list = node.querySelector(".scroll-list");
   if (!list || !list.children.length) return;
   requestAnimationFrame(() => updateFade(list));
@@ -927,8 +928,15 @@ function fitList(node, scroll) {
     room.style.minHeight = (INNER_SCROLL ? document.body.scrollHeight : document.documentElement.scrollHeight) + innerHeight + "px"; // room to scroll even near the end
     pageScrollBy(node.getBoundingClientRect().top - headerBottom() - GAP);
     size();
-    room.style.minHeight = "";
     updateListPos(node);
+    // a moment later (iPhone: after its own scrolling settles), once more exactly: the box's top under the header
+    // and its bottom at the bottom of the screen; the extra room under the page stays while it is open
+    setTimeout(() => {
+      if (!node.isConnected || !list.classList.contains("open")) return;
+      const d = node.getBoundingClientRect().top - headerBottom() - GAP;
+      if (Math.abs(d) > 1) pageScrollBy(d);
+      size();
+    }, 400);
     return;
   }
   size();
@@ -1053,7 +1061,7 @@ function threadNode({ t, hits }) {
     side = el("div", { class: "thread-more" },
       el("div", { class: "more-info" }, el("span", { class: "more-title" }, hi.title), pos()),
       el("div", { class: "more-btns" }, expandBtn()));
-    if (!open) after = el("div", { class: "more-after" }, pos(), expandBtn()); // phone: again under the list
+    // (phone: the counter and Expand only on top)
   }
   const li = el("li", { class: "thread" + (side ? " long framed" : "") + (open ? " expanded" : "") + (hits ? " searching" : "") + (t.id === activeId ? " active" : ""), id: "th-" + t.id },
     el("div", { class: ["head-row", hi.dead && "dead", hits && hits.has(0) && "hit", ].filter(Boolean).join(" "), "data-k": `${t.id}:0` },
@@ -1083,7 +1091,7 @@ function threadNode({ t, hits }) {
 }
 
 /* "Thread": leave the search and show this thread where it sits in the feed */
-function goToThread(t, gap = 8) {
+function goToThread(t, gap = 22) { // a little under the header: the dividing line of the thread before shows
   $("#q").value = ""; syncClear(); $("#q").blur(); // (phone: the keyboard goes away first, so the page doesn't shift afterwards)
   if (view !== "threads") { view = "threads"; history.replaceState(null, "", location.pathname); document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === "threads"))); }
   expanded.delete(t.id);
@@ -2457,6 +2465,13 @@ const side = (() => {
     box.style.maxHeight = Math.max(120, bottom - top) + "px";
   }
   addEventListener("resize", () => { if (!fits()) box.hidden = true; place(); });
+  // while it is open, the page itself stands still: the wheel only scrolls the box
+  addEventListener("wheel", (e) => {
+    if (box.hidden) return;
+    if (!box.contains(e.target)) { e.preventDefault(); return; }
+    const l = list, atTop = l.scrollTop <= 0, atEnd = l.scrollTop + l.clientHeight >= l.scrollHeight - 1;
+    if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atEnd)) e.preventDefault(); // not passed on to the page at the ends
+  }, { passive: false });
   return {
     fits,
     show(title, items) {

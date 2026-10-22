@@ -2,7 +2,7 @@
 
   duplicate                 the same link (same YouTube video, same page) is in the archive more than once,
                             or two tracks have the same title once noise like "(Official Video)" is left out
-  +10 min / +30 min / +1 hour   tracks this long (length from data/extra.json "d", in seconds); only the biggest one
+  +30 min / +1 hour        tracks this long (length from data/extra.json "d", in seconds); only the biggest one
 
 Usage: python3 scripts/auto_tags.py"""
 import json, os, re, time, unicodedata
@@ -58,9 +58,7 @@ def main():
         if d > 3600:
             want.add("+1 hour")
         elif d > 1800:
-            want.add("+30 min")
-        elif d > 600:
-            want.add("+10 min")
+            want.add("+30 min")  # ("+10 min" is no longer used; it is listed above only so old ones get removed)
         tags = tr.get("tags") or {}
         have = {g for g in AUTO if g in tags}
         if have == want:

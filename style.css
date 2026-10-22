@@ -1191,3 +1191,13 @@ html, body { touch-action: manipulation; }
 .quick-drop.quick-drop-fixed { position: fixed; z-index: 40; }
 .no-fade { -webkit-mask-image: none !important; mask-image: none !important; }
 .quick-tag { padding-left: 2.5px; } /* the first tag as far from the left edge as from the top */
+
+/* Threads: a dividing line above the very first thread too */
+body[data-view="threads"] #threads > .thread:first-child:not(.searching) { border-top: 1px dotted var(--dots, var(--line-strong)); }
+
+/* phone: an expanded thread's or tag's header (counter, Collapse) stays with the thread instead of pinning to the
+   screen, and takes the box's colours (also the highlight when selected); the tag's name keeps its size and colour */
+@media (max-width: 640px) {
+  .thread.expanded .tag-side, .thread.expanded .thread-more { position: static !important; background: transparent !important; }
+  .thread.expanded .tag-name { font-size: inherit !important; color: inherit !important; }
+}
