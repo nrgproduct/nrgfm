@@ -126,14 +126,8 @@ const normTag = (g) => (g || "").replace(/\s+/g, " ").trim().toLowerCase().slice
 const isBase = (t) => t.kind !== "tag";
 function activity(t) {
   if (t.kind === "tag") return t.last;
-  if (t.pos_ts) { // the main post's date was set by hand: only tracks added after that lift the thread
-    let a = t.pos_ts;
-    for (const x of t.tracks) if (x.ts > (t.pos_set || 0) && x.ts > a) a = x.ts;
-    return a;
-  }
-  let a = t.ts || 0; // only new tracks count as activity, not edits, tags or moves
-  for (const x of t.tracks) if (x.ts > a) a = x.ts;
-  return a;
+  if (t.pos_ts) return t.pos_ts; // the main post's date was set by hand
+  return t.ts || 0; // the date the main track was posted (new replies don't move a thread)
 }
 function makeTagThreads() {
   const by = new Map();
@@ -174,7 +168,7 @@ function refreshTags() {
     if (!nt) { if (node) node.remove(); shown = shown.filter((x) => x.t !== t); continue; }
     if (playing && playing.thread === t) playing.thread = nt;
     shown.forEach((x) => { if (x.t === t) x.t = nt; });
-    if (node) node.replaceWith(threadNode({ t: nt, hits: null }));
+    if (node) { const fresh = threadNode({ t: nt, hits: null }); node.replaceWith(fresh); if (expanded.has(nt.id)) requestAnimationFrame(() => fitList(fresh, true)); } // an expanded box stays expanded (and in place)
   }
   for (const t of fresh) {
     if (old.some((o) => o.id === t.id)) { threads.push(t); continue; }
@@ -836,7 +830,8 @@ function setActive(id, clickedK) {
 }
 const selectable = (th) => !th.classList.contains("genre-mix") && (th.querySelector(".scroll-list") || (th.classList.contains("searching") && th.querySelector(".tracks")));
 document.addEventListener("click", (e) => {
-  if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap, .scroll-link")) return; // the player, editing and the phone's Scroll counter (it does its own) leave it as it is
+  if (!e.target.closest || e.target.closest(".dock, .edit-btn, .add-form, .edit-wrap, .scroll-link")) return;
+  if ((e.metaKey || e.ctrlKey) && !phone()) return; // Cmd+click: the quick tag field, nothing gets selected // the player, editing and the phone's Scroll counter (it does its own) leave it as it is
   if (addingId) return; // adding a track: stays selected until the card closes
   const th = e.target.closest("#threads > .thread");
   if (th && th.classList.contains("active") && e.target.closest("button, a")) return; // playing, matches, links: stays selected
@@ -949,7 +944,6 @@ function fitList(node, scroll) {
     const id = node.id.slice(3);
     if (keptHeight.has(id) && node.classList.contains("searching")) list.style.maxHeight = keptHeight.get(id) + "px";
     else if (last) list.style.maxHeight = last.offsetTop + last.offsetHeight + 4 + "px";
-    requestAnimationFrame(() => scrollIndicator(node, list));
     const hitsIn = list.querySelectorAll(":scope > li.track.hit"), focus = hitsIn[0];
     if (focus && list.dataset.centred !== "1") { // search: one hit in the middle, several: the first at the top
       list.dataset.centred = "1";
@@ -1681,27 +1675,31 @@ function tagEditor(initial, suggested = []) {
     if (opts.length) { // like the quick tag field: name left, how many tracks have it right; the pointer highlights
       const n = tagCounts();
       parts.push(el("ul", { class: "drop-list" }, opts.map((g, k) => el("li", { class: k === active ? "on" : "",
-        onmouseenter: (e) => { active = k; [...e.currentTarget.parentNode.children].forEach((li, j) => li.classList.toggle("on", j === k)); },
+        onmouseenter: (e) => { active = k; [...e.currentTarget.parentNode.children].forEach((li, j) => li.classList.toggle("on", j === k)); showTagSide(g); },
         onmousedown: (e) => { e.preventDefault(); add(g); } }, g, el("span", { class: "gi-n" }, n.get(g) || 0)))));
     }
     drop.replaceChildren(...parts);
     drop.hidden = !parts.length || document.activeElement !== input;
+    showTagSide(!drop.hidden && opts.length ? opts[active] : null); // the highlighted tag's tracks, in the side space
   };
   const add = (g) => { g = normTag(g); if (g && !chosen.includes(g)) chosen.push(g); input.value = ""; drawChips(); drawDrop(); input.focus(); };
   input.addEventListener("input", drawDrop);
   input.addEventListener("focus", drawDrop);
-  input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
+  input.addEventListener("blur", () => setTimeout(() => { drop.hidden = true; if (!quick) side.hide(); }, 100));
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.shiftKey) return; // Shift+Enter saves the card (handled by the form)
     const items = [...drop.querySelectorAll(".drop-list li")];
     if (e.key === "Enter" || (e.key === "," && input.value.trim())) {
       e.preventDefault();
       if (!drop.hidden && opts[active] && input.value.trim()) add(opts[active]); else if (input.value.trim()) add(input.value);
+    } else if (e.key === "ArrowRight" && input.value.trim() && input.selectionStart === input.value.length) {
+      e.preventDefault(); add(input.value); // what you typed, as it is (a new tag), not the suggestion
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       if (drop.hidden || !items.length) return; e.preventDefault();
       active = (active + (e.key === "ArrowDown" ? 1 : opts.length - 1)) % opts.length;
       items.forEach((li, k) => li.classList.toggle("on", k === active));
-    } else if (e.key === "Escape" && !drop.hidden) { e.stopPropagation(); drop.hidden = true; }
+      showTagSide(opts[active] || null);
+    } else if (e.key === "Escape" && !drop.hidden) { e.stopPropagation(); drop.hidden = true; side.hide(); }
     else if (e.key === "Backspace" && !input.value && chosen.length) { chosen.pop(); drawChips(); drawDrop(); }
   });
   drawChips();
@@ -1720,7 +1718,7 @@ function addForm(thread, edit, row) {
   // edit = { t, i } when editing an existing track; row = that track's row (its tags become removable)
   const tr = edit ? edit.t.tracks[edit.i] : null;
   const host = row ? row.querySelector(".tag-wrap") : null;
-  const tags = tagEditor(tr ? shownTags(tr) : [], !tr && thread ? shownTags(thread.tracks[0]) : []);
+  const tags = tagEditor(tr ? shownTags(tr) : [], []);
   const more = moreInfo(tr, edit, tags);
   // editing: the genres/tags under the track's title can be clicked away (a tag leaves the tags, a suggested genre the
   // suggested genres); closing without saving puts them back
@@ -1838,8 +1836,12 @@ function moreInfo(tr, edit, tags) {
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested release"), releaseEditor(tr, x, box)),
       el("div", { class: "af-sug" }, el("span", { class: "af-label" }, "Suggested year"),
         yearEditor(tr, x, box),
-        x.ys && x.ys.length ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null,
-        x.src ? el("span", { class: "hint" }, "from " + x.src.split("+").join(", ") + (x.conf ? ", " + x.conf + " confidence" : "")) : null));
+        // other years only when the suggestion is uncertain; where it came from shows when hovering the line
+        x.ys && x.ys.length && x.conf !== "high" ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null));
+    const yearLine = box.lastChild;
+    const yearNote = [x.conf ? `Confidence: ${x.conf}` : null, x.ys && x.ys.length ? `Also found: ${x.ys.join(", ")}` : null,
+      x.src ? `From: ${x.src.split("+").join(", ")}` : null].filter(Boolean);
+    if (yearNote.length) hoverNote(yearLine, yearNote);
     // Meta: uploader and upload date; inside it, Description
     const descBox = el("div", { class: "af-desc", hidden: true });
     const descBtn = el("button", { type: "button", class: "thread-btn", onclick: async () => {
@@ -1855,7 +1857,9 @@ function moreInfo(tr, edit, tags) {
     // Meta, then the track's length and the suggested artist on the same line
     box.append(el("div", { class: "af-meta-line" }, el("button", { type: "button", class: "thread-btn", onclick: () => (metaBox.hidden = !metaBox.hidden) }, "Meta"),
       el("span", {}, el("span", { class: "af-label" }, "Duration"), x.d ? fmtTime(x.d) : el("span", { class: "hint" }, "unknown")),
-      el("span", {}, el("span", { class: "af-label" }, "Artist"), x.ar || el("span", { class: "hint" }, "unknown"))), metaBox);
+      el("span", {}, el("span", { class: "af-label" }, "Artist"), x.ar || el("span", { class: "hint" }, "unknown")),
+      el("span", {}, el("span", { class: "af-label" }, "Country"), countryName(x.co) || el("span", { class: "hint" }, "unknown"))), metaBox);
+    if (x.about) box.append(el("p", { class: "af-about" }, x.about)); // what Gemini found out about it
   } else {
     box.append(el("p", { class: "hint af-later" }, "Suggested genres, year and the uploader are looked up after saving (every few hours)."));
   }
@@ -2077,7 +2081,8 @@ function releaseEditor(tr, x, box) {
     };
     item.append(el("button", { type: "button", class: "rel-name", onclick: edit }, r));
     return item;
-  }) : [el("span", { class: "hint" }, start.length || tr.release ? "none" : x.chk && x.v >= 3 ? "none found" : "not looked up yet")]));
+  }) : [el("button", { type: "button", class: "rel-name rel-none", onclick: () => { rel.push(""); draw(); wrap.querySelector(".rel-name").click(); } }, // add one yourself
+    start.length || tr.release ? "none" : x.chk && x.v >= 3 ? "none found" : "not looked up yet")]));
   draw();
   box.releaseChanged = () => (JSON.stringify(rel) !== JSON.stringify(start) ? [...rel] : undefined);
   return wrap;
@@ -2406,7 +2411,12 @@ $("#sourceBtn").onclick = () => {
   if (home) goToThread(home);
 };
 /* "flag" in the player (phone): tags the playing track "flagged" (again: takes it off) */
-function showFlag() { const tr = playing && playing.thread.tracks[playing.index]; $("#flagBtn").classList.toggle("on", !!(tr && tr.tags && tr.tags.flagged)); }
+function showFlag() {
+  const tr = playing && playing.thread.tracks[playing.index];
+  $("#flagBtn").classList.toggle("on", !!(tr && tr.tags && tr.tags.flagged));
+  const y = tr && (extra[tr.url] || {}).y; // the suggested year, after "discogs" (for later use)
+  $("#yearBtn").textContent = y || ""; $("#yearBtn").hidden = !y;
+}
 $("#flagBtn").onclick = async () => {
   if (!playing) return;
   if (!getToken()) { openSetup(); return; }
@@ -2504,7 +2514,7 @@ function withGemini(x, ai) {
     const o = x[u] || {};
     const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);
     const gs = [...new Set((a.g || []).map(sameGenre))]; // "synth-pop" → "synth pop", as the site writes it
-    x[u] = { ...o, ar: a.ar || o.ar, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
+    x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
       src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
   return x;
@@ -2743,6 +2753,36 @@ document.addEventListener("invalid", (e) => {
   setTimeout(hide, 4000);
 }, true);
 addEventListener("scroll", () => { invalidBox.hidden = true; }, { passive: true, capture: true });
+
+/* a small note when hovering something (like the search's "why" note): lines of text */
+function hoverNote(target, lines) {
+  let t = 0;
+  target.classList.add("has-note");
+  target.addEventListener("mouseenter", (e) => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      whyBox.replaceChildren(...lines.map((l) => el("div", {}, l)));
+      whyBox.hidden = false;
+      const r = target.getBoundingClientRect(), b = whyBox.getBoundingClientRect();
+      whyBox.style.left = Math.min(r.left, innerWidth - b.width - 8) + "px";
+      whyBox.style.top = Math.min(r.bottom + 6, innerHeight - b.height - 8) + "px";
+    }, 400);
+  });
+  target.addEventListener("mouseleave", () => { clearTimeout(t); whyBox.hidden = true; });
+}
+/* "GB" → "United Kingdom" (a name stays as it is) */
+const regionNames = (() => { try { return new Intl.DisplayNames(["en"], { type: "region" }); } catch { return null; } })();
+function countryName(c) {
+  if (!c) return "";
+  if (/^[A-Z]{2}$/.test(c) && regionNames) { try { return regionNames.of(c) || c; } catch { return c; } }
+  return c;
+}
+/* computer: track titles (and the player's) can be selected with the mouse; a drag that selects doesn't also play */
+document.addEventListener("click", (e) => {
+  const sel = window.getSelection && getSelection();
+  if (!sel || sel.isCollapsed || phone()) return;
+  if (e.target.closest && e.target.closest(".tr-title, .t-title, #nowTitle")) { e.preventDefault(); e.stopPropagation(); }
+}, true);
 
 (async function boot() {
   try {

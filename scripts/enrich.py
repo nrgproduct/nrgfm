@@ -94,13 +94,16 @@ def musicbrainz_once(artist, title):
     for r in good:
         for t in r.get("tags", []) or []:
             tags[t["name"].lower()] = tags.get(t["name"].lower(), 0) + int(t.get("count", 1))
-    rels = []  # (year, release title): the albums, singles or compilations the recording is on
+    rels, countries = [], []  # (year, release title): the albums, singles or compilations the recording is on
     for r in good:
         for rel in r.get("releases", []) or []:
             if rel.get("title"):
                 rels.append((year_of(rel.get("date")) or 9999, rel["title"]))
+                if rel.get("country") and rel["country"] not in ("XW", "XE", "XU"):  # (not "worldwide" or "Europe")
+                    countries.append((year_of(rel.get("date")) or 9999, rel["country"]))
     credit = "".join(c.get("name", "") + c.get("joinphrase", "") for c in (good[0].get("artist-credit") or []))
     return {"y": min(years) if years else None, "ys": years, "rl": rels, "ar": credit.strip() or None,
+            "co": min(countries)[1] if countries else None,  # the country of the earliest release
             "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
 
 
@@ -308,7 +311,7 @@ def main():
         u = tr["url"]
         e = extra.get(u, {})
         if e.get("v") != VERSION:
-            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk", "ytv", "d", "ar")}  # look up again from scratch
+            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk", "ytv", "d", "ar", "co")}  # look up again from scratch
             at = artist_title(tr, meta) if not meta.get(u, {}).get("dead") or tr.get("title") or meta.get(u, {}).get("wb_title") else None
             if at:
                 stats["parsed"] += 1
@@ -323,6 +326,8 @@ def main():
                     print("discogs", type(x).__name__, x)
                 if mb and mb.get("ar"):
                     e["ar"] = mb["ar"]  # the artist as MusicBrainz credits the recording
+                if mb and mb.get("co"):
+                    e["co"] = mb["co"]
                 years = [y for r in (mb, dg) if r for y in r.get("ys", [])]
                 genres = []
                 for r in (dg, mb):

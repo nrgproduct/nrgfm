@@ -1181,7 +1181,8 @@ html, body { touch-action: manipulation; }
 .quick-tag { padding-left: 2.5px; } /* the first tag as far from the left edge as from the top */
 
 /* Threads: a dividing line above the very first thread too */
-body[data-view="threads"] #threads > .thread:first-child:not(.searching) { border-top: 1px dotted var(--dots, var(--line-strong)); }
+/* (on the list, not on the first thread: a border on the thread would push its contents down) */
+@media (min-width: 641px) { body[data-view="threads"] #threads:not(:has(> .searching)) { border-top: 1px dotted var(--dots, var(--line-strong)); } }
 
 /* phone: an expanded thread's or tag's header (counter, Collapse) stays with the thread instead of pinning to the
    screen, and takes the box's colours (also the highlight when selected); the tag's name keeps its size and colour */
@@ -1242,3 +1243,10 @@ body[data-view="history"] .view-history { margin-top: -9px; }
 }
 /* iPhone: the page's own scroll bar light, like the ones inside the boxes */
 html.inner-scroll { color-scheme: dark; }
+
+/* computer: track titles (in the lists and the player) can be selected with the mouse */
+@media (hover: hover) and (pointer: fine) {
+  .tr-title, .t-title, #nowTitle { -webkit-user-select: text; user-select: text; cursor: text; }
+}
+#yearBtn[hidden] { display: none; }
+.af-about { margin: 4px 0 0; font-size: 14px; color: var(--muted); }

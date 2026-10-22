@@ -103,7 +103,8 @@ def facts(tr, meta, extra, desc):
 
 
 def has_sources(f):
-    return bool(f.get("found")) or bool(f.get("description"))
+    """MusicBrainz or Discogs found something; otherwise Gemini searches the web itself (with the description)."""
+    return bool(f.get("found"))
 
 
 PROMPT = """You help a music-sharing group catalogue the tracks people posted (mostly YouTube links).
@@ -113,11 +114,16 @@ For each track below, decide:
   remaster, compilation or upload year. A remix or edit counts from when that remix or edit came out.
 - "g": 1 to 5 genres, lowercase, most fitting first. Prefer names from this list when one fits:
   {vocab}
-- "ar": the artist as credited on that release (e.g. "Röyksopp", "Daft Punk feat. Romanthony"), or "" if unknown
+- "ar": the artist as credited on that release (e.g. "Röyksopp", "Daft Punk feat. Romanthony"); for music from a
+  game, film, anime or TV series the composer. "" if unknown
+- "co": the country the artist (or composer) is from, as a two-letter code ("GB", "JP", "US"), or "" if unknown
+- "about": one or two plain sentences on what the track is when that isn't obvious from the title, e.g.
+  'The track "Mintche" is background music from the Tales of Eternia Original Sound Version (OSV), composed by
+  Motoi Sakuraba.' Otherwise "".
 - "conf": "high", "medium" or "low": how sure you are.
 {how}
 Answer with JSON only, no other text: an array with one object per track, in the same order, each
-{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "ar": ..., "conf": ...}}.
+{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "ar": ..., "co": ..., "about": ..., "conf": ...}}.
 
 Tracks:
 {tracks}"""
@@ -127,8 +133,11 @@ The found data is often a wrong match: another song with the same name, a cover,
 Ignore what doesn't fit the title and uploader. Don't guess: leave a field empty when you aren't fairly sure.
 "group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.
 A year written in "title" or "link_title" is a strong hint (it can also be a remaster's year).""",
-    "search": """Nothing was found about these tracks automatically. Look each one up with Google Search
-(Discogs, MusicBrainz, Bandcamp, Wikipedia and the artist's pages are good sources).
+    "search": """MusicBrainz and Discogs found nothing about these tracks. Read the video description when there is one,
+and look each track up with Google Search by its title (Discogs, MusicBrainz, Bandcamp, Wikipedia, VGMdb, the
+artist's pages are good sources). Many are not ordinary releases: music from a video game, film, anime or TV series
+(then add genres like "video game music" or "soundtrack", give the year of the game or film, the composer as "ar",
+and say in "about" where it is from), a DJ mix, a live recording, a home-made upload.
 Don't guess: leave a field empty when you can't find it.
 "group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.""",
 }
@@ -162,7 +171,9 @@ def clean_answer(a):
     rl = str(a.get("rl") or "").strip()[:200]
     conf = a.get("conf") if a.get("conf") in ("high", "medium", "low") else "low"
     ar = str(a.get("ar") or "").strip()[:200]
-    return {"rl": rl, "y": y, "g": g, "ar": ar, "conf": conf}
+    co = str(a.get("co") or "").strip().upper()[:2]
+    about = str(a.get("about") or "").strip()[:400]
+    return {"rl": rl, "y": y, "g": g, "ar": ar, "co": co if re.fullmatch(r"[A-Z]{2}", co) else "", "about": about, "conf": conf}
 
 
 def main():
