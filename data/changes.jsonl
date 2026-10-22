@@ -435,3 +435,5 @@
 {"action": "tag", "ids": ["t8552572548092727_0"], "add": ["easy listening"], "remove": [], "ts": 1792697787}
 {"action": "edit", "thread": "p453600094656720", "id": "t453600094656720_0", "title": "Edu Lobo - Viola Fora De Moda (1973)", "url": "https://www.youtube.com/watch?v=Q8oq_jDbGMQ", "tags": ["prog", "folk"], "ts": 1792699062}
 {"action": "edit", "thread": "p453600094656720", "id": "t453601654656564_0", "title": "Edu Lobo - Vento Bravo (1973)", "url": "https://www.youtube.com/watch?v=zmshYysteHk", "tags": ["prog"], "ts": 1792699114}
+{"action": "edit", "thread": "p453600094656720", "id": "t453600094656720_0", "title": "Edu Lobo - Viola Fora De Moda (1973)", "url": "https://www.youtube.com/watch?v=Q8oq_jDbGMQ", "tags": ["prog", "folk", "latin"], "ts": 1792699139}
+{"action": "edit", "thread": "p453600094656720", "id": "t453601654656564_0", "title": "Edu Lobo - Vento Bravo (1973)", "url": "https://www.youtube.com/watch?v=zmshYysteHk", "tags": ["prog", "latin"], "ts": 1792699152}
