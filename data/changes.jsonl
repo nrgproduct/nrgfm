@@ -531,3 +531,5 @@
 {"action": "edit", "thread": "p28649200884669930", "id": "t28649200884669930_0", "title": "The Go-Betweens – Was There Anything I Could Do? (1988)", "url": "https://www.youtube.com/watch?v=Gs6YiAjm34U", "tags": ["new wave", "celtic"], "ts": 1792771116}
 {"url": "https://www.youtube.com/watch?v=yeV5E_ZHTjY", "title": "Dubstar - Just a Girl She Said (1995)", "thread": "", "tags": ["celtic", "alt rock", "art pop", "art school"], "ts": 1792771349}
 {"url": "https://www.youtube.com/watch?v=jJ4IUjjVfng", "title": "Klaatu - Calling Occupants Of Interplanetary Craft (1976)", "thread": "p1668127149870669", "tags": ["prog"], "ts": 1792773354}
+{"action": "tag", "ids": ["t7540258605990798_0"], "add": ["amapiano"], "remove": [], "ts": 1792773400}
+{"action": "tag", "ids": ["t7540261459323846_0"], "add": ["amapiano"], "remove": [], "ts": 1792773407}
