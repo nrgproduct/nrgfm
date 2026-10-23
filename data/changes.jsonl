@@ -511,3 +511,4 @@
 {"action": "delete", "thread": "p27779132325010128", "id": "t27779378798318814_0", "ts": 1792769737}
 {"action": "edit", "thread": "p5189443034405712", "id": "t5431833186833361_0", "title": "A Flock Of Seagulls – I Ran (So Far Away)", "url": "https://www.youtube.com/watch?v=l3ST8AjLAms", "tags": ["new wave"], "ts": 1792769798}
 {"action": "edit", "thread": "p5189443034405712", "id": "t5431833186833361_0", "title": "A Flock Of Seagulls – I Ran (So Far Away) (1982)", "url": "https://www.youtube.com/watch?v=l3ST8AjLAms", "tags": ["new wave"], "ts": 1792769835}
+{"action": "tag", "ids": ["t888707361145989_0"], "add": ["new wave"], "remove": [], "ts": 1792769879}
