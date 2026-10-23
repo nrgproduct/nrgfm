@@ -489,3 +489,5 @@
 {"action": "edit", "thread": "p29389762843947060", "id": "t29389762843947060_0", "title": "Ryuichi Sakamoto - solari (2017)", "url": "https://www.youtube.com/watch?v=E-jad8xAnqY", "tags": ["duplicate", "ambient hit", "min"], "ts": 1792768954}
 {"action": "tag", "ids": ["t29389762843947060_0"], "add": ["minimalism"], "remove": ["min"], "ts": 1792768961}
 {"action": "tag", "ids": ["t28649391301317555_0"], "add": ["outlier"], "remove": [], "ts": 1792769086}
+{"action": "tag", "ids": ["t28649200884669930_0"], "add": ["new wave"], "remove": [], "ts": 1792769099}
+{"action": "tag", "ids": ["t28649143218009030_0"], "add": ["gen x"], "remove": [], "ts": 1792769123}
