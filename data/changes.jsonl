@@ -458,3 +458,4 @@
 {"action": "tag", "ids": ["t29810901285166545_0"], "add": ["anime"], "remove": [], "ts": 1792767366}
 {"action": "tag", "ids": ["t29811152071808133_0"], "add": ["post punk"], "remove": [], "ts": 1792767414}
 {"action": "edit", "thread": "p29808645208725486", "id": "t29808645208725486_0", "title": "The Flaming Lips - Goin' On (2006)", "url": "https://www.youtube.com/watch?v=BDHpiB_TUAg", "tags": [], "ts": 1792767445}
+{"action": "tag", "ids": ["t29808645208725486_0"], "add": ["alt rock"], "remove": [], "ts": 1792767480}
