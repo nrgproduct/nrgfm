@@ -526,3 +526,5 @@
 {"action": "edit", "thread": "p27744316418491719", "id": "t28645197458403606_0", "title": "Blood, Sweat & Tears - Spinning Wheel (1968)", "url": "https://www.youtube.com/watch?v=SFEewD4EVwU", "tags": ["duplicate", "prog"], "ts": 1792770912}
 {"action": "tag", "ids": ["t29263482109908468_0"], "add": ["new age"], "remove": [], "ts": 1792771009}
 {"action": "tag", "ids": ["t29263482109908468_0"], "add": ["synth theme"], "remove": [], "ts": 1792771029}
+{"action": "tag", "ids": ["t29263482109908468_0"], "add": ["celtic"], "remove": [], "ts": 1792771067}
+{"action": "tag", "ids": ["t28649200884669930_0"], "add": ["celtic"], "remove": [], "ts": 1792771098}
