@@ -474,3 +474,4 @@
 {"action": "edit", "thread": "p26043194158603962", "id": "t26043194158603962_0", "title": "Cesária Évora + Caetano Veloso with Ryuichi Sakamoto — É Preciso Perdoar (You Must Forgive) (1996)", "url": "https://www.youtube.com/watch?v=bBU1bnXRDAw", "tags": [], "ts": 1792768110}
 {"action": "tag", "ids": ["t26043194158603962_0"], "add": ["funk"], "remove": [], "ts": 1792768124}
 {"action": "tag", "ids": ["t26043194158603962_0"], "add": ["latin"], "remove": [], "ts": 1792768134}
+{"action": "tag", "ids": ["t26043194158603962_0"], "add": ["soul"], "remove": [], "ts": 1792768159}
