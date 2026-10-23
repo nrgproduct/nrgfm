@@ -5,8 +5,8 @@ weighs those findings (they are often wrong matches: a cover, a remix, another s
 picks the original release, its year and the genres. For tracks where nothing was found, Gemini looks the
 track up itself with Google Search.
 
-Writes data/ai.json, keyed by link:
-  {"rl": "release", "y": 1984, "g": ["genre", ...], "how": "sources" | "search", "conf": "high|medium|low",
+Writes data/ai.json, keyed by link (everything in it comes from Gemini; the site doesn't say so anywhere):
+  {"rl": "release", "y": 1984, "g": ["genre", ...], "md": ["mood word", ...], "how": "sources" | "search", "conf": "high|medium|low",
    "m": model, "in": fingerprint of what it was given (a track is asked again when that changes)}
 and data/gemini-status.json (whether it ran, how many, or why it stopped).
 
@@ -135,10 +135,11 @@ For each track below, decide:
 - "rl": the name of the ORIGINAL release (album, single or EP) the recording first came out on, or "" if unknown
 - "y": the year that release first came out (a number), or null if unknown. The original, not a reissue,
   remaster, compilation or upload year. A remix or edit counts from when that remix or edit came out.
-- "g": 2 to 8 lowercase words for the playlists: first 1 to 5 genres, most fitting first (prefer names from this
-  list when one fits: {vocab}), then 1 to 3 words for the mood or sound, like "soft", "floating", "romantic",
-  "melancholic", "hypnotic", "euphoric", "dark", "warm", "lo-fi". Use genre words and descriptions found in the title,
-  the description and the listeners' "comments" when they fit, and your own knowledge of the track.
+- "g": 1 to 5 genres, lowercase, most fitting first (prefer names from this list when one fits: {vocab})
+- "md": 1 to 3 lowercase words for the mood or sound, like "soft", "floating", "romantic", "melancholic",
+  "hypnotic", "euphoric", "dark", "warm", "lo-fi".
+  For both, use genre words and descriptions found in the title, the description and the listeners' "comments" when
+  they fit, and your own knowledge of the track.
 - "ar": the artist as credited on that release (e.g. "Röyksopp", "Daft Punk feat. Romanthony"); for music from a
   game, film, anime or TV series the composer. "" if unknown
 - "co": the country the artist (or composer) is from, as a two-letter code ("GB", "JP", "US"), or "" if unknown
@@ -148,7 +149,7 @@ For each track below, decide:
 - "conf": "high", "medium" or "low": how sure you are.
 {how}
 Answer with JSON only, no other text: an array with one object per track, in the same order, each
-{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "ar": ..., "co": ..., "about": ..., "conf": ...}}.
+{{"i": <the track's number>, "rl": ..., "y": ..., "g": [...], "md": [...], "ar": ..., "co": ..., "about": ..., "conf": ...}}.
 
 Tracks:
 {tracks}"""
@@ -192,13 +193,14 @@ def clean_answer(a):
         y = None
     if y and not 1900 <= y <= time.gmtime().tm_year:
         y = None
-    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:8]
+    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:5]
+    md = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("md") or []) if str(x).strip()][:3]  # mood words
     rl = str(a.get("rl") or "").strip()[:200]
     conf = a.get("conf") if a.get("conf") in ("high", "medium", "low") else "low"
     ar = str(a.get("ar") or "").strip()[:200]
     co = str(a.get("co") or "").strip().upper()[:2]
     about = str(a.get("about") or "").strip()[:400]
-    return {"rl": rl, "y": y, "g": g, "ar": ar, "co": co if re.fullmatch(r"[A-Z]{2}", co) else "", "about": about, "conf": conf}
+    return {"rl": rl, "y": y, "g": g, "md": md, "ar": ar, "co": co if re.fullmatch(r"[A-Z]{2}", co) else "", "about": about, "conf": conf}
 
 
 def main():

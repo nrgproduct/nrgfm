@@ -1247,13 +1247,14 @@ function makeYouTube(tr) {
     controllable: true,
     play: () => yt.player && yt.player.playVideo(), pause: () => yt.player && yt.player.pauseVideo(),
     seek: (s) => yt.player && yt.player.seekTo(s, true),
-    setVolume: (v) => { if (yt.ready) { yt.player.setVolume(v); v > 0 ? yt.player.unMute() : yt.player.mute(); } },
+    setVolume: (v) => { if (yt.ready) { if (IOS) { yt.player.unMute(); return; } yt.player.setVolume(v); v > 0 ? yt.player.unMute() : yt.player.mute(); } }, // iPhone: only its own buttons set the volume
     destroy: () => { yt.active = false; try { yt.ready && yt.player.pauseVideo(); } catch {} ytSlot().hidden = true; },
   };
   if (yt.ready) {
     // load straight away, inside the click, so the browser still counts it as the person's action
+    try { if (IOS) yt.player.unMute(); } catch {} // iPhone: sound on before loading, still inside the tap
     yt.player.loadVideoById(tr.yt);
-    try { yt.player.setVolume(volume); volume ? yt.player.unMute() : yt.player.mute(); } catch {}
+    try { if (IOS) yt.player.unMute(); else { yt.player.setVolume(volume); volume ? yt.player.unMute() : yt.player.mute(); } } catch {}
     a.ready = Promise.resolve();
     return a;
   }
@@ -1264,11 +1265,11 @@ function makeYouTube(tr) {
     const host = el("div"); ytSlot().replaceChildren(host);
     yt.player = new YT.Player(host, {
       videoId: yt.pending, host: "https://www.youtube-nocookie.com", width: "100%", height: "100%",
-      playerVars: { autoplay: 1, rel: 0, playsinline: 1, vq: "hd1080" },
+      playerVars: { autoplay: 1, mute: 0, rel: 0, playsinline: 1, vq: "hd1080" },
       events: {
         onReady: () => {
           yt.ready = true;
-          try { yt.player.setVolume(volume); if (!volume) yt.player.mute(); } catch {}
+          try { if (IOS) yt.player.unMute(); else { yt.player.setVolume(volume); if (!volume) yt.player.mute(); } } catch {}
           const vid = yt.player.getVideoData && yt.player.getVideoData().video_id;
           if (yt.pending && vid !== yt.pending) yt.player.loadVideoById(yt.pending);
           yt.timer = setInterval(() => { if (yt.active && yt.player.getCurrentTime) events.time(yt.player.getCurrentTime(), yt.player.getDuration()); }, 250);
@@ -1279,7 +1280,7 @@ function makeYouTube(tr) {
           if (e.data === YT.PlayerState.PLAYING) {
             events.state(true);
             // iPhone: a video started without a tap is muted by the browser; unmute it as soon as it plays
-            try { if (volume > 0 && yt.player.isMuted()) yt.player.unMute(); } catch {}
+            try { if (IOS || volume > 0) yt.player.unMute(); } catch {} // (iPhone: always; it can report "not muted" while it is)
           }
           else if (e.data === YT.PlayerState.PAUSED) events.state(false);
           else if (e.data === YT.PlayerState.ENDED) events.ended();
@@ -1431,7 +1432,7 @@ for (const [id, step] of [["#tCur", -5], ["#tDur", 5]]) $(id).addEventListener("
   $(id).classList.add("tapped"); setTimeout(() => $(id).classList.remove("tapped"), 250);
 });
 /* iPhone: the first touch also unmutes a YouTube video the browser started muted */
-document.addEventListener("touchend", () => { try { if (yt.ready && yt.active && volume > 0 && yt.player.isMuted()) yt.player.unMute(); } catch {} }, { passive: true });
+document.addEventListener("touchend", () => { try { if (yt.ready && yt.active) yt.player.unMute(); } catch {} }, { passive: true });
 /* after using the position or volume slider, keys work as before (Space plays/pauses, not scroll or move the slider) */
 for (const s of [seekEl, $("#vol")]) s.addEventListener("pointerup", () => setTimeout(() => s.blur(), 0));
 
@@ -2563,7 +2564,7 @@ function withGemini(x, ai) {
   for (const [u, a] of Object.entries(ai || {})) {
     const o = x[u] || {};
     const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);
-    const gs = [...new Set((a.g || []).map(sameGenre))]; // "synth-pop" → "synth pop", as the site writes it
+    const gs = [...new Set([...(a.g || []), ...(a.md || [])].map(sameGenre))]; // genres, then mood words ("synth-pop" → "synth pop")
     x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
       src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
