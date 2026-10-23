@@ -12,7 +12,7 @@ and data/gemini-status.json (whether it ran, how many, or why it stopped).
 
 The site uses these in place of the other sources' suggestions; a release you set by hand still wins.
 Needs the repository secret GEMINI_API_KEY. Usage: python3 scripts/gemini.py [max_tracks] [max_minutes]"""
-import hashlib, json, os, re, sys, time, urllib.error, urllib.request
+import hashlib, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -21,7 +21,7 @@ MINUTES = float(sys.argv[2]) if len(sys.argv) > 2 else 50
 KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 MODEL = os.environ.get("GEMINI_MODEL", "").strip()
 API = "https://generativelanguage.googleapis.com/v1beta/"
-VERSION = 1
+VERSION = 2  # 2: also mood words, from the title, description and YouTube comments (everything is asked again once)
 PER_CALL = {"sources": 50, "search": 10}  # tracks per request
 PAUSE = 7  # seconds between requests (the free tier allows only a few per minute)
 START = time.time()
@@ -102,6 +102,29 @@ def facts(tr, meta, extra, desc):
     return f
 
 
+YTKEY = os.environ.get("YT_API_KEY", "").strip()
+
+
+def yt_comments(video_id):
+    """The top comments of a YouTube video (by relevance, short): what listeners call it ("dreamy", "pure 90s rave")."""
+    if not YTKEY or not video_id:
+        return []
+    q = urllib.parse.urlencode({"part": "snippet", "videoId": video_id, "maxResults": 15, "order": "relevance",
+                                "textFormat": "plainText", "key": YTKEY})
+    try:
+        with urllib.request.urlopen("https://www.googleapis.com/youtube/v3/commentThreads?" + q, timeout=20) as r:
+            d = json.load(r)
+    except Exception:  # noqa: BLE001  (comments switched off, quota, …)
+        return []
+    out = []
+    for it in d.get("items", []):
+        t = ((it.get("snippet") or {}).get("topLevelComment") or {}).get("snippet", {}).get("textDisplay", "")
+        t = re.sub(r"\s+", " ", t).strip()
+        if t:
+            out.append(t[:200])
+    return out[:10]
+
+
 def has_sources(f):
     """MusicBrainz or Discogs found something; otherwise Gemini searches the web itself (with the description)."""
     return bool(f.get("found"))
@@ -112,8 +135,10 @@ For each track below, decide:
 - "rl": the name of the ORIGINAL release (album, single or EP) the recording first came out on, or "" if unknown
 - "y": the year that release first came out (a number), or null if unknown. The original, not a reissue,
   remaster, compilation or upload year. A remix or edit counts from when that remix or edit came out.
-- "g": 1 to 5 genres, lowercase, most fitting first. Prefer names from this list when one fits:
-  {vocab}
+- "g": 2 to 8 lowercase words for the playlists: first 1 to 5 genres, most fitting first (prefer names from this
+  list when one fits: {vocab}), then 1 to 3 words for the mood or sound, like "soft", "floating", "romantic",
+  "melancholic", "hypnotic", "euphoric", "dark", "warm", "lo-fi". Use genre words and descriptions found in the title,
+  the description and the listeners' "comments" when they fit, and your own knowledge of the track.
 - "ar": the artist as credited on that release (e.g. "Röyksopp", "Daft Punk feat. Romanthony"); for music from a
   game, film, anime or TV series the composer. "" if unknown
 - "co": the country the artist (or composer) is from, as a two-letter code ("GB", "JP", "US"), or "" if unknown
@@ -167,7 +192,7 @@ def clean_answer(a):
         y = None
     if y and not 1900 <= y <= time.gmtime().tm_year:
         y = None
-    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:5]
+    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:8]
     rl = str(a.get("rl") or "").strip()[:200]
     conf = a.get("conf") if a.get("conf") in ("high", "medium", "low") else "low"
     ar = str(a.get("ar") or "").strip()[:200]
@@ -202,6 +227,7 @@ def main():
             count[g] = count.get(g, 0) + 1
     vocab = [g for g, _ in sorted(count.items(), key=lambda kv: -kv[1])][:250]
 
+    yt_of = {tr["url"]: tr.get("yt") for th in tracks["threads"] for tr in th["tracks"]}
     todo = {"sources": [], "search": []}
     seen = set()
     for th in tracks["threads"]:
@@ -235,6 +261,10 @@ def main():
                 status["state"] = "ok (stopped for this run, continues next run)"
                 return save()
             batch = [(u, f) for u, f, _ in items[i:i + PER_CALL[how]]]
+            for u, f in batch:  # the listeners' comments (only for the tracks being asked now; not part of the fingerprint)
+                c = yt_comments(yt_of.get(u))
+                if c:
+                    f["comments"] = c
             fps = {u: fp for u, _, fp in items[i:i + PER_CALL[how]]}
             try:
                 answers = None

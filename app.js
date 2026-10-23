@@ -353,7 +353,8 @@ const sameGenre = (g) => { g = g.trim().toLowerCase().replace(/\s+/g, " "); g = 
 const NOT_GENRES = new Set(["broken link", "plays on youtube only"]); // housekeeping tags
 /* the decade of the earliest release year found: 1984 → "80s", 2004 → "2000s", 2014 → "2010s" */
 const decadeOf = (y) => { y = +y; if (!y) return ""; const d = Math.floor(y / 10) * 10; return d >= 1920 && d < 2000 ? String(d).slice(2) + "s" : d + "s"; };
-const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g)), decadeOf(x.y)].filter(Boolean))]; };
+// a track's genres for the Genres page: the suggested ones, its tags, its decade and the artist's country
+const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g)), decadeOf(x.y), countryName(x.co)].filter(Boolean))]; };
 function genreIndexAll() {
   if (gIndex) return gIndex;
   gIndex = new Map();
@@ -939,6 +940,7 @@ function fitList(node, scroll) {
   if (!document.querySelector(".scroll-list.open")) { $("main").style.minHeight = ""; document.body.style.minHeight = ""; } // nothing open: no extra room
   const list = node.querySelector(".scroll-list");
   if (!list || !list.children.length) return;
+  if (node.classList.contains("genre-mix")) { list.style.maxHeight = ""; fitMix(node); return; } // the Genres playlist sizes itself
   requestAnimationFrame(() => updateFade(list));
   if (!list.classList.contains("open")) {
     const rows = [...list.querySelectorAll(":scope > li.track")];
@@ -1274,7 +1276,11 @@ function makeYouTube(tr) {
         },
         onStateChange: (e) => {
           if (!yt.active) return;
-          if (e.data === YT.PlayerState.PLAYING) events.state(true);
+          if (e.data === YT.PlayerState.PLAYING) {
+            events.state(true);
+            // iPhone: a video started without a tap is muted by the browser; unmute it as soon as it plays
+            try { if (volume > 0 && yt.player.isMuted()) yt.player.unMute(); } catch {}
+          }
           else if (e.data === YT.PlayerState.PAUSED) events.state(false);
           else if (e.data === YT.PlayerState.ENDED) events.ended();
         },
@@ -1417,6 +1423,15 @@ seekEl.addEventListener("input", () => {
   seekEl.style.setProperty("--p", (seekEl.value / seekEl.max) * 100 + "%");
 });
 seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); seekEl.blur(); });
+/* phone: tapping the time on the left goes back 5 seconds, the length on the right forward 5 (they light up a moment) */
+for (const [id, step] of [["#tCur", -5], ["#tDur", 5]]) $(id).addEventListener("click", () => {
+  if (!phone() || !adapter || !adapter.controllable) return;
+  const to = Math.max(0, Math.min(+seekEl.max || 0, lastTime + step));
+  adapter.seek(to); setTime(to, +seekEl.max || 0);
+  $(id).classList.add("tapped"); setTimeout(() => $(id).classList.remove("tapped"), 250);
+});
+/* iPhone: the first touch also unmutes a YouTube video the browser started muted */
+document.addEventListener("touchend", () => { try { if (yt.ready && yt.active && volume > 0 && yt.player.isMuted()) yt.player.unMute(); } catch {} }, { passive: true });
 /* after using the position or volume slider, keys work as before (Space plays/pauses, not scroll or move the slider) */
 for (const s of [seekEl, $("#vol")]) s.addEventListener("pointerup", () => setTimeout(() => s.blur(), 0));
 
