@@ -495,3 +495,4 @@
 {"action": "edit", "thread": "p28649143218009030", "id": "t28649143218009030_0", "title": "Björk – Pagan Poetry (2001)", "url": "https://www.youtube.com/watch?v=C47v-Ce9JAU", "tags": ["gen x", "art pop"], "ts": 1792769147}
 {"action": "edit", "thread": "p28649143218009030", "id": "t28649143218009030_0", "title": "Björk – Pagan Poetry (2001)", "url": "https://www.youtube.com/watch?v=C47v-Ce9JAU", "tags": ["art pop", "high school"], "ts": 1792769167}
 {"action": "edit", "thread": "p28649143218009030", "id": "t28649143218009030_0", "title": "Björk – Pagan Poetry (2001)", "url": "https://www.youtube.com/watch?v=C47v-Ce9JAU", "tags": ["art pop", "art student"], "ts": 1792769178}
+{"action": "tag", "ids": ["t28227915433465146_0"], "add": ["outsider"], "remove": [], "ts": 1792769197}
