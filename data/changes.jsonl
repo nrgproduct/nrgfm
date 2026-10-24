@@ -613,3 +613,5 @@
 {"action": "edit", "thread": "p1201089333241122", "id": "t1209091655774223_0", "title": "FBD Project (neil trix) - she's so (1994)", "url": "https://www.youtube.com/watch?v=55avQ2BAhtI", "tags": ["atmospheric jungle"], "ts": 1792845512}
 {"action": "tag", "ids": ["t1205370256146363_0"], "add": ["fusion"], "remove": [], "ts": 1792845625}
 {"action": "delete", "thread": "p1192875330729189", "id": "t1196275643722491_0", "ts": 1792845644}
+{"action": "tag", "ids": ["t1161276217222434_0"], "add": ["new wave"], "remove": [], "ts": 1792846309}
+{"action": "tag", "ids": ["t1161276217222434_0"], "add": ["new wave"], "remove": [], "ts": 1792846310}
