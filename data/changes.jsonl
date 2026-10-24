@@ -693,3 +693,4 @@
 {"action": "tag", "ids": ["t27073299775593390_0"], "add": ["trip hop", "uk", "alt rock"], "remove": [], "ts": 1792858926}
 {"action": "edit", "thread": "p27073196295603738", "id": "t27619632024293493_0", "title": "David Bowie – I'm Deranged (1995)", "url": "https://www.youtube.com/watch?v=yF7M0D48MBE", "tags": ["alt rock"], "ts": 1792858979}
 {"action": "edit", "thread": "p26776190818637622", "id": "t26776190818637622_0", "title": "The Smashing Pumpkins - 1979", "url": "https://www.youtube.com/watch?v=PufFJWCcc_w", "tags": ["alt rock"], "ts": 1792859011}
+{"action": "tag", "ids": ["t26612223531701019_0"], "add": ["trip hop", "zoinked"], "remove": [], "ts": 1792859025}
