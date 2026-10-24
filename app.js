@@ -354,7 +354,7 @@ const NOT_GENRES = new Set(["broken link", "plays on youtube only"]); // houseke
 /* the decade of the earliest release year found: 1984 → "80s", 2004 → "2000s", 2014 → "2010s" */
 const decadeOf = (y) => { y = +y; if (!y) return ""; const d = Math.floor(y / 10) * 10; return d >= 1920 && d < 2000 ? String(d).slice(2) + "s" : d + "s"; };
 // a track's genres for the Genres page: the suggested ones, its tags, its decade and the artist's country
-const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g)), decadeOf(x.y), countryName(x.co)].filter(Boolean))]; };
+const genresOf = (tr) => { const x = extra[tr.url] || {}; return [...new Set([...(x.gm || (x.g || []).map(sameGenre)), ...shownTags(tr).filter((g) => !NOT_GENRES.has(g)), decadeOf(x.y), ...countryList(x.co).map((c) => c.toLowerCase())].filter(Boolean))]; };
 function genreIndexAll() {
   if (gIndex) return gIndex;
   gIndex = new Map();
@@ -851,7 +851,7 @@ document.addEventListener("wheel", (e) => {
   const selList = sel && sel.querySelector(".scroll-list");
   const fits = selList && selList.scrollHeight <= selList.clientHeight + 1; // nothing to scroll to: the page scrolls
   if (selList) selList.classList.toggle("no-overflow", !!fits);
-  if (sel && !fits && !sel.querySelector(".edit-wrap") && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) {
+  if (sel && !fits && !selList.classList.contains("open") && !sel.querySelector(".edit-wrap") && !e.target.closest(".scroll-list, .add-form, .edit-wrap")) { // (an expanded box leaves the page scrolling)
     e.preventDefault(); selList.scrollBy(0, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY); return;
   }
   const box = e.target.closest && e.target.closest(".scroll-list");
@@ -1424,9 +1424,9 @@ seekEl.addEventListener("input", () => {
   seekEl.style.setProperty("--p", (seekEl.value / seekEl.max) * 100 + "%");
 });
 seekEl.addEventListener("change", () => { seeking = false; adapter && adapter.seek(+seekEl.value); seekEl.blur(); });
-/* phone: tapping the time on the left goes back 5 seconds, the length on the right forward 5 (they light up a moment) */
+/* clicking the time on the left goes back 5 seconds, the length on the right forward 5 (they light up a moment) */
 for (const [id, step] of [["#tCur", -5], ["#tDur", 5]]) $(id).addEventListener("click", () => {
-  if (!phone() || !adapter || !adapter.controllable) return;
+  if (!adapter || !adapter.controllable) return; // (phone and computer)
   const to = Math.max(0, Math.min(+seekEl.max || 0, lastTime + step));
   adapter.seek(to); setTime(to, +seekEl.max || 0);
   $(id).classList.add("tapped"); setTimeout(() => $(id).classList.remove("tapped"), 250);
@@ -1857,11 +1857,11 @@ function moreInfo(tr, edit, tags) {
         // other years only when the suggestion is uncertain; where it came from shows when hovering the line
         x.ys && x.ys.length && x.conf !== "high" ? el("span", { class: "hint" }, "(also " + x.ys.join(", ") + ")") : null));
     const yearLine = box.lastChild;
-    const yearNote = [x.conf ? `Confidence: ${x.conf}` : null, x.ys && x.ys.length ? `Also found: ${x.ys.join(", ")}` : null,
-      x.src ? `From: ${x.src.split("+").join(", ")}` : null].filter(Boolean);
+    // hovering: where each year came from (the suggested one first)
+    const ySrc = (y) => (x.ysrc || {})[y] || "";
+    const yearNote = [x.y ? `${x.y}: ${ySrc(x.y) || "set by hand or unknown source"}` + (x.conf ? ` (${x.conf} confidence)` : "") : null,
+      ...(x.ys || []).map((y) => `${y}: ${ySrc(y) || "MusicBrainz or Discogs"}`)].filter(Boolean);
     if (yearNote.length) hoverNote(yearLine, yearNote);
-    const relNote = [x.conf ? `Confidence: ${x.conf}` : null, x.src ? `From: ${x.src.split("+").join(", ")}` : null].filter(Boolean);
-    if (relNote.length) hoverNote(box.querySelector(".rel-line"), relNote);
     // Meta: uploader and upload date; inside it, Description
     const descBox = el("div", { class: "af-desc", hidden: true });
     const descBtn = el("button", { type: "button", class: "thread-btn", onclick: async () => {
@@ -2105,7 +2105,12 @@ function releaseEditor(tr, x, box) {
         onmousedown: (e) => { e.preventDefault(); rel.splice(k, 1); draw(); } }, "×"));
       input.focus(); input.select();
     };
-    item.append(el("button", { type: "button", class: "rel-name", onclick: edit }, r));
+    const btn = el("button", { type: "button", class: "rel-name", onclick: edit }, r);
+    item.append(btn);
+    // hovering a release: where this one came from
+    const at = (x.rl || []).findIndex((n) => n.toLowerCase() === r.toLowerCase());
+    const from = tr.release && tr.release.includes(r) && at < 0 ? "set by hand" : at > -1 && x.rls ? x.rls[at] : "";
+    if (from) hoverNote(btn, [`From: ${from}` + (at === 0 && x.conf ? ` (${x.conf} confidence)` : "")]);
     return item;
   }) : [el("button", { type: "button", class: "rel-name rel-none", onclick: () => { rel.push(""); draw(); wrap.querySelector(".rel-name").click(); } }, // add one yourself
     start.length || tr.release ? "none" : x.chk && x.v >= 3 ? "none found" : "not looked up yet")]));
@@ -2565,7 +2570,14 @@ function withGemini(x, ai) {
     const o = x[u] || {};
     const ys = [o.y, ...(o.ys || [])].filter((y, k, all) => y && y !== a.y && all.indexOf(y) === k);
     const gs = [...new Set([...(a.g || []), ...(a.md || [])].map(sameGenre))]; // genres, then mood words ("synth-pop" → "synth pop")
-    x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, g: gs, gm: gs, y: a.y || null, ys, rl: a.rl ? [a.rl] : [],
+    // releases: Gemini's pick first, then the others that were found; and where each one (and each year) came from
+    const nice = (src) => (src || "").split("+").filter(Boolean).map((w) => ({ musicbrainz: "MusicBrainz", discogs: "Discogs", description: "the description" }[w] || w)).join(", ");
+    const oRl = o.rl || [], oRls = o.rls || [], srcOf = (n) => { const k = oRl.findIndex((r) => r.toLowerCase() === n.toLowerCase()); return k > -1 ? nice(oRls[k]) || "MusicBrainz or Discogs" : ""; };
+    const rl = a.rl ? [a.rl, ...oRl.filter((r) => r.toLowerCase() !== a.rl.toLowerCase())] : oRl;
+    const rls = rl.map((n, k) => (k === 0 && a.rl ? "Gemini" + (srcOf(n) ? " (also " + srcOf(n) + ")" : "") : srcOf(n)));
+    const ysrc = {}; for (const [y, v] of Object.entries(o.ysrc || {})) ysrc[y] = nice(v);
+    if (a.y) ysrc[a.y] = "Gemini" + (ysrc[a.y] ? " (also " + ysrc[a.y] + ")" : "");
+    x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, g: gs, gm: gs, y: a.y || null, ys, rl, rls, ysrc,
       src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
   return x;
@@ -2823,8 +2835,10 @@ function hoverNote(target, lines) {
 }
 /* "GB" → "United Kingdom" (a name stays as it is) */
 const regionNames = (() => { try { return new Intl.DisplayNames(["en"], { type: "region" }); } catch { return null; } })();
+function countryList(c) { return String(c || "").split(/\s*,\s*/).filter(Boolean).map(countryName); } // "GB,US" → two
 function countryName(c) {
   if (!c) return "";
+  if (c.includes(",")) return countryList(c).join(", ");
   if (/^[A-Z]{2}$/.test(c) && regionNames) { try { return regionNames.of(c) || c; } catch { return c; } }
   return c;
 }

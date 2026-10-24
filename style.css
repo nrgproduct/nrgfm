@@ -1251,4 +1251,8 @@ html.inner-scroll { color-scheme: dark; }
 #yearBtn[hidden] { display: none; }
 .af-about { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .thread.active .scroll-list.no-overflow { overscroll-behavior: auto !important; } /* a list with nothing more to show passes the wheel to the page */
-@media (max-width: 640px) { #tCur, #tDur { cursor: pointer; transition: color .15s; } #tCur.tapped, #tDur.tapped { color: var(--text); } }
+#tCur, #tDur { cursor: pointer; transition: color .15s; } #tCur.tapped, #tDur.tapped { color: var(--text); }
+@media (hover: hover) { #tCur:hover, #tDur:hover { color: var(--text); } }
+
+/* an expanded box hands the wheel on to the page at its ends, even when selected */
+.thread.active .scroll-list.open { overscroll-behavior: auto !important; }

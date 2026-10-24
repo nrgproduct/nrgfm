@@ -145,7 +145,34 @@ DG_COUNTRY = {"UK": "GB", "US": "US", "USA": "US", "Japan": "JP", "Germany": "DE
               "Argentina": "AR", "Jamaica": "JM", "Turkey": "TR", "Czech Republic": "CZ", "Hungary": "HU", "Israel": "IL"}
 DG_NOT_COUNTRY = {"Europe", "Worldwide", "Unknown", "UK & Europe", "USA & Canada", "UK, Europe & US", "Scandinavia", "Benelux", "Germany, Austria, & Switzerland"}
 
-VERSION = 3  # entries looked up by an older version of this script are looked up again
+ARTIST_SPLIT = re.compile(r"\s*(?:,|&|\bfeat\.?|\bft\.?|\bfeaturing\b|\bvs\.?|/)\s*", re.I)
+
+
+def artist_countries(name, cache):
+    """Where the artist (each of up to 3 in "A & B feat. C") is from, as MusicBrainz says: "GB" or "GB,US"."""
+    codes = []
+    parts = [x for x in ARTIST_SPLIT.split(name or "") if x.strip()][:3]
+    whole = [name] if name and len(parts) > 1 else []
+    for k, a in enumerate(whole + parts):  # the whole name first ("Simon & Garfunkel"), then each name in it
+        if codes and whole and k == 1:
+            break
+        key = a.strip().lower()
+        if key not in cache:
+            cache[key] = None
+            try:
+                time.sleep(1.1)
+                d = get_json("https://musicbrainz.org/ws/2/artist/?" + urllib.parse.urlencode({"query": f'artist:"{a.strip()}"', "fmt": "json", "limit": 3}))
+                best = next((x for x in d.get("artists", []) if int(x.get("score", 0)) >= 95 and x.get("name", "").lower() == key), None)
+                if best:
+                    cache[key] = best.get("country") or ((best.get("area") or {}).get("iso-3166-1-codes") or [None])[0]
+            except Exception as x:  # noqa: BLE001
+                print("musicbrainz artist", type(x).__name__, x)
+        if cache[key] and cache[key] not in codes:
+            codes.append(cache[key])
+    return ",".join(codes) or None
+
+
+VERSION = 4  # 4: where each release and year came from # entries looked up by an older version of this script are looked up again
 BASE_GENRES = """ambient,acid house,alternative rock,art rock,bass music,breakbeat,breaks,chillwave,classical,coldwave,dancehall,
 deep house,disco,downtempo,drum and bass,drum n bass,dub,dub techno,dubstep,edm,electro,electronic,electropop,experimental,folk,
 folk rock,footwork,funk,garage,grime,hard rock,hardcore,hip hop,house,idm,indie,indie pop,indie rock,industrial,italo disco,
@@ -323,7 +350,7 @@ def main():
         u = tr["url"]
         e = extra.get(u, {})
         if e.get("v") != VERSION:
-            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk", "ytv", "d", "ar", "co")}  # look up again from scratch
+            e = {k: v for k, v in e.items() if k in ("by", "up", "ytchk", "ytv", "d", "ar", "co", "cochk")}  # look up again from scratch
             at = artist_title(tr, meta) if not meta.get(u, {}).get("dead") or tr.get("title") or meta.get(u, {}).get("wb_title") else None
             if at:
                 stats["parsed"] += 1
@@ -354,15 +381,31 @@ def main():
                 set_years(e, years)
                 if e.get("y"):
                     stats["year"] += 1
+                # where each year came from ("ysrc": {"1984": "musicbrainz+discogs"})
+                ysrc = {}
+                for src, rr in (("musicbrainz", mb), ("discogs", dg)):
+                    for y in (rr or {}).get("ys", []):
+                        ysrc.setdefault(str(y), [])
+                        if src not in ysrc[str(y)]:
+                            ysrc[str(y)].append(src)
+                if ysrc:
+                    e["ysrc"] = {y: "+".join(v) for y, v in ysrc.items()}
                 # suggested release: the earliest one first, then up to three others (different names)
-                seen, rl = set(), []
-                for _, name in sorted([x for r in (mb, dg) if r for x in r.get("rl", [])], key=lambda x: x[0]):
+                # (and where each one came from: "rls", in the same order)
+                seen, rl, rls = {}, [], []
+                found = [(y, n, src) for src, rr in (("musicbrainz", mb), ("discogs", dg)) if rr for y, n in rr.get("rl", [])]
+                for _, name, src in sorted(found, key=lambda x: x[0]):
                     name = re.sub(r"[\u200b-\u200f\ufeff]", "", name).strip()  # hidden spaces (Bandcamp-style titles)
-                    if name and name.lower() not in seen:
-                        seen.add(name.lower())
-                        rl.append(name)
+                    if not name:
+                        continue
+                    if name.lower() not in seen:
+                        seen[name.lower()] = len(rl)
+                        rl.append(name); rls.append(src)
+                    elif src not in rls[seen[name.lower()]]:
+                        rls[seen[name.lower()]] += "+" + src
                 if rl:
                     e["rl"] = rl[:4]
+                    e["rls"] = rls[:4]
                     stats["release"] = stats.get("release", 0) + 1
                 add_genres(e, genres[:8])
                 if e.get("g"):
@@ -376,6 +419,8 @@ def main():
                 desc[u] = d_text
                 hy, hg = desc_hints(d_text, vocab)
                 set_years(e, hy)
+                for y in hy:
+                    e.setdefault("ysrc", {})[str(y)] = "+".join(dict.fromkeys(((e.get("ysrc") or {}).get(str(y), "") + "+description").strip("+").split("+")))
                 add_genres(e, hg)
             e["chk"] = int(time.time())
             e["v"] = VERSION
@@ -388,6 +433,8 @@ def main():
                 if hy or hg:
                     stats["desc"] += 1
                     set_years(e, hy)
+                    for y in hy:
+                        e.setdefault("ysrc", {})[str(y)] = "+".join(dict.fromkeys(((e.get("ysrc") or {}).get(str(y), "") + "+description").strip("+").split("+")))
                     add_genres(e, hg)
                     if "youtube" not in (e.get("src") or ""):
                         e["src"] = "+".join(x for x in (e.get("src"), "youtube") if x)
@@ -399,6 +446,18 @@ def main():
         if done % 100 == 0:
             print(done, "done", stats)
             json.dump(extra, open(extra_p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    # an artist but no country: look the artist up on MusicBrainz (a few hundred per run, one per second)
+    cache, n = {}, 0
+    for u, e in extra.items():
+        if time.time() - START > MINUTES * 60 or n >= 400:
+            break
+        if e.get("ar") and not e.get("co") and not e.get("cochk"):
+            co = artist_countries(e["ar"], cache)
+            e["cochk"] = 1
+            n += 1
+            if co:
+                e["co"] = co
+    print("artist countries looked up:", n)
     json.dump(extra, open(extra_p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     json.dump(desc, open(desc_p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print("looked up", done, stats)

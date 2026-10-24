@@ -160,7 +160,8 @@ Ignore what doesn't fit the title and uploader. Don't guess: leave a field empty
 "group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.
 A year written in "title" or "link_title" is a strong hint (it can also be a remaster's year).""",
     "search": """MusicBrainz and Discogs found nothing about these tracks. Read the video description when there is one,
-and look each track up with Google Search by its title (Discogs, MusicBrainz, Bandcamp, Wikipedia, VGMdb, the
+and look each track up with Google Search: search "discogs <the title>" and read the first 3 or 4 results (the
+Discogs page of the release usually says it all), then search the title by itself (Discogs, MusicBrainz, Bandcamp, Wikipedia, VGMdb, the
 artist's pages are good sources). Many are not ordinary releases: music from a video game, film, anime or TV series
 (then add genres like "video game music" or "soundtrack", give the year of the game or film, the composer as "ar",
 and say in "about" where it is from), a DJ mix, a live recording, a home-made upload.

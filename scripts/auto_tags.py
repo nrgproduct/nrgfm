@@ -2,14 +2,19 @@
 
   duplicate                 the same link (same YouTube video, same page) is in the archive more than once,
                             or two tracks have the same title once noise like "(Official Video)" is left out
-  +30 min / +1 hour        tracks this long (length from data/extra.json "d", in seconds); only the biggest one
+  +30 min / +1 hour        tracks this long
+  japanese characters      a title written (partly) in Japanese (length from data/extra.json "d", in seconds); only the biggest one
 
 Usage: python3 scripts/auto_tags.py"""
 import json, os, re, time, unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
-AUTO = ("duplicate", "+10 min", "+30 min", "+1 hour")
+AUTO = ("duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters")
+# kana (and kanji, unless the title also has Korean letters)
+KANA = re.compile(r"[\u3040-\u30ff\uff66-\uff9f]")
+KANJI = re.compile(r"[\u4e00-\u9fff]")
+HANGUL = re.compile(r"[\uac00-\ud7af]")
 NOISE = re.compile(r"[\(\[][^\)\]]*\b(official|lyric|lyrics|audio|video|hd|hq|4k|remaster(ed)?|visuali[sz]er|explicit|clip|music video|mv|full album|out now|premiere)\b[^\)\]]*[\)\]]", re.I)
 GENERIC = {"", "plays on youtube only", "unavailable", "untitled", "youtube track", "soundcloud track"}
 
@@ -59,6 +64,10 @@ def main():
             want.add("+1 hour")
         elif d > 1800:
             want.add("+30 min")  # ("+10 min" is no longer used; it is listed above only so old ones get removed)
+        m = meta.get(tr["url"], {})
+        title = " ".join(x for x in (tr.get("title"), m.get("title"), m.get("wb_title")) if x)
+        if KANA.search(title) or (KANJI.search(title) and not HANGUL.search(title)):
+            want.add("japanese characters")
         tags = tr.get("tags") or {}
         have = {g for g in AUTO if g in tags}
         if have == want:
