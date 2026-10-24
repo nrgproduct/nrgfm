@@ -601,3 +601,4 @@
 {"action": "tag", "ids": ["t25269038802686172_0"], "add": ["soft"], "remove": [], "ts": 1792843542}
 {"action": "tag", "ids": ["t25269038802686172_0"], "add": ["indie"], "remove": [], "ts": 1792843566}
 {"action": "edit", "thread": "p25269038802686172", "id": "t25383059881284063_0", "title": "The Cars – Drive (1984)", "url": "https://www.youtube.com/watch?v=afnOOEvAtt4", "tags": ["new wave", "80s", "ballad"], "ts": 1792843635}
+{"action": "delete", "thread": "p390269020989828", "id": "t390269020989828_0", "ts": 1792843696}
