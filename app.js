@@ -258,6 +258,7 @@ function runSearch() {
   $("#threads").replaceChildren();
   if (terms.length) pageScrollTo(0); // results start at the top, wherever you were in the feed
   renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
+  if (!terms.length && view === "activity") renderActivity();
 }
 
 /* computer: the search line stays one line: the count, the filters after it, Sort on the right. Too many filters
@@ -321,7 +322,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", genreboxes: "Genres (one box each)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", genreboxes: "Genres (one box each)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -330,6 +331,7 @@ function viewItems() {
   if (view === "genres") return gSel.length ? [genreMix()] : []; // no playlist until a genre is picked
   if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
   if (view === "history") return historyMonths();
+  if (view === "activity") return []; // drawn by renderActivity
   return threads.filter(isBase);
 }
 const baseTracks = () => threads.filter(isBase).flatMap((t) => t.tracks);
@@ -633,6 +635,8 @@ function drawViewHead() {
     head.replaceChildren(yearRow, el("div", { class: "hist-months-row" }, monthRow, thumbsBtn));
     head._pickYear = pickYear;
     if (years.length) pickYear(years[0]);
+  } else if (view === "activity") {
+    head.replaceChildren(act.head); head.hidden = false; return;
   } else if (view === "tags") {
     head.hidden = true; return;
   } else { head.hidden = true; return; }
@@ -649,7 +653,7 @@ function watchHistory() { scroller().addEventListener("scroll", () => {
   if (!head.querySelector(`.hist-years .on`) || head.querySelector(".hist-years .on").textContent !== y) head._pickYear(y);
   head.querySelectorAll(".hist-months .when-link").forEach((b, k) => b.classList.toggle("on", k === +mo - 1));
 }, { passive: true }); }
-const contentTop = () => Math.max(headerBottom(), view === "history" && !$("#viewHead").hidden ? $("#viewHead").getBoundingClientRect().bottom : 0);
+const contentTop = () => Math.max(headerBottom(), (view === "history" || view === "activity") && !$("#viewHead").hidden ? $("#viewHead").getBoundingClientRect().bottom : 0);
 /* bring a thread, playlist or month on this page to the top */
 function jumpTo(id) {
   const at = shown.findIndex((x) => x.t.id === id);
@@ -1230,6 +1234,7 @@ function setPlayState(isPlaying) {
 }
 let lastTime = 0;
 function setTime(cur, dur) {
+  logTick(cur, dur);
   lastTime = cur || 0;
   if (seeking) return;
   $("#tCur").textContent = fmtTime(cur);
@@ -1366,6 +1371,7 @@ function play(t, i) {
   $("#infoBtn").disabled = $("#copyBtn").disabled = false;
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
+  startPlayLog(tr, x);
   $("#dock").classList.remove("wide"); // a new track: the buttons come back
   showFlag();
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
@@ -1403,7 +1409,7 @@ function play(t, i) {
   const controllable = !!(adapter && adapter.controllable);
   $("#dock").classList.toggle("no-transport", !controllable);
   $("#playBtn").disabled = !controllable; $("#seek").disabled = !controllable; $("#volBtn").disabled = !controllable;
-  if (!controllable) closeVol();
+  if (!controllable) { closeVol(); logUncounted(); }
   if (adapter) adapter.ready.catch(() => {
     if (token !== loadToken) return;
     ytSlot().hidden = true;
@@ -2527,14 +2533,167 @@ function showFlag() {
   const tr = playing && playing.thread.tracks[playing.index];
   $("#flagBtn").classList.toggle("on", !!(tr && tr.tags && tr.tags.flagged));
 }
-$("#flagBtn").onclick = async () => {
-  if (!playing) return;
-  if (!getToken()) { openSetup(); return; }
-  const tr = playing.thread.tracks[playing.index], on = !(tr.tags && tr.tags.flagged), ts = Math.floor(Date.now() / 1000);
-  try { await writeInbox({ action: "tag", ids: [tr.id], add: on ? ["flagged"] : [], remove: on ? [] : ["flagged"], ts }, "tag"); } catch { return; }
+async function toggleFlag(tr) {
+  if (!getToken()) { openSetup(); return false; }
+  const on = !(tr.tags && tr.tags.flagged), ts = Math.floor(Date.now() / 1000);
+  try { await writeInbox({ action: "tag", ids: [tr.id], add: on ? ["flagged"] : [], remove: on ? [] : ["flagged"], ts }, "tag"); } catch { return false; }
   applyTags(tr, on ? [...Object.keys(tr.tags || {}), "flagged"] : Object.keys(tr.tags || {}).filter((g) => g !== "flagged"), ts);
   tr._hay = null; showFlag(); refreshTags();
-};
+  return true;
+}
+$("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[playing.index]); };
+
+/* ---------- Activity: every play of 10 seconds or more is logged on the Activity server (worker/, on Cloudflare);
+   only a device with the key can see the log. Each browser has a random id; devices with the key can be named. ---------- */
+let ACT_URL = "";
+fetch("data/worker.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).then((d) => { ACT_URL = (d.url || "").replace(/\/$/, ""); if (view === "activity") renderActivity(); }).catch(() => {});
+const DEVICE_ID = (() => { try { let v = localStorage.getItem("nrgfm-did"); if (!v) { v = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, ""); localStorage.setItem("nrgfm-did", v); } return v; } catch { return "nostorage"; } })();
+let plog = null; // the play being logged now
+function sendPlay(final) {
+  if (!plog || !ACT_URL) return;
+  const body = JSON.stringify({ id: plog.id, who: DEVICE_ID, owner: !!getToken(), ts: plog.ts, url: plog.url, tid: plog.tid, title: plog.title,
+    sec: plog.sec === null ? null : Math.round(plog.sec), dur: plog.dur ? Math.round(plog.dur) : null });
+  plog.sent = true; plog.lastSend = Date.now(); plog.sentSec = plog.sec;
+  if (final && navigator.sendBeacon) { try { navigator.sendBeacon(ACT_URL + "/play", new Blob([body], { type: "text/plain" })); return; } catch {} }
+  fetch(ACT_URL + "/play", { method: "POST", body, keepalive: true, headers: { "Content-Type": "text/plain" } }).catch(() => {});
+}
+function endPlayLog() {
+  if (plog && plog.sent && plog.sec !== plog.sentSec) sendPlay(true);
+  if (plog) clearTimeout(plog.wall);
+  plog = null;
+}
+function startPlayLog(tr, x) {
+  endPlayLog();
+  plog = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, ""), ts: Math.floor(Date.now() / 1000),
+    url: tr.url, tid: tr.id, title: x.title, sec: 0, dur: (extra[tr.url] || {}).d || 0, prev: 0, sent: false };
+}
+function logTick(cur, dur) { // seconds really played: the time moving forward in small steps (a jump is a seek)
+  if (!plog || plog.sec === null) return;
+  if (dur > 0) plog.dur = dur;
+  const d = (cur || 0) - plog.prev;
+  if (d > 0 && d < 2.5) plog.sec += d;
+  plog.prev = cur || 0;
+  if (!plog.sent && plog.sec >= 10) sendPlay(false);
+  else if (plog.sent && Date.now() - plog.lastSend > 60000) sendPlay(false);
+}
+function logUncounted() { // players that don't say where they are (Bandcamp, Mixcloud): logged after 10 seconds open
+  if (!plog) return;
+  const p = plog; p.sec = null;
+  p.wall = setTimeout(() => { if (plog === p) sendPlay(false); }, 10000);
+}
+addEventListener("pagehide", endPlayLog);
+document.addEventListener("visibilitychange", () => { if (document.hidden && plog && plog.sent && plog.sec !== plog.sentSec) sendPlay(true); });
+
+const act = { day: null, who: null, flagged: false, days: [], devices: [], head: el("div", { class: "act-head" }), token: 0 };
+const actTz = () => -new Date().getTimezoneOffset();
+const actApi = (path) => fetch(ACT_URL + path + (path.includes("?") ? "&" : "?") + "tz=" + actTz(), { headers: { Authorization: "Bearer " + getToken() } })
+  .then((r) => { if (!r.ok) throw new Error(r.status === 401 ? "The key wasn't accepted." : "The Activity server answered " + r.status + "."); return r.json(); });
+const myName = () => { try { return localStorage.getItem("nrgfm-device") || ""; } catch { return ""; } };
+function deviceLabel(d) {
+  if (!d) return "Unknown";
+  if (d.who === DEVICE_ID && myName()) return myName();
+  if (d.name) return d.name;
+  return (d.owner ? (d.who === DEVICE_ID ? "This device" : "Unnamed device") : "Guest") + (d.city ? " · " + d.city : "");
+}
+const FLAG_SVG = (on) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("aria-hidden", "true");
+  s.innerHTML = `<path d="M3.5 15V1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3.5 2h9l-2.2 3.5L12.5 9h-9" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>`; return s; };
+function trackByPlay(p) {
+  if (!act.index) { act.index = new Map(); for (const t of threads) if (isBase(t)) t.tracks.forEach((tr, i) => { act.index.set(tr.id, { t, i }); if (!act.index.has(tr.url)) act.index.set(tr.url, { t, i }); }); }
+  return act.index.get(p.tid) || act.index.get(p.url) || null;
+}
+function actDayName(day) {
+  const d = new Date(day + "T12:00:00"), now = new Date();
+  return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + (d.getFullYear() !== now.getFullYear() ? " " + d.getFullYear() : "");
+}
+async function renderActivity() {
+  const list = $("#threads"), token = ++act.token;
+  act.index = null;
+  if (!getToken()) { act.head.replaceChildren(); list.replaceChildren(el("p", { class: "view-note" }, "Activity is only shown on a device with the key.")); return; }
+  if (!ACT_URL) { act.head.replaceChildren(); list.replaceChildren(el("p", { class: "view-note" }, "The Activity server isn't set up yet.")); return; }
+  list.replaceChildren(el("p", { class: "view-note" }, "Loading…"));
+  try {
+    const who = act.who ? "?who=" + encodeURIComponent(act.who) : "";
+    [act.days, act.devices] = await Promise.all([actApi("/days" + who), actApi("/devices")]);
+  } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message || "The Activity server didn't answer.")); return; }
+  if (token !== act.token) return;
+  if (!act.days.some((d) => d.day === act.day)) act.day = act.days.length ? act.days[0].day : null;
+  drawActHead();
+  await drawActList(token);
+}
+function drawActHead() {
+  const go = (fn) => () => { fn(); renderActivity(); };
+  const dayRow = el("div", { class: "hist-years act-days" }, act.days.map((d) => el("button", { class: "when-link" + (!act.flagged && d.day === act.day ? " on" : ""),
+    onclick: go(() => { act.day = d.day; act.flagged = false; }) }, actDayName(d.day), el("span", { class: "gi-n" }, d.n))));
+  const edgeFade = () => { dayRow.classList.toggle("fade-l", dayRow.scrollLeft > 2); dayRow.classList.toggle("fade-r", dayRow.scrollLeft + dayRow.clientWidth < dayRow.scrollWidth - 2); };
+  dayRow.addEventListener("scroll", edgeFade, { passive: true }); requestAnimationFrame(edgeFade);
+  dayRow.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && dayRow.scrollWidth > dayRow.clientWidth) { e.preventDefault(); dayRow.scrollLeft += e.deltaY; } }, { passive: false });
+  const owners = act.devices.filter((d) => d.owner && d.n);
+  const cur = act.who && act.devices.find((d) => d.who === act.who);
+  const chips = el("div", { class: "hist-months act-filters" },
+    el("button", { class: "when-link" + (!act.who ? " on" : ""), onclick: go(() => { act.who = null; }) }, "All devices"),
+    owners.map((d) => el("button", { class: "when-link" + (act.who === d.who ? " on" : ""), onclick: go(() => { act.who = d.who; }) }, deviceLabel(d))),
+    cur && !cur.owner ? el("button", { class: "when-link on", onclick: go(() => { act.who = null; }) }, deviceLabel(cur) + " ×") : null,
+    el("span", { class: "act-sep" }),
+    el("button", { class: "when-link act-flag-filter" + (act.flagged ? " on" : ""), onclick: go(() => { act.flagged = !act.flagged; }) }, FLAG_SVG(act.flagged), "flagged"));
+  // this device: give it a name (once)
+  let naming = null;
+  if (!myName()) {
+    const input = el("input", { type: "text", class: "act-name", placeholder: "Name this device", maxlength: 40, "aria-label": "Name this device" });
+    const save = async () => {
+      const name = input.value.trim(); if (!name) return;
+      try {
+        const r = await fetch(ACT_URL + "/name", { method: "POST", headers: { Authorization: "Bearer " + getToken(), "Content-Type": "text/plain" }, body: JSON.stringify({ who: DEVICE_ID, name }) });
+        if (!r.ok) throw 0;
+        try { localStorage.setItem("nrgfm-device", name); } catch {}
+        renderActivity();
+      } catch { input.value = ""; input.placeholder = "Didn't save, try again"; }
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } });
+    naming = el("span", { class: "act-naming" }, input, el("button", { type: "button", class: "when-link", onclick: save }, "Save"));
+  }
+  act.head.replaceChildren(dayRow, el("div", { class: "hist-months-row act-row2" }, chips, naming));
+  const head = $("#viewHead");
+  if (view === "activity" && !$("#q").value.trim()) { head.className = "view-head view-history view-activity"; head.replaceChildren(act.head); head.hidden = false; }
+}
+async function drawActList(token) {
+  const list = $("#threads");
+  let plays;
+  try {
+    if (act.flagged) {
+      const urls = [...new Set(threads.filter(isBase).flatMap((t) => t.tracks).filter((tr) => tr.tags && tr.tags.flagged).map((tr) => tr.url))].slice(0, 200);
+      plays = urls.length ? await actApi("/plays?urls=" + encodeURIComponent(urls.join("|")) + (act.who ? "&who=" + encodeURIComponent(act.who) : "")) : [];
+    } else if (act.day) {
+      plays = await actApi("/plays?day=" + act.day + (act.who ? "&who=" + encodeURIComponent(act.who) : ""));
+    } else plays = [];
+  } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message)); return; }
+  if (token !== act.token) return;
+  if (!plays.length) { list.replaceChildren(el("p", { class: "view-note" }, act.flagged ? "No flagged tracks have been played." : "Nothing has been played yet.")); return; }
+  const devs = new Map(act.devices.map((d) => [d.who, d]));
+  const part = (ts) => { const h = new Date(ts * 1000).getHours(); return h < 5 ? "Night" : h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening"; };
+  const groupOf = (p) => (act.flagged ? actDayName(new Date(p.ts * 1000).toLocaleDateString("sv-SE")) : part(p.ts)); // (sv-SE: YYYY-MM-DD in local time)
+  const out = [];
+  let last = null;
+  for (const p of plays) {
+    const g = groupOf(p);
+    if (g !== last) { out.push(el("li", { class: "act-part" }, g)); last = g; }
+    const at = trackByPlay(p), tr = at && at.t.tracks[at.i], x = tr ? info(tr) : null;
+    const time = new Date(p.ts * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const full = !p.sec || !p.dur || p.sec >= p.dur - 5;
+    const d = devs.get(p.who);
+    const flagBtn = tr ? el("button", { class: "act-flag" + (tr.tags && tr.tags.flagged ? " on" : ""), "aria-label": "Flag", onclick: async (e) => {
+      const b = e.currentTarget; if (await toggleFlag(tr)) { const on = !!(tr.tags && tr.tags.flagged); b.classList.toggle("on", on); b.replaceChildren(FLAG_SVG(on)); }
+    } }, FLAG_SVG(!!(tr.tags && tr.tags.flagged))) : el("span");
+    out.push(el("li", { class: "act-line" + (playing && tr && playing.thread === at.t && playing.index === at.i ? " playing" : ""), "data-tid": p.tid || "" },
+      el("span", { class: "act-time" }, time),
+      el("button", { class: "play month-play", disabled: !tr || null, onclick: () => tr && play(at.t, at.i) },
+        img(x ? x.thumb : "", "mini"),
+        el("span", { class: "act-text" }, el("span", { class: "tr-title" }, x ? x.title : p.title || p.url),
+          full ? null : el("span", { class: "act-sub" }, `played ${fmtTime(p.sec)} of ${fmtTime(p.dur)}`))),
+      el("button", { class: "when-link act-dev", onclick: () => { act.who = p.who; act.flagged = false; act.day = null; renderActivity(); } }, deviceLabel(d || { who: p.who, city: p.city })),
+      flagBtn));
+  }
+  list.replaceChildren(el("ul", { class: "act-list" }, out));
+}
 /* "edit" in the player: the playing track's edit card */
 $("#editBtn").onclick = () => editPlaying(false);
 /* Cmd+Enter (Ctrl+Enter on Windows) while a track plays: open its edit card (on a device with a key) */

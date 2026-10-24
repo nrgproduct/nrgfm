@@ -1,0 +1,14 @@
+# The nrgfm play log: a Cloudflare Worker with a D1 database. Deployed by .github/workflows/worker.yml
+# (it fills in the database id). Nothing here is secret.
+name = "nrgfm-activity"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+workers_dev = true
+
+[triggers]
+crons = ["17 3 * * *"]   # once a day: plays older than a year are deleted
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nrgfm-activity"
+database_id = "DATABASE_ID"

@@ -1,0 +1,65 @@
+name: Activity server
+
+# Puts the play log (worker/) on Cloudflare: a Worker with a D1 database, both on Cloudflare's free plan.
+# Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. Runs when worker/ changes,
+# or by hand (Actions → Activity server → Run workflow). Writes the server's address to data/worker.json.
+on:
+  push:
+    branches: [main]
+    paths: ["worker/**", ".github/workflows/worker.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Deploy
+        working-directory: worker
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "The secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are not set yet: nothing to do."; exit 0
+          fi
+          W="npx --yes wrangler@4"
+          id=$($W d1 list --json | jq -r '.[] | select(.name=="nrgfm-activity") | .uuid')
+          if [ -z "$id" ]; then
+            $W d1 create nrgfm-activity
+            id=$($W d1 list --json | jq -r '.[] | select(.name=="nrgfm-activity") | .uuid')
+          fi
+          [ -n "$id" ] || { echo "could not create the database"; exit 1; }
+          sed -i "s/DATABASE_ID/$id/" wrangler.toml
+          $W d1 execute nrgfm-activity --remote --file schema.sql
+          $W deploy 2>&1 | tee deploy.log
+          url=$(grep -o 'https://[a-z0-9.-]*\.workers\.dev' deploy.log | head -1)
+          [ -n "$url" ] || { echo "no workers.dev address in the output (is a workers.dev subdomain set up in the Cloudflare dashboard?)"; exit 1; }
+          echo "{\"url\": \"$url\"}" > ../data/worker.json
+          echo "Activity server: $url"
+      - name: Save the address
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f data/worker.json ] || exit 0
+          git config user.name "nrgproduct"
+          git config user.email "nrgproduct@users.noreply.github.com"
+          git add data/worker.json
+          if git diff --cached --quiet; then echo "address unchanged"; exit 0; fi
+          git commit -m "Activity server address"
+          git pull --rebase origin main
+          git push
+          gh workflow run update.yml --ref main
