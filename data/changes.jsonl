@@ -629,3 +629,4 @@
 {"action": "edit", "thread": "p2572322779451097", "id": "t2593073527376022_0", "title": "Autechre + Mari Hamada -- アイレ可愛や (Aire Kawaiya)", "url": "https://www.youtube.com/watch?v=jB0BY0EqijM", "tags": ["duplicate", "anime", "idm"], "ts": 1792846835}
 {"action": "tag", "ids": ["t2617779971572044_0"], "add": ["score"], "remove": [], "ts": 1792847342}
 {"action": "edit", "thread": "xt1161276217222434_0", "id": "t1161276217222434_0", "title": "Blue Peter - Don't Walk Past (F Version) (1983)", "url": "https://www.youtube.com/watch?v=f-X76HdurXw", "tags": ["new wave"], "ts": 1792850457, "notes": "https://www.youtube.com/watch?v=a8RbOFnhybE"}
+{"action": "tag", "ids": ["t1161276217222434_0"], "add": ["bass guitar"], "remove": [], "ts": 1792850598}
