@@ -660,3 +660,4 @@
 {"action": "edit", "thread": "xt565784100104985_0", "id": "t567746176575444_0", "title": "Tom Ellis - Co-Create (2012)", "url": "https://www.youtube.com/watch?v=ootu1ph_46s", "tags": ["deep house"], "ts": 1792854918}
 {"action": "edit", "thread": "xt565784100104985_0", "id": "t567746176575444_0", "title": "Tom Ellis - Co-Create (Original Mix) 2012", "url": "https://www.youtube.com/watch?v=ootu1ph_46s", "tags": ["deep house"], "ts": 1792854959}
 {"action": "delete", "thread": "p567251499958245", "id": "t567251499958245_0", "ts": 1792854987}
+{"action": "promote", "thread": "p566121836737878", "id": "t566352986714763_0", "to": "original", "ts": 1792855146}
