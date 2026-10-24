@@ -634,3 +634,5 @@
 {"url": "https://www.youtube.com/watch?v=G6wMj9T58h0", "title": "Josh Kumra - The Answer (Commix Remix)", "thread": "p1792773772", "tags": [], "ts": 1792851893}
 {"url": "https://www.youtube.com/watch?v=ZHVoYpJbas8", "title": "Fracture x Kid Drama - Tell Me How ft. Lucie La Mode", "thread": "", "tags": ["zoinked", "london"], "ts": 1792852297, "notes": "https://www.youtube.com/watch?v=42TQRf4MNdc"}
 {"action": "promote", "thread": "p501293216554074", "id": "t501312499885479_0", "to": "original", "ts": 1792852918}
+{"action": "move", "thread": "p500101583339904", "id": "t500103396673056_0", "to": "xt501312499885479_0", "ts": 1792852947}
+{"action": "move", "thread": "p501293216554074", "id": "t501323566551039_0", "to": "xt501312499885479_0", "ts": 1792852963}
