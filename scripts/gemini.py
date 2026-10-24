@@ -8,6 +8,7 @@ track up itself with Google Search.
 Writes data/ai.json, keyed by link (everything in it comes from Gemini; the site doesn't say so anywhere):
   {"rl": "release", "y": 1984, "g": ["genre", ...], "md": ["mood word", ...], "how": "sources" | "search", "conf": "high|medium|low",
    "m": model, "in": fingerprint of what it was given (a track is asked again when that changes)}
+(entries with "how": "research" were looked up by hand by Claude with web research; they are kept and never asked again)
 and data/gemini-status.json (whether it ran, how many, or why it stopped).
 
 The site uses these in place of the other sources' suggestions; a release you set by hand still wins.
@@ -244,6 +245,8 @@ def main():
                 continue
             fp = hashlib.sha1(json.dumps(f, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:10]
             if ai.get(u, {}).get("in") == fp and ai[u].get("v") == VERSION:
+                continue
+            if ai.get(u, {}).get("how") == "research":  # looked up by hand (Claude, with web research): never asked again
                 continue
             todo["sources" if has_sources(f) else "search"].append((u, f, fp))
     # tracks listed in data/gemini-priority.json are asked first (e.g. the unsorted pile being sorted again)

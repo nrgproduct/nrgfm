@@ -2574,11 +2574,12 @@ function withGemini(x, ai) {
     const nice = (src) => (src || "").split("+").filter(Boolean).map((w) => ({ musicbrainz: "MusicBrainz", discogs: "Discogs", description: "the description" }[w] || w)).join(", ");
     const oRl = o.rl || [], oRls = o.rls || [], srcOf = (n) => { const k = oRl.findIndex((r) => r.toLowerCase() === n.toLowerCase()); return k > -1 ? nice(oRls[k]) || "MusicBrainz or Discogs" : ""; };
     const rl = a.rl ? [a.rl, ...oRl.filter((r) => r.toLowerCase() !== a.rl.toLowerCase())] : oRl;
-    const rls = rl.map((n, k) => (k === 0 && a.rl ? "Gemini" + (srcOf(n) ? " (also " + srcOf(n) + ")" : "") : srcOf(n)));
+    const who = a.how === "research" ? "Claude" : "Gemini";
+    const rls = rl.map((n, k) => (k === 0 && a.rl ? who + (srcOf(n) ? " (also " + srcOf(n) + ")" : "") : srcOf(n)));
     const ysrc = {}; for (const [y, v] of Object.entries(o.ysrc || {})) ysrc[y] = nice(v);
-    if (a.y) ysrc[a.y] = "Gemini" + (ysrc[a.y] ? " (also " + ysrc[a.y] + ")" : "");
+    if (a.y) ysrc[a.y] = who + (ysrc[a.y] ? " (also " + ysrc[a.y] + ")" : "");
     x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, g: gs, gm: gs, y: a.y || null, ys, rl, rls, ysrc,
-      src: "Gemini" + (a.how === "search" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
+      src: who + (a.how === "search" || a.how === "research" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
   return x;
 }
