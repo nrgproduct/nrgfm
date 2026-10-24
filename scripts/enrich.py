@@ -104,7 +104,7 @@ def musicbrainz_once(artist, title):
     credit = "".join(c.get("name", "") + c.get("joinphrase", "") for c in (good[0].get("artist-credit") or []))
     return {"y": min(years) if years else None, "ys": years, "rl": rels, "ar": credit.strip() or None,
             "co": min(countries)[1] if countries else None,  # the country of the earliest release
-            "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])][:6]}
+            "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])]}
 
 
 def discogs(artist, title):
@@ -133,7 +133,7 @@ def discogs(artist, title):
                  for r in res if r.get("country") and r["country"] not in DG_NOT_COUNTRY]
     return {"y": min(years) if years else None, "ys": years, "rl": rels,
             "co": min(countries)[1] if countries else None,  # the country of the earliest release
-            "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])][:6]}
+            "g": [g for g, _ in sorted(count.items(), key=lambda x: -x[1])]}
 
 
 # Discogs writes countries as names; the common ones as two-letter codes like MusicBrainz (others stay as names)
@@ -256,7 +256,7 @@ def add_genres(e, genres):
         if x not in g:
             g.append(x)
     if g:
-        e["g"] = g[:10]  # as found (searchable)
+        e["g"] = g  # as found (searchable)
         e["gm"] = merged(e["g"])  # same genres merged, for the Genres page
 
 
@@ -273,6 +273,45 @@ def oembed_details(tr):
     except Exception:  # noqa: BLE001
         pass
     return {}, None
+
+
+def soundcloud_page(u):
+    """Length, description, genre and tags from a SoundCloud page itself (oEmbed doesn't give them).
+    -> ({"d": seconds, "up": "2016-06-07"}, description, [genre and tags])"""
+    req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (nrgfm archive)", "Accept-Language": "en"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        body = r.read().decode("utf-8", "replace")
+    def meta_tag(name):
+        m = re.search(r'<meta[^>]+(?:itemprop|property|name)="%s"[^>]+content="([^"]*)"' % re.escape(name), body)
+        return html.unescape(m.group(1)) if m else None
+    info = {"d": iso_seconds(meta_tag("duration"))}
+    # the page's data: the track (or set) itself comes after "hydratable":"sound"/"playlist" (its uploader's comes later)
+    k = max(body.find('"hydratable":"sound"'), body.find('"hydratable":"playlist"'))
+    body = body[k:] if k > -1 else ""
+    if not info["d"]:  # a playlist/set: the sum of its tracks' lengths is not on the page; the first "duration" (ms) is the set's
+        m = re.search(r'"duration":(\d+)', body)
+        if m:
+            info["d"] = int(m.group(1)) // 1000 or None
+    up = re.search(r'"(?:release_date|display_date|created_at)":"(\d{4}-\d\d-\d\d)', body)
+    if up:
+        info["up"] = up.group(1)
+    text = None
+    m = re.search(r'"description":"((?:[^"\\]|\\.)*)"', body)
+    if m:
+        try:
+            text = json.loads('"' + m.group(1) + '"')
+        except ValueError:
+            text = None
+    text = text or None
+    tags = []
+    g = re.search(r'"genre":"((?:[^"\\]|\\.)*)"', body)
+    if g and g.group(1).strip():
+        tags.append(g.group(1).strip().lower())
+    t = re.search(r'"tag_list":"((?:[^"\\]|\\.)*)"', body)
+    if t:
+        raw = json.loads('"' + t.group(1) + '"')
+        tags += [x.strip('"').strip().lower() for x in re.findall(r'"[^"]+"|\S+', raw) if x.strip('"').strip()]
+    return info, text, list(dict.fromkeys(tags))
 
 
 def iso_seconds(s):
@@ -331,7 +370,8 @@ def main():
                 if at0 and at0[0]:
                     e["ar"] = at0[0]
                     extra[u] = e
-            if e.get("v") != VERSION or (YTKEY and tr["platform"] == "youtube" and e.get("ytv", 0) < 2):  # ytv 2: with the length
+            if (e.get("v") != VERSION or (YTKEY and tr["platform"] == "youtube" and e.get("ytv", 0) < 2)  # ytv 2: with the length
+                    or (tr["platform"] == "soundcloud" and e.get("scv", 0) < 1 and not meta.get(u, {}).get("dead"))):  # scv 1: length and tags from the page
                 todo.append(tr)
     todo = todo[:MAX]
     print("to look up", len(todo), "| discogs", "on" if DISCOGS else "off", "| youtube", "on" if YTKEY else "off")
@@ -407,7 +447,7 @@ def main():
                     e["rl"] = rl[:4]
                     e["rls"] = rls[:4]
                     stats["release"] = stats.get("release", 0) + 1
-                add_genres(e, genres[:8])
+                add_genres(e, genres)
                 if e.get("g"):
                     stats["genres"] += 1
                 e["src"] = "+".join(s for s, r in (("musicbrainz", mb), ("discogs", dg)) if r) or None
@@ -438,6 +478,26 @@ def main():
                     add_genres(e, hg)
                     if "youtube" not in (e.get("src") or ""):
                         e["src"] = "+".join(x for x in (e.get("src"), "youtube") if x)
+        if tr["platform"] == "soundcloud" and e.get("scv", 0) < 1 and not meta.get(u, {}).get("dead"):
+            try:
+                info, text, tags = soundcloud_page(u)
+                if info.get("d"):
+                    e["d"] = info["d"]
+                if info.get("up") and not e.get("up"):
+                    e["up"] = info["up"]
+                if text and not desc.get(u):
+                    desc[u] = text
+                    hy, hg = desc_hints(text, vocab)
+                    set_years(e, hy)
+                    add_genres(e, hg)
+                add_genres(e, tags)  # the uploader's genre and tags, as written
+                e["scv"] = 1
+            except urllib.error.HTTPError as x:
+                if x.code in (404, 410):
+                    e["scv"] = 1
+                print("soundcloud page", u, x.code)
+            except Exception as x:  # noqa: BLE001  (try again next run)
+                print("soundcloud page", u, type(x).__name__, x)
         if YTKEY and not YT_ERR and tr["platform"] == "youtube":
             e["ytchk"] = int(time.time())
             e["ytv"] = 2

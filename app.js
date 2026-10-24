@@ -24,8 +24,8 @@ let playing = null; // playing = {thread, index}
 /* ---------- data helpers ---------- */
 const fold = (s) => (s || "").toLowerCase()
   .replace(/æ/g, "ae").replace(/ø/g, "o").replace(/å/g, "a").replace(/ß/g, "ss")
-  .normalize("NFD").replace(/[̀-ͯ]/g, "")
-  .replace(/[^a-z0-9]+/g, " ").trim();
+  .normalize("NFD").replace(/[̀-ͯ]/g, "").normalize("NFC") // (NFC again: Korean and Japanese letters stay whole)
+  .replace(/[^\p{L}\p{N}]+/gu, " ").trim(); // letters of every script are kept (Japanese, Korean, Chinese, Greek…)
 
 const PLATFORM = { youtube: "YouTube", soundcloud: "SoundCloud", bandcamp: "Bandcamp", vimeo: "Vimeo", mixcloud: "Mixcloud", spotify: "Spotify" };
 
@@ -74,7 +74,7 @@ function info(t) {
   if (!t.title && artist && (fetched || m.wb_title) && !HAS_ARTIST_SEP.test(title) && !title.toLowerCase().includes(artist.toLowerCase())) title = `${artist} – ${title}`;
   title = flipDotTitle(title);
   const author = artist || channel;
-  let thumb = m.thumbnail_url || "";
+  let thumb = m.thumbnail_url || (extra[t.url] || {}).cover || ""; // (the Bandcamp cover the lookup found, when the page itself couldn't be read)
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
   const noEmbed = m.status === 401; // video exists but its owner blocks playing it on other sites
   return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, recovered, archive: m.wb_url || "", untitled: !t.title && !m.title };
@@ -95,8 +95,10 @@ function haystack(t) {
       genres: j(x.g || []),
       year: j([x.y, decadeOf(x.y)]),
       release: j(t.release || x.rl || []),
-      uploader: j([m.author_name, channelArtist(m.author_name), m.wb_author, x.by]),
+      uploader: j([m.author_name, channelArtist(m.author_name), m.wb_author, x.by, ...countryList(x.co)]),
     };
+    // each title on its own (for ranking: a title that is just the words searched comes first)
+    t._titles = [t.title, m.title, m.wb_title].filter(Boolean).map((s) => [fold(s), fold(s.split(/\s[-–—]\s/).pop())]);
     t._hay = Object.values(t._f).join(" ");
   }
   return t._hay;
@@ -110,9 +112,23 @@ const matches = (tr, terms, off = searchOff) => { const f = fieldsOf(tr); return
 function matchRank(tr, terms) {
   const f = fieldsOf(tr), on = FIELDS.filter(([k]) => !searchOff.has(k));
   const all = on.findIndex(([k]) => terms.every((w) => has(f[k], w)));
-  if (all > -1) return all;
+  if (all > -1) return all + (on[all][0] === "title" ? titleCloseness(tr, terms) : 0);
   const any = on.findIndex(([k]) => terms.some((w) => has(f[k], w)));
   return any > -1 ? any + 0.5 : 99;
+}
+/* among titles holding all the words: the song title being exactly the words searched (0), the whole title being them,
+   the words together in that order (0.1), in that order at a word start (0.2), anywhere (0.3); shorter titles first within each */
+function titleCloseness(tr, terms) {
+  const q = terms.join(" ");
+  let best = 0.49;
+  for (const [whole, song] of tr._titles || []) {
+    const extra = Math.min(0.09, Math.max(0, whole.split(" ").length - terms.length) * 0.003);
+    const h = " " + whole + " ";
+    const v = song === q || whole === q ? 0 : h.includes(" " + q + " ") ? 0.1 + extra : h.includes(" " + q) ? 0.2 + extra
+      : terms.every((w) => has(" " + whole, w)) ? 0.3 + extra : 0.49;
+    best = Math.min(best, v);
+  }
+  return best;
 }
 let byNewest = false; // "Best match" each time
 
@@ -291,7 +307,7 @@ function showWhy(row) {
     genres: () => "Genres: " + (x.g || []).filter(hit).join(", "),
     year: () => "Year: " + x.y + " (" + decadeOf(x.y) + ")",
     release: () => "Release: " + cut((tr.release || x.rl || []).filter(hit).join(", ")),
-    uploader: () => "Uploader: " + ([m.author_name, m.wb_author, x.by].filter(Boolean).find(hit) || m.author_name || x.by),
+    uploader: () => { const c = countryList(x.co).find(hit); return c && ![m.author_name, m.wb_author, x.by].filter(Boolean).some(hit) ? "Country: " + c : "Uploader: " + ([m.author_name, m.wb_author, x.by].filter(Boolean).find(hit) || m.author_name || x.by); },
   };
   const lines = FIELDS.filter(([k]) => !searchOff.has(k) && terms.some((w) => has(f[k], w))).map(([k]) => say[k]());
   if (!lines.length) return;
@@ -842,7 +858,7 @@ document.addEventListener("click", (e) => {
 }, true);
 document.addEventListener("wheel", (e) => {
   // computer: scrolling with the pointer outside the selected box unselects it (its list stops scrolling)
-  if (activeId && !phone() && e.target.closest && !e.target.closest(".thread.active, .dock, .top, .side, .quick-drop")) {
+  if (activeId && !phone() && e.target.closest && !e.target.closest(".thread.active, .dock, .top, .side, .quick-drop, .move-pop")) {
     const a = document.getElementById("th-" + activeId);
     if (a && !a.querySelector(".edit-wrap, .add-form")) setActive(null);
   }
@@ -2215,10 +2231,29 @@ function setYear(tr) {
 }
 function movePanel(formOf, edit) {
   const input = el("input", { type: "search", placeholder: "Search a track in the thread you want to move it to", autocomplete: "off", spellcheck: "false" });
-  const list = el("ul", { class: "move-results" });
+  // the matches open in a box of their own over the page (three at a time; scroll it for the rest)
+  const list = el("ul", { class: "move-results move-pop", hidden: true });
+  const place = () => {
+    if (!input.isConnected) { list.remove(); removeEventListener("scroll", place, true); removeEventListener("resize", place); return; }
+    if (list.hidden) return;
+    const r = input.getBoundingClientRect(), h = list.offsetHeight, below = innerHeight - dockH() - r.bottom - 8;
+    list.style.left = r.left + "px"; list.style.width = r.width + "px";
+    list.style.top = (below >= h || below >= r.top - headerBottom() ? r.bottom + 4 : r.top - 4 - h) + "px";
+  };
+  const hide = () => { list.hidden = true; };
+  addEventListener("scroll", place, true); addEventListener("resize", place);
+  input.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== input) hide(); }, 150));
+  input.addEventListener("focus", () => { if (list.children.length) { list.hidden = false; place(); } });
   // Promote (replies only): the track becomes its own thread, at the top of the feed or at its own date
-  const promote = edit.i > 0 ? el("span", { class: "promote" }) : null;
-  const drawPromote = (ask) => promote && promote.replaceChildren(
+  // Isolate (a main post with replies): it becomes a thread of its own just above; the first reply becomes the main post
+  const promote = edit.i > 0 ? el("span", { class: "promote" }) : edit.t.tracks.length > 1 ? el("span", { class: "promote" },
+    el("button", { type: "button", class: "btn ghost promote-btn", onclick: (e) => {
+      const b = e.currentTarget;
+      if (b.dataset.confirm) { clearTimeout(b._t); promoteTrack(formOf(), edit, "isolate"); return; }
+      b.style.minWidth = b.getBoundingClientRect().width + "px"; b.dataset.confirm = "1"; b.textContent = "Confirm";
+      b._t = setTimeout(() => { delete b.dataset.confirm; b.textContent = "Isolate"; }, 5000);
+    } }, "Isolate")) : null;
+  const drawPromote = (ask) => edit.i > 0 && promote.replaceChildren(
     ...(ask ? [] : [el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => drawPromote(true) }, "Promote")]),
     ...(ask ? [
       el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "main") }, "To the top"),
@@ -2226,30 +2261,35 @@ function movePanel(formOf, edit) {
       el("button", { type: "button", class: "btn ghost promote-btn", onclick: () => promoteTrack(formOf(), edit, "original") }, "Own thread (dated)")] : []));
   drawPromote(false);
   const panel = el("div", { class: "move-panel" }, el("span", { class: "af-label-line" }, "Move to the thread of…"),
-    el("div", { class: "move-row" }, input, promote), list);
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); const first = list.querySelector("button"); if (first) first.click(); } });
+    el("div", { class: "move-row" }, input, promote));
+  document.body.append(list);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); const first = list.querySelector("button"); if (first) first.click(); }
+    else if (e.key === "Escape" && !list.hidden) { e.preventDefault(); e.stopPropagation(); hide(); }
+  });
   input.addEventListener("input", () => {
     const terms = fold(input.value).split(" ").filter(Boolean);
     list.replaceChildren();
-    if (!terms.length) return;
+    if (!terms.length) { hide(); return; }
+    list.hidden = false;
     const found = [];
     for (const t of threads) {
       if (t === edit.t || t.kind === "tag") continue;
       const byName = t.name && terms.every((w) => fold(t.name).includes(w));
       const k = byName ? 0 : t.tracks.findIndex((tr) => { const h = haystack(tr); return terms.every((w) => h.includes(w)); });
       if (k > -1) found.push({ t, k });
-      if (found.length >= 3) break;
     }
-    if (!found.length) { list.appendChild(el("li", { class: "move-none hint" }, "No other thread has a track like that.")); return; }
+    if (!found.length) { list.appendChild(el("li", { class: "move-none hint" }, "No other thread has a track like that.")); place(); return; }
     for (const { t, k } of found) {
       const x = info(t.tracks[k]);
       list.appendChild(el("li", {},
-        el("button", { type: "button", class: "move-hit", onclick: () => moveTrack(formOf(), edit, t) },
+        el("button", { type: "button", class: "move-hit", onmousedown: (e) => e.preventDefault(), onclick: () => { hide(); moveTrack(formOf(), edit, t); } },
           el("span", { class: "mh-thumb" }, img(x.thumb, "thumb-img")),
           el("span", { class: "mh-text" },
             el("span", { class: "mh-title" }, x.title),
             el("span", { class: "mh-thread" }, "Thread: " + threadLabel(t) + ` (${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"})`)))));
     }
+    list.scrollTop = 0; place();
   });
   return panel;
 }
@@ -2257,9 +2297,23 @@ function movePanel(formOf, edit) {
 async function promoteTrack(form, { t, i }, to) {
   const tr = t.tracks[i], ts = Math.floor(Date.now() / 1000);
   const msg = form.querySelector(".af-msg"), btns = form.querySelectorAll("button");
-  btns.forEach((b) => (b.disabled = true)); msg.textContent = "Promoting…";
+  btns.forEach((b) => (b.disabled = true)); msg.textContent = to === "isolate" ? "Isolating…" : "Promoting…";
   try { await writeInbox({ action: "promote", thread: t.id, id: tr.id, to, ts }, "promote"); }
   catch (e) { msg.textContent = netMsg(e); btns.forEach((b) => (b.disabled = false)); return; }
+  if (to === "isolate") { // its own thread, just above; the first reply becomes the main post
+    t.tracks.shift();
+    t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
+    tr.main = true;
+    const id = threads.some((x) => x.id === "x" + tr.id) ? "xi" + tr.id : "x" + tr.id;
+    const nt = { id, kind: "thread", tracks: [tr], date: tr.date, ts: tr.ts, pos_ts: activity(t) + 1, pos_set: ts };
+    if (playing && playing.thread === t) { if (playing.index === 0) playing.thread = nt; else playing.index--; }
+    threads.push(nt); sortThreads();
+    closeAddForm(form, { quiet: true });
+    rerenderThread(t, 0);
+    const node = document.getElementById("th-" + t.id), k = shown.findIndex((x) => x.t === t);
+    if (node && k > -1) { node.before(threadNode({ t: nt, hits: null })); shown.splice(k, 0, { t: nt, hits: null }); rendered++; }
+    refreshTags(); refreshHistory(); return;
+  }
   if (to === "main") { // the main post of its thread; the old one becomes the first reply
     t.tracks.unshift(t.tracks.splice(i, 1)[0]);
     t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
@@ -2578,7 +2632,7 @@ function withGemini(x, ai) {
     const rls = rl.map((n, k) => (k === 0 && a.rl ? who + (srcOf(n) ? " (also " + srcOf(n) + ")" : "") : srcOf(n)));
     const ysrc = {}; for (const [y, v] of Object.entries(o.ysrc || {})) ysrc[y] = nice(v);
     if (a.y) ysrc[a.y] = who + (ysrc[a.y] ? " (also " + ysrc[a.y] + ")" : "");
-    x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, g: gs, gm: gs, y: a.y || null, ys, rl, rls, ysrc,
+    x[u] = { ...o, ar: a.ar || o.ar, co: a.co || o.co, about: a.about || o.about, cover: a.cover || o.cover, rd: a.rd || o.rd, g: gs, gm: gs, y: a.y || null, ys, rl, rls, ysrc,
       src: who + (a.how === "search" || a.how === "research" ? " (web search)" : o.src ? " (checked " + o.src.split("+").join(", ") + ")" : ""), conf: a.conf, chk: o.chk || 1, v: Math.max(o.v || 0, 3) };
   }
   return x;
@@ -2607,7 +2661,7 @@ const side = (() => {
   addEventListener("resize", () => { if (!fits()) box.hidden = true; place(); });
   // while it is open the page stands still and the wheel scrolls the box, wherever the pointer is
   addEventListener("wheel", (e) => {
-    if (box.hidden) return;
+    if (box.hidden || e.target.closest && e.target.closest(".move-pop")) return;
     e.preventDefault();
     list.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? list.clientHeight : 1);
   }, { passive: false, capture: true });

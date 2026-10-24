@@ -290,9 +290,23 @@ def apply_reorder(data, item):
 
 
 def apply_promote(data, by_id, item):
-    """{"action": "promote", "thread": id, "id": track id, "to": "top" | "original"} -> the track leaves its thread
+    """{"action": "promote", "thread": id, "id": track id, "to": "top" | "original" | "main" | "isolate"} -> the track leaves its thread
     and becomes a thread of its own: at the top of the feed (dated by the promote) or at its own posting time."""
     th, i = find(data, item.get("thread"), item.get("id"))
+    if item.get("to") == "isolate":  # the main post leaves its thread and becomes a thread of its own, just above it;
+        if th is None or i != 0 or len(th["tracks"]) < 2:  # the first reply becomes the thread's main post
+            return "promote: not a main post with replies"
+        tr = th["tracks"].pop(0)
+        fix_main(th)
+        nid = "x" + tr["id"]
+        if nid in by_id:
+            nid = "xi" + tr["id"]
+        above = (th.get("pos_ts") or th.get("ts") or tr["ts"]) + 1
+        nt = {"id": nid, "kind": "thread", "tracks": [tr], "date": tr["date"], "ts": tr["ts"], "pos_ts": above, "pos_set": int(item.get("ts") or time.time())}
+        tr["main"] = True
+        data["threads"].append(nt)
+        by_id[nid] = nt
+        return "promoted"
     if th is None or i == 0:
         return "promote: track not found (or it is already a main post)"
     if item.get("to") == "main":  # the new main post of its thread; the old one becomes the first reply

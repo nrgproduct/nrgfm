@@ -22,8 +22,8 @@ MINUTES = float(sys.argv[2]) if len(sys.argv) > 2 else 50
 KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 MODEL = os.environ.get("GEMINI_MODEL", "").strip()
 API = "https://generativelanguage.googleapis.com/v1beta/"
-VERSION = 2  # 2: also mood words, from the title, description and YouTube comments (everything is asked again once)
-PER_CALL = {"sources": 50, "search": 10}  # tracks per request
+VERSION = 3  # 3: no limit on genres and mood words; 2: also mood words, from the title, description and YouTube comments (everything is asked again once)
+PER_CALL = {"bandcamp": 8, "sources": 50, "search": 10}  # tracks per request
 PAUSE = 7  # seconds between requests (the free tier allows only a few per minute)
 START = time.time()
 
@@ -74,6 +74,8 @@ def facts(tr, meta, extra, desc):
     u, m, x = tr["url"], meta.get(tr["url"], {}), extra.get(tr["url"], {})
     f = {"title": title_of(tr, meta), "uploader": x.get("by") or m.get("author_name") or m.get("wb_author") or "",
          "uploaded": x.get("up") or "", "site": tr.get("platform", "")}
+    if tr.get("platform") == "bandcamp" or "bandcamp.com" in u:
+        f["url"] = u
     tags = [t for t in (tr.get("tags") or {}) if t not in ("flagged", "broken link", "plays on youtube only")] if isinstance(tr.get("tags"), dict) else list(tr.get("tags") or [])
     if tags:
         f["group_tags"] = tags
@@ -93,7 +95,7 @@ def facts(tr, meta, extra, desc):
     if x.get("y"):
         found["years"] = [x["y"]] + [y for y in (x.get("ys") or []) if y != x["y"]][:6]
     if x.get("g"):
-        found["genres"] = x["g"][:15]
+        found["genres"] = x["g"]
     if found:
         found["from"] = x.get("src") or ""
         f["found"] = found
@@ -136,8 +138,8 @@ For each track below, decide:
 - "rl": the name of the ORIGINAL release (album, single or EP) the recording first came out on, or "" if unknown
 - "y": the year that release first came out (a number), or null if unknown. The original, not a reissue,
   remaster, compilation or upload year. A remix or edit counts from when that remix or edit came out.
-- "g": 1 to 5 genres, lowercase, most fitting first (prefer names from this list when one fits: {vocab})
-- "md": 1 to 3 lowercase words for the mood or sound, like "soft", "floating", "romantic", "melancholic",
+- "g": every genre and style that fits (no limit), lowercase, most fitting first (prefer names from this list when one fits: {vocab})
+- "md": every lowercase word that fits the mood or sound (no limit), like "soft", "floating", "romantic", "melancholic",
   "hypnotic", "euphoric", "dark", "warm", "lo-fi".
   For both, use genre words and descriptions found in the title, the description and the listeners' "comments" when
   they fit, and your own knowledge of the track.
@@ -168,6 +170,17 @@ artist's pages are good sources). Many are not ordinary releases: music from a v
 and say in "about" where it is from), a DJ mix, a live recording, a home-made upload.
 Don't guess: leave a field empty when you can't find it.
 "group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.""",
+    "bandcamp": """These are Bandcamp links ("url"). Open each page (Bandcamp often blocks scripts, so read it with the URL
+tool; if that fails, find the same page with Google Search). A Bandcamp page has the release's "tags" at the bottom
+(genres, moods and places), an "about" text that often names more genres, the line "released <date>", the artist
+("by <artist>") and the album cover. Use all of the tags: genres go in "g", mood or sound words in "md", a place
+tells the country ("co"). Also give, for these tracks only:
+  "tags": every tag listed on the page, exactly as written (lowercase),
+  "rd": the release date from the "released ..." line as "YYYY-MM-DD" (and "y" its year), or "" if not shown,
+  "cover": the address of the album cover image (the og:image, like "https://f4.bcbits.com/img/a1234567890_10.jpg"),
+           exactly as it is on the page, or "" if you can't see it. Never make one up,
+  "lt": the title of the track or album as written on the page, "la": the artist ("by ...") as written.
+"group_year", "group_release" and "group_genres", when given, were set by hand by the group and are right: keep them.""",
 }
 
 
@@ -177,6 +190,8 @@ def ask(model, how, batch, vocab):
             "generationConfig": {"temperature": 0.2}}
     if how == "search":
         body["tools"] = [{"google_search": {}}]
+    elif how == "bandcamp":
+        body["tools"] = [{"url_context": {}}, {"google_search": {}}]
     else:
         body["generationConfig"]["responseMimeType"] = "application/json"
     d = call(f"models/{model}:generateContent", body)
@@ -195,14 +210,41 @@ def clean_answer(a):
         y = None
     if y and not 1900 <= y <= time.gmtime().tm_year:
         y = None
-    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()][:5]
-    md = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("md") or []) if str(x).strip()][:3]  # mood words
+    g = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("g") or []) if str(x).strip()]
+    md = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("md") or []) if str(x).strip()]  # mood words
     rl = str(a.get("rl") or "").strip()[:200]
     conf = a.get("conf") if a.get("conf") in ("high", "medium", "low") else "low"
     ar = str(a.get("ar") or "").strip()[:200]
     co = str(a.get("co") or "").strip().upper()[:2]
     about = str(a.get("about") or "").strip()[:400]
-    return {"rl": rl, "y": y, "g": g, "md": md, "ar": ar, "co": co if re.fullmatch(r"[A-Z]{2}", co) else "", "about": about, "conf": conf}
+    out = {"rl": rl, "y": y, "g": g, "md": md, "ar": ar, "co": co if re.fullmatch(r"[A-Z]{2}", co) else "", "about": about, "conf": conf}
+    # Bandcamp pages only: the page's tags, release date, cover, title and artist
+    tags = [re.sub(r"\s+", " ", str(x)).strip().lower() for x in (a.get("tags") or []) if str(x).strip()]
+    if tags:
+        out["tags"] = list(dict.fromkeys(tags))
+    rd = str(a.get("rd") or "").strip()
+    if re.fullmatch(r"\d{4}-\d\d-\d\d", rd):
+        out["rd"] = rd
+    for k in ("lt", "la"):
+        v = str(a.get(k) or "").strip()[:200]
+        if v:
+            out[k] = v
+    cover = str(a.get("cover") or "").strip()
+    if cover and image_ok(cover):
+        out["cover"] = cover
+    return out
+
+
+def image_ok(u):
+    """A cover address from Gemini is kept only when it is a Bandcamp image that really exists."""
+    if not re.fullmatch(r"https://f\d\.bcbits\.com/img/[\w.]+\.(jpg|png)", u):
+        return False
+    try:
+        req = urllib.request.Request(u, method="HEAD", headers={"User-Agent": "Mozilla/5.0 (nrgfm archive)"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.status == 200 and r.headers.get("Content-Type", "").startswith("image/")
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def main():
@@ -232,7 +274,7 @@ def main():
     vocab = [g for g, _ in sorted(count.items(), key=lambda kv: -kv[1])][:250]
 
     yt_of = {tr["url"]: tr.get("yt") for th in tracks["threads"] for tr in th["tracks"]}
-    todo = {"sources": [], "search": []}
+    todo = {"bandcamp": [], "sources": [], "search": []}
     seen = set()
     for th in tracks["threads"]:
         for tr in th["tracks"]:
@@ -248,13 +290,13 @@ def main():
                 continue
             if ai.get(u, {}).get("how") == "research":  # looked up by hand (Claude, with web research): never asked again
                 continue
-            todo["sources" if has_sources(f) else "search"].append((u, f, fp))
+            todo["bandcamp" if f.get("url") else "sources" if has_sources(f) else "search"].append((u, f, fp))
     # tracks listed in data/gemini-priority.json are asked first (e.g. the unsorted pile being sorted again)
     pp = os.path.join(DATA, "gemini-priority.json")
     first = set(json.load(open(pp, encoding="utf-8"))) if os.path.exists(pp) else set()
     for how in todo:
-        todo[how].sort(key=lambda item: item[0] not in first)
-    print("to ask:", len(todo["sources"]), "with sources,", len(todo["search"]), "to look up")
+        todo[how].sort(key=lambda item: (item[0] not in first, item[0] in ai))  # then tracks never asked before
+    print("to ask:", len(todo["sources"]), "with sources,", len(todo["search"]), "to look up,", len(todo["bandcamp"]), "Bandcamp pages")
 
     try:
         models = pick_models()
@@ -265,7 +307,7 @@ def main():
 
     left, fails = MAX, 0
     status["state"] = "ok"
-    for how in ("sources", "search"):
+    for how in ("bandcamp", "sources", "search"):
         items = todo[how]
         for i in range(0, len(items), PER_CALL[how]):
             if left <= 0 or time.time() - START > MINUTES * 60:
@@ -297,6 +339,9 @@ def main():
                         print(models[0], "busy:", why(e), "- waiting")
                         time.sleep(20 * (attempt + 1))
             except urllib.error.HTTPError as e:
+                if how == "bandcamp" and e.code == 400:  # the URL tool isn't available for this model: skip the Bandcamp pages
+                    print("Bandcamp pages skipped:", why(e))
+                    break
                 status["state"] = "error: " + why(e)
                 print(status["state"])
                 fails += 1
