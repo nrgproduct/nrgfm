@@ -671,3 +671,4 @@
 {"action": "edit", "thread": "xt1137399619610094_0", "id": "t1157208577629198_0", "title": "NOBODY - For Only You ノーバディ (1983)", "url": "https://www.youtube.com/watch?v=GvmHQ2uHMbo", "tags": ["japanese characters", "city pop"], "ts": 1792857399}
 {"action": "edit", "thread": "xt1137399619610094_0", "id": "t1155421341141255_0", "title": "NOBODY - RAIN (1985)", "url": "https://www.youtube.com/watch?v=3-IL5MnWYAE", "tags": [], "ts": 1792857516}
 {"action": "tag", "ids": ["t1137399619610094_0"], "add": ["house"], "remove": [], "ts": 1792857633}
+{"action": "move", "thread": "xt1137399619610094_0", "id": "t1152718791411510_0", "to": "p28227915433465146", "ts": 1792858106}
