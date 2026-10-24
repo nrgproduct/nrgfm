@@ -651,3 +651,4 @@
 {"url": "https://www.youtube.com/watch?v=dSWlEAEwD04", "title": "Isao Tomita — Bydlo (Modest Moussorgsky) 1975", "thread": "p536588866357842", "tags": ["score"], "ts": 1792854170}
 {"action": "tag", "ids": ["t541483519201710_0"], "add": ["synth pop", "synth theme"], "remove": [], "ts": 1792854283}
 {"action": "edit", "thread": "p540508585965870", "id": "t541483519201710_0", "title": "KZA - Routine", "url": "https://www.youtube.com/watch?v=Y92-NWPjT2U", "tags": ["synth pop", "synth theme"], "ts": 1792854386}
+{"action": "tag", "ids": ["t541483519201710_0"], "add": ["emotional"], "remove": [], "ts": 1792854419}
