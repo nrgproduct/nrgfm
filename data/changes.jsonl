@@ -572,3 +572,4 @@
 {"url": "https://www.youtube.com/watch?v=6E5n_Kkn-5c", "title": "Commix - Be True (Bop Bootleg)", "thread": "p1792773772", "tags": ["dnb hits"], "ts": 1792834405}
 {"action": "edit", "thread": "p1792773772", "id": "t1792774084_0", "title": "Commix - How You Gonna Feel (feat. Steve Spacek) (2007)", "url": "https://www.youtube.com/watch?v=4exO0cX20h0", "tags": ["dnb hits"], "ts": 1792841521, "notes": "Metalheadz"}
 {"action": "tag", "ids": ["t29810881545168519_0"], "add": ["night drive"], "remove": [], "ts": 1792841710}
+{"action": "tag", "ids": ["t29106310695625611_0"], "add": ["synth pop"], "remove": [], "ts": 1792841768}
