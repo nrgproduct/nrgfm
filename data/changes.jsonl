@@ -695,3 +695,5 @@
 {"action": "edit", "thread": "p26776190818637622", "id": "t26776190818637622_0", "title": "The Smashing Pumpkins - 1979", "url": "https://www.youtube.com/watch?v=PufFJWCcc_w", "tags": ["alt rock"], "ts": 1792859011}
 {"action": "tag", "ids": ["t26612223531701019_0"], "add": ["trip hop", "zoinked"], "remove": [], "ts": 1792859025}
 {"action": "tag", "ids": ["t26600013356255370_0"], "add": ["art pop"], "remove": [], "ts": 1792859056}
+{"action": "delete", "thread": "p26600013356255370", "id": "t26600013356255370_0", "ts": 1792859084}
+{"action": "edit", "thread": "p25932851289638250", "id": "t26517159511207422_0", "title": "Magdalena Bay - Angel on a Satellite (Official Audio)", "url": "https://www.youtube.com/watch?v=zWXEyRi9b-c", "tags": ["art pop"], "ts": 1792859090}
