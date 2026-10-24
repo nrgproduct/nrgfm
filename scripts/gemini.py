@@ -246,6 +246,11 @@ def main():
             if ai.get(u, {}).get("in") == fp and ai[u].get("v") == VERSION:
                 continue
             todo["sources" if has_sources(f) else "search"].append((u, f, fp))
+    # tracks listed in data/gemini-priority.json are asked first (e.g. the unsorted pile being sorted again)
+    pp = os.path.join(DATA, "gemini-priority.json")
+    first = set(json.load(open(pp, encoding="utf-8"))) if os.path.exists(pp) else set()
+    for how in todo:
+        todo[how].sort(key=lambda item: item[0] not in first)
     print("to ask:", len(todo["sources"]), "with sources,", len(todo["search"]), "to look up")
 
     try:
