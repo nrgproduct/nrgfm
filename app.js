@@ -2583,13 +2583,14 @@ function playTag(t, tr) {
 }
 /* computer: zoom − / 0 / + : 3 rows of 3 small titles, 2 rows of 2 (default), thumbnails with titles under them;
    every row scrolls sideways through all of the tag's tracks */
-const tagZoom = () => Math.max(-1, Math.min(1, +tagPref("zoom", "0") || 0));
-const tagMode = () => (phone() ? tagPref("phone", "shelves") : tagZoom() > 0 ? "titles" : "list");
+const tagZoom = () => Math.max(-1, Math.min(2, +tagPref("zoom", "0") || 0));
+const tagMode = () => (phone() ? tagPref("phone", "shelves") : tagZoom() > 1 ? "titles" : "list");
+const ZOOM_GRID = { "-1": [3, 3], 0: [2, 3], 1: [2, 2] }; // rows, tracks per row
 function tagPageHead() {
   const sort = tagPref("sort", "newest"), z = tagZoom();
   const sortBtns = [["newest", "Newest added"], ["az", "A–Z"]].map(([k, name]) => el("button", { class: "when-link" + (sort === k ? " on" : ""),
     onclick: () => { setTagPref("sort", k); drawViewHead(); renderTagsPage(); pageScrollTo(0); } }, name));
-  const zoom = (d) => { setTagPref("zoom", String(Math.max(-1, Math.min(1, z + d)))); drawViewHead(); renderTagsPage(); };
+  const zoom = (d) => { setTagPref("zoom", String(Math.max(-1, Math.min(2, z + d)))); drawViewHead(); renderTagsPage(); };
   if (phone()) {
     const mode = tagPref("phone", "shelves");
     return el("div", { class: "tp-head" }, el("div", { class: "tp-views" },
@@ -2600,17 +2601,19 @@ function tagPageHead() {
   return el("div", { class: "tp-head" }, el("div", { class: "tp-views" }, sortBtns,
     el("span", { class: "tp-zoom" },
       el("button", { class: "when-link", disabled: z <= -1 || null, "aria-label": "Smaller", onclick: () => zoom(-1) }, "−"),
-      el("button", { class: "when-link", disabled: z >= 1 || null, "aria-label": "Bigger", onclick: () => zoom(1) }, "+"))));
+      el("button", { class: "when-link", disabled: z >= 2 || null, "aria-label": "Bigger", onclick: () => zoom(1) }, "+"))));
 }
 function tagRowTracks(t, mode) {
-  const items = t.tracks;
+  let items = t.tracks;
   if (mode !== "titles") {
-    const rows = mode === "lists" ? items.length : phone() ? 2 : tagZoom() < 0 ? 3 : 2;
-    return el("div", { class: "tp-grid" + (mode === "lists" ? " tp-grid-open" : " tp-scroll"), style: mode === "lists" ? null : `--rows:${rows};--cols:${phone() ? 1 : rows}` },
+    const [rows, cols] = mode === "lists" ? [items.length, 1] : phone() ? [2, 1] : ZOOM_GRID[tagZoom()] || [2, 3];
+    if (mode !== "lists") items = items.slice(0, rows * cols); // the newest ones; all of them in the panel
+    return el("div", { class: "tp-grid" + (mode === "lists" ? " tp-grid-open" : " tp-fit"), style: mode === "lists" ? null : `--cols:${cols}` },
       items.map((tr) => { const x = info(tr);
         return el("button", { class: "tp-li" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); } }, img(x.thumb, "tp-mini"), el("span", { class: "tp-li-t" }, x.title)); }));
   }
-  return el("div", { class: "tp-strip titled tp-scroll" }, items.map((tr) => { const x = info(tr);
+  items = items.slice(0, 12); // (as many as fit on one line show)
+  return el("div", { class: "tp-strip titled" }, items.map((tr) => { const x = info(tr);
     return el("button", { class: "tp-card" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); }, "aria-label": "Play " + x.title },
       img(x.thumb, "tp-thumb"), el("span", { class: "tp-card-t" }, x.title)); }));
 }
@@ -2637,7 +2640,7 @@ function tagRow(t, mode) {
     openTagPanel(t.name, true);
   });
   if (!phone()) {
-    row.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); if (!tp.pinned) tp.hoverT = setTimeout(() => { if (!tp.pinned) openTagPanel(t.name); }, 90); });
+    row.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); if (!tp.pinned) openTagPanel(t.name); });
     row.addEventListener("mouseleave", () => clearTimeout(tp.hoverT));
   }
   return row;
@@ -2751,17 +2754,25 @@ function drawTagPanel(show) {
     el("div", { class: "tp-p-meta" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}` + (ys.length ? " · " + yearsText(ys) : "") + " · last added " + fmtTs(t.last)),
     descBox,
     slider,
-    el("div", { class: "tp-btns" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
-      key ? el("button", { class: "when-link" + (tp.editing ? " on" : ""), onclick: () => { tp.editing = !tp.editing; drawTagPanel(true); } }, "Edit") : null),
-    key && tp.editing ? el("div", { class: "tp-btns" },
-      el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
-      !AUTO_TAGS.has(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null) : null,
+    el("div", { class: "tp-btns" },
+      ...(key && tp.editing
+        ? [el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"), !AUTO_TAGS.has(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null]
+        : [orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle")]),
+      key ? el("button", { class: "when-link tp-edit" + (tp.editing ? " on" : ""), onclick: () => { tp.editing = !tp.editing; drawTagPanel(true); } }, "Edit") : null),
     list].filter(Boolean));
   if (desc) descBox.addEventListener("dblclick", () => key && editDesc());
   box.hidden = false;
   document.body.classList.toggle("tag-panel-open", phone());
   placeTagPanel(); placeTpBar();
 }
+/* computer: with a tag kept in the panel, the wheel over its highlighted row scrolls the panel's list (elsewhere, the page) */
+addEventListener("wheel", (e) => {
+  if (view !== "tags" || phone() || tagPanel.box.hidden || !e.target.closest) return;
+  const list = tagPanel.box.querySelector(".tp-p-list");
+  if (!list || !e.target.closest(".tp-row.on")) return;
+  e.preventDefault();
+  list.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? list.clientHeight : 1);
+}, { passive: false });
 /* the page's scroll bar between the list and the panel (the browser's own one is hidden on this page) */
 const tpBar = el("div", { class: "tp-bar", hidden: true }, el("div", { class: "tp-bar-thumb" }));
 document.body.append(tpBar);
@@ -2771,14 +2782,14 @@ function placeTpBar() {
   tpBar.hidden = !on;
   if (!on) return;
   const list = $("#threads").getBoundingClientRect(), pl = tagPanel.box.getBoundingClientRect();
-  const top = headerBottom() + 4, d = $("#dock"), bottom = (d.hidden ? innerHeight : d.getBoundingClientRect().top) - 4;
+  const vh0 = $("#viewHead"), top = (vh0.hidden ? headerBottom() : vh0.getBoundingClientRect().bottom) + 4, d = $("#dock"), bottom = (d.hidden ? innerHeight : d.getBoundingClientRect().top) - 4;
   const H = Math.max(40, bottom - top), docH = document.documentElement.scrollHeight, vh = innerHeight;
   tpBar.style.left = Math.round((list.right + pl.left) / 2 - 4) + "px";
   tpBar.style.top = top + "px"; tpBar.style.height = H + "px";
   const thumb = tpBar.firstChild, th = Math.max(30, H * Math.min(1, vh / docH));
   tpBar.hidden = docH <= vh + 2;
   thumb.style.height = th + "px";
-  thumb.style.top = (docH > vh ? (scrollY / (docH - vh)) * (H - th) : 0) + "px";
+  thumb.style.top = (docH > vh ? Math.max(0, Math.min(1, scrollY / (docH - vh))) * (H - th) : 0) + "px"; // (no overshoot past the ends)
   tpBar._k = (docH - vh) / Math.max(1, H - th); // page pixels per pixel of the bar
 }
 tpBar.addEventListener("pointerdown", (e) => {
@@ -2794,7 +2805,11 @@ tpBar.addEventListener("pointerdown", (e) => {
   const up = () => { tpBar.classList.remove("drag"); thumb.removeEventListener("pointermove", move); thumb.removeEventListener("pointerup", up); };
   thumb.addEventListener("pointermove", move); thumb.addEventListener("pointerup", up);
 });
-addEventListener("scroll", () => { if (!tpBar.hidden || view === "tags") placeTpBar(); }, { passive: true });
+addEventListener("scroll", () => {
+  if (tpBar.hidden && view !== "tags") return;
+  placeTpBar();
+  tpBar.classList.add("live"); clearTimeout(tpBar._t); tpBar._t = setTimeout(() => tpBar.classList.remove("live"), 600); // lit while scrolling
+}, { passive: true });
 addEventListener("resize", placeTpBar);
 function fmtTs(ts) { const d = new Date(ts * 1000); return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear(); }
 addEventListener("scroll", () => placeTagPanel(), { passive: true });
