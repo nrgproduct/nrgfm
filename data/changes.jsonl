@@ -870,3 +870,4 @@
 {"action": "tag", "ids": ["t1227414060608649_0"], "add": ["new wave"], "remove": [], "ts": 1792950043}
 {"action": "edit", "thread": "xt1227414060608649_0", "id": "t1227414060608649_0", "title": "The Icicle Works - Birds Fly (Whisper To A Scream) 1983", "url": "https://www.youtube.com/watch?v=yZlGrjk1Msw", "tags": ["new wave"], "ts": 1792950051}
 {"action": "edit", "thread": "xt1227408293942559_0", "id": "t1227408293942559_0", "title": "Naked Eyes - Promises, Promises (Tony Mansfield 12\" Mix) 1983", "url": "https://www.youtube.com/watch?v=fzRf9yoWl2c", "tags": ["new wave"], "ts": 1792950178}
+{"action": "tag", "ids": ["t1225372720812783_0"], "add": ["electro", "night drive"], "remove": [], "ts": 1792950214}
