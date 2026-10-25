@@ -278,6 +278,10 @@ def replay(data, path):
             res = ingest_inbox.apply_reorder(data, item)
         elif action == "tag":
             res = ingest_inbox.apply_tag(data, item)
+        elif action == "tagrename":
+            res = ingest_inbox.apply_tagrename(data, item)
+        elif action == "tagdesc":  # (data/tags.json keeps the descriptions; nothing to rebuild)
+            res = "tagged"
         elif action == "recheck":  # only its tags matter on a rebuild; meta.json keeps the dead marks
             for t in item.get("tag") or []:
                 if t.get("ids"):

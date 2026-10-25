@@ -189,12 +189,13 @@ function refreshTags() {
   for (const t of fresh) {
     if (old.some((o) => o.id === t.id)) { threads.push(t); continue; }
     threads.unshift(t); // a new tag shows up at the top (of the Tags page)
-    if (!$("#q").value.trim() && (view === "tags" || view === "tagsold")) {
+    if (!$("#q").value.trim() && view === "tagsold") {
       const node = threadNode({ t, hits: null });
       $("#threads").prepend(node);
       shown.unshift({ t, hits: null }); rendered++;
     }
   }
+  if (view === "tags" && !$("#q").value.trim()) { const y = scroller() === window ? scrollY : document.body.scrollTop; renderTagsPage(); pageScrollTo(y); }
   // Mixes and Genres: re-draw the playlists on screen
   if ((view === "mixes" || view === "genres") && !$("#q").value.trim()) {
     const items = new Map(viewItems().map((t) => [t.id, t]));
@@ -259,6 +260,7 @@ function runSearch() {
   if (terms.length) pageScrollTo(0); // results start at the top, wherever you were in the feed
   renderMore(terms.length ? 12 : PAGE); // search: the first results right away, more as you scroll
   if (!terms.length && view === "activity") renderActivity();
+  if (!terms.length && view === "tags") renderTagsPage();
 }
 
 /* computer: the search line stays one line: the count, the filters after it, Sort on the right. Too many filters
@@ -326,7 +328,8 @@ const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
-  if (view === "tags" || view === "tagsold") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last); // (#/tagsold: the Tags page as it was in Oct 2026, kept as a backup)
+  if (view === "tagsold") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last); // (#/tagsold: the Tags page as it was in Oct 2026, kept as a backup)
+  if (view === "tags") return []; // drawn by renderTagsPage
   if (view === "mixes") return mixThreads();
   if (view === "genres") return gSel.length ? [genreMix()] : []; // no playlist until a genre is picked
   if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
@@ -637,7 +640,9 @@ function drawViewHead() {
     if (years.length) pickYear(years[0]);
   } else if (view === "activity") {
     head.replaceChildren(act.head); head.hidden = false; return;
-  } else if (view === "tags" || view === "tagsold") {
+  } else if (view === "tags") {
+    head.replaceChildren(tagPageHead()); head.hidden = false; return;
+  } else if (view === "tagsold") {
     head.hidden = true; return;
   } else { head.hidden = true; return; }
   head.hidden = false;
@@ -687,6 +692,7 @@ function setView(v, keepHash) {
     const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22 + menuH); return;
   }
   view = VIEW_NAMES[v] ? v : "threads";
+  if (view !== "tags") hideTagPanel();
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : "#/" + view);
   document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   $("#q").value = ""; syncClear();
@@ -2544,6 +2550,198 @@ async function toggleFlag(tr) {
 }
 $("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[playing.index]); };
 
+
+/* ---------- Tags page: one row per tag, the tag added to most recently first; the automatic tags at the end.
+   Computer: three ways to show a row's tracks (thumbnails / thumbnails with titles / a list), and the panel on
+   the right with the tag's description, a year range, the order to play in, Rename. Phone: the rows open the panel
+   full screen ("Shelves"), or open their tracks in place ("Lists"). ---------- */
+const AUTO_TAGS = new Set(["duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
+let tagInfo = { desc: {} };
+fetch("data/tags.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { tagInfo = { desc: {}, ...d }; if (view === "tags") renderTagsPage(); } }).catch(() => {});
+const tagPref = (k, def) => { try { return localStorage.getItem("nrgfm-tags-" + k) || def; } catch { return def; } };
+const setTagPref = (k, v) => { try { localStorage.setItem("nrgfm-tags-" + k, v); } catch {} };
+const tp = { active: null, pinned: false, order: {}, years: {}, open: new Set(), hoverT: 0 };
+const yearOf = (tr) => (extra[tr.url] || {}).y || null;
+function tagYears(t) { const ys = t.tracks.map(yearOf).filter(Boolean).sort((a, b) => a - b); return ys; }
+function yearsText(ys) { return !ys.length ? "" : ys[0] === ys[ys.length - 1] ? String(ys[0]) : ys[0] + "–" + ys[ys.length - 1]; }
+/* the tracks of a tag as they will play: in the year range picked, in the order picked */
+function tagPlaylist(t) {
+  const [lo, hi] = tp.years[t.name] || [];
+  let list = t.tracks.slice(); // most recently tagged first
+  if (lo) list = list.filter((tr) => { const y = yearOf(tr); return y && y >= lo && y <= hi; });
+  const order = tp.order[t.name] || "newest";
+  if (order === "oldest") list.reverse();
+  if (order === "shuffle") { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } }
+  return { id: t.id, name: t.name, kind: "tag", tracks: list, last: t.last };
+}
+function playTag(t, tr) {
+  const pl = tagPlaylist(t);
+  let i = pl.tracks.indexOf(tr);
+  if (i < 0) { pl.tracks = t.tracks.slice(); i = pl.tracks.indexOf(tr); } // (a track outside the year range: the whole tag)
+  play(pl, Math.max(0, i));
+  if (tp.active === t.name) drawTagPanel();
+}
+function tagPageHead() {
+  const wrap = el("div", { class: "tp-head" });
+  const mode = phone() ? tagPref("phone", "shelves") : tagPref("view", "thumbs");
+  const opts = phone() ? [["shelves", "Shelves"], ["lists", "Lists"]] : [["thumbs", "Thumbnails"], ["titles", "Titles"], ["list", "List"]];
+  const n = threads.filter((t) => t.kind === "tag").length;
+  wrap.append(el("div", { class: "tp-views" }, opts.map(([k, name]) => el("button", { class: "when-link" + (mode === k ? " on" : ""),
+    onclick: () => { setTagPref(phone() ? "phone" : "view", k); drawViewHead(); renderTagsPage(); } }, name)),
+    el("span", { class: "tp-count" }, `${n} tags`)));
+  return wrap;
+}
+function tagRowTracks(t, mode) {
+  const items = t.tracks.slice(0, mode === "list" ? 8 : mode === "titles" ? 10 : 14);
+  if (mode === "list" || mode === "lists") {
+    return el("div", { class: "tp-grid" }, items.map((tr) => { const x = info(tr);
+      return el("button", { class: "tp-li" + (x.dead ? " dead" : ""), onclick: () => playTag(t, tr) }, img(x.thumb, "tp-mini"), el("span", { class: "tp-li-t" }, x.title)); }),
+      t.tracks.length > items.length ? el("button", { class: "when-link tp-more", onclick: () => openTagPanel(t.name, true) }, `all ${t.tracks.length}`) : null);
+  }
+  return el("div", { class: "tp-strip" + (mode === "titles" ? " titled" : "") }, items.map((tr) => { const x = info(tr);
+    return el("button", { class: "tp-card" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); }, "aria-label": "Play " + x.title },
+      img(x.thumb, "tp-thumb"), mode === "titles" ? el("span", { class: "tp-card-t" }, x.title) : null); }));
+}
+function tagRow(t, mode) {
+  const ys = tagYears(t);
+  const meta = el("div", { class: "tp-meta" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}` + (ys.length ? " · " + yearsText(ys) : ""));
+  const name = el("div", { class: "tp-name" }, t.name);
+  if (mode === "lists") { // phone: the arrow opens the tracks in place
+    const open = tp.open.has(t.name);
+    const row = el("div", { class: "tp-row tp-drop" + (open ? " open" : "") },
+      el("button", { class: "tp-drop-head", onclick: () => { open ? tp.open.delete(t.name) : tp.open.add(t.name); row.replaceWith(tagRow(t, mode)); } },
+        el("span", { class: "tp-arrow" }, open ? "▾" : "▸"), el("span", {}, name, meta)),
+      open ? tagRowTracks(t, "lists") : null);
+    return row;
+  }
+  const row = el("div", { class: "tp-row tp-" + mode + (tp.active === t.name && !phone() ? " on" : ""), "data-tag": t.name },
+    el("button", { class: "tp-label", onclick: () => openTagPanel(t.name, true) }, name, meta),
+    tagRowTracks(t, mode));
+  if (!phone()) {
+    row.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); if (!tp.pinned) tp.hoverT = setTimeout(() => openTagPanel(t.name, false), 220); });
+    row.addEventListener("mouseleave", () => clearTimeout(tp.hoverT));
+  } else row.addEventListener("click", (e) => { if (!e.target.closest(".tp-card")) openTagPanel(t.name, true); });
+  return row;
+}
+function renderTagsPage() {
+  const list = $("#threads");
+  const mode = phone() ? tagPref("phone", "shelves") : tagPref("view", "thumbs");
+  const all = threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last);
+  const own = all.filter((t) => !AUTO_TAGS.has(t.name)), auto = all.filter((t) => AUTO_TAGS.has(t.name));
+  list.replaceChildren(el("div", { class: "tp-page tp-mode-" + mode },
+    own.map((t) => tagRow(t, mode)),
+    auto.length ? el("div", { class: "tp-group" }, "Automatic tags") : null,
+    auto.map((t) => tagRow(t, mode))));
+  if (!phone() && (!tp.active || !all.some((t) => t.name === tp.active)) && own.length) tp.active = own[0].name;
+  if (!phone()) drawTagPanel(); else if (!tagPanel.box.hidden) drawTagPanel();
+}
+/* the panel: computer, in the column on the right (hovering a row shows its tag; clicking a row keeps it there);
+   phone, full screen over the page */
+const tagPanel = { box: el("aside", { class: "tag-panel", hidden: true }) };
+document.body.append(tagPanel.box);
+function openTagPanel(g, pin) {
+  tp.active = g; if (pin !== undefined) tp.pinned = !!pin;
+  document.querySelectorAll(".tp-row.on").forEach((r) => r.classList.remove("on"));
+  const r = document.querySelector(`.tp-row[data-tag="${CSS.escape(g)}"]`); if (r && !phone()) r.classList.add("on");
+  drawTagPanel(true);
+}
+function placeTagPanel() {
+  const box = tagPanel.box;
+  if (box.hidden || phone()) return;
+  const top = headerBottom() + 10, d = $("#dock");
+  let bottom = innerHeight - 16;
+  if (!d.hidden) { const m = $("#media").getBoundingClientRect(), bar = d.querySelector(".bar").getBoundingClientRect(); bottom = (m.height && !d.classList.contains("idle") ? m.top : bar.top) - 10; }
+  box.style.top = top + "px"; box.style.maxHeight = Math.max(160, bottom - top) + "px";
+}
+addEventListener("resize", () => { if (view === "tags") { if (!phone() && innerWidth < 966) tagPanel.box.hidden = true; else if (!phone()) drawTagPanel(); } });
+function hideTagPanel() { tagPanel.box.hidden = true; document.body.classList.remove("tag-panel-open"); }
+function drawTagPanel(show) {
+  const box = tagPanel.box, t = tp.active && tagThreadOf(tp.active);
+  if (view !== "tags" || !t || (!phone() && innerWidth < 966) || (phone() && !show && box.hidden)) { hideTagPanel(); return; }
+  const g = t.name, ys = tagYears(t), key = !!getToken();
+  const pl = tagPlaylist(t);
+  const desc = tagInfo.desc[g] || "";
+  const descBox = el("div", { class: "tp-desc" + (desc ? "" : " empty") }, desc || (key ? "" : ""));
+  const editDesc = () => {
+    const ta = el("textarea", { rows: "4", class: "tp-desc-edit", placeholder: "What this tag is about" }); ta.value = desc;
+    const save = async () => {
+      const text = ta.value.trim();
+      try { await writeInbox({ action: "tagdesc", tag: g, text, ts: Math.floor(Date.now() / 1000) }, "tag"); } catch (e) { msg.textContent = netMsg(e); return; }
+      tagInfo.desc[g] = text; if (!text) delete tagInfo.desc[g]; drawTagPanel(true);
+    };
+    const msg = el("span", { class: "hint" });
+    descBox.replaceWith(el("div", { class: "tp-desc-form" }, ta, el("div", { class: "tp-btns" },
+      el("button", { class: "when-link", onclick: save }, "Save"), el("button", { class: "when-link", onclick: () => drawTagPanel(true) }, "Cancel"), msg)));
+    ta.focus();
+  };
+  const rename = () => {
+    const input = el("input", { type: "text", class: "tp-rename", value: g, maxlength: 40, "aria-label": "New name" });
+    const msg = el("span", { class: "hint" });
+    const save = async () => {
+      const to = normTag(input.value);
+      if (!to || to === g) { drawTagPanel(true); return; }
+      try { await writeInbox({ action: "tagrename", from: g, to, ts: Math.floor(Date.now() / 1000) }, "tag"); } catch (e) { msg.textContent = netMsg(e); return; }
+      for (const th of threads) if (isBase(th)) for (const tr of th.tracks) if (tr.tags && tr.tags[g] !== undefined) {
+        const at = tr.tags[g]; delete tr.tags[g]; tr.tags[to] = Math.min(at, tr.tags[to] || at); tr._hay = null;
+      }
+      if (tagInfo.desc[g]) { tagInfo.desc[to] = tagInfo.desc[to] || tagInfo.desc[g]; delete tagInfo.desc[g]; }
+      tp.active = to; refreshTags();
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } if (e.key === "Escape") drawTagPanel(true); });
+    head.replaceChildren(el("div", { class: "tp-rename-row" }, input, el("button", { class: "when-link", onclick: save }, "Save"), el("button", { class: "when-link", onclick: () => drawTagPanel(true) }, "Cancel"), msg));
+    input.focus(); input.select();
+  };
+  const head = el("div", { class: "tp-p-head" },
+    el("div", { class: "tp-p-title" }, g),
+    phone() ? el("button", { class: "when-link tp-close", onclick: hideTagPanel }, "Close") : null);
+  // year range: two handles on one line
+  let slider = null;
+  const span = ys.length ? [ys[0], ys[ys.length - 1]] : null;
+  if (span && span[0] !== span[1]) {
+    const [lo, hi] = tp.years[g] || span;
+    const a = el("input", { type: "range", min: span[0], max: span[1], value: lo, step: 1, "aria-label": "From year" });
+    const b = el("input", { type: "range", min: span[0], max: span[1], value: hi, step: 1, "aria-label": "To year" });
+    const fill = el("span", { class: "tp-range-fill" });
+    const labels = el("div", { class: "tp-range-labels" });
+    const sync = (final) => {
+      let x = +a.value, y = +b.value; if (x > y) [x, y] = [y, x];
+      const pct = (v) => ((v - span[0]) / (span[1] - span[0])) * 100;
+      fill.style.left = pct(x) + "%"; fill.style.right = 100 - pct(y) + "%";
+      const n = t.tracks.filter((tr) => { const yy = yearOf(tr); return yy && yy >= x && yy <= y; }).length;
+      labels.replaceChildren(el("span", {}, x), el("span", {}, x === span[0] && y === span[1] ? "all years" : `${n} ${n === 1 ? "track" : "tracks"}`), el("span", {}, y));
+      if (final) { if (x === span[0] && y === span[1]) delete tp.years[g]; else tp.years[g] = [x, y]; drawTagList(); }
+    };
+    a.addEventListener("input", () => sync(false)); b.addEventListener("input", () => sync(false));
+    a.addEventListener("change", () => sync(true)); b.addEventListener("change", () => sync(true));
+    slider = el("div", { class: "tp-range" }, el("div", { class: "tp-range-track" }, fill, a, b), labels);
+    sync(false);
+  }
+  const order = tp.order[g] || "newest";
+  const orderBtn = (k, name) => el("button", { class: "when-link" + (order === k ? " on" : ""), onclick: () => { tp.order[g] = k; drawTagPanel(true); } }, name);
+  const list = el("div", { class: "tp-p-list" });
+  const drawTagList = () => {
+    const p = tagPlaylist(t);
+    list.replaceChildren(...p.tracks.map((tr) => { const x = info(tr), y = yearOf(tr);
+      return el("button", { class: "side-row" + (playing && playing.thread.tracks[playing.index] === tr ? " playing" : ""), onclick: () => playTag(t, tr) },
+        img(x.thumb, "side-thumb"), el("span", { class: "side-name" }, x.title), y ? el("span", { class: "tp-y" }, y) : null); }));
+    if (!p.tracks.length) list.append(el("p", { class: "hint" }, "No tracks in these years."));
+  };
+  drawTagList();
+  box.replaceChildren(...[head,
+    el("div", { class: "tp-p-meta" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}` + (ys.length ? " · " + yearsText(ys) : "") + " · last added " + fmtTs(t.last)),
+    descBox,
+    slider,
+    el("div", { class: "tp-btns" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
+      key ? el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description") : null,
+      key && !AUTO_TAGS.has(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null),
+    list].filter(Boolean));
+  if (desc) descBox.addEventListener("dblclick", () => key && editDesc());
+  box.hidden = false;
+  document.body.classList.toggle("tag-panel-open", phone());
+  placeTagPanel();
+}
+function fmtTs(ts) { const d = new Date(ts * 1000); return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear(); }
+addEventListener("scroll", () => placeTagPanel(), { passive: true });
 /* ---------- Activity: every play of 10 seconds or more is logged on the Activity server (worker/, on Cloudflare);
    only a device with the key can see the log. Each browser has a random id; devices with the key can be named. ---------- */
 let ACT_URL = "";

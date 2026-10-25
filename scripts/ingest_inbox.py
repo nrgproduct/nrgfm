@@ -198,6 +198,50 @@ def apply_tag(data, item):
     return "tagged" if n else "tag: no tracks found"
 
 
+TAGINFO = os.path.join(ROOT, "data", "tags.json")
+
+
+def load_taginfo():
+    return json.load(open(TAGINFO, encoding="utf-8")) if os.path.exists(TAGINFO) else {"desc": {}}
+
+
+def apply_tagrename(data, item):
+    """{"action": "tagrename", "from": tag, "to": new name} -> the tag gets the new name on every track that has it
+    (each track keeps the time it was tagged). Renaming onto an existing tag merges the two."""
+    a, b = norm_tag(item.get("from") or ""), norm_tag(item.get("to") or "")
+    if not a or not b or a == b:
+        return "tagrename: nothing to do"
+    n = 0
+    for th in data["threads"]:
+        for tr in th["tracks"]:
+            tags = tr.get("tags")
+            if isinstance(tags, dict) and a in tags:
+                ts = tags.pop(a)
+                tags[b] = min(ts, tags.get(b, ts))
+                n += 1
+    info = load_taginfo()
+    if a in info.get("desc", {}):
+        d = info["desc"].pop(a)
+        info["desc"].setdefault(b, d)
+        json.dump(info, open(TAGINFO, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return "tagged" if n else "tagrename: no tracks have that tag"
+
+
+def apply_tagdesc(item):
+    """{"action": "tagdesc", "tag": tag, "text": description} -> data/tags.json (an empty text removes it)."""
+    g = norm_tag(item.get("tag") or "")
+    if not g:
+        return "tagdesc: no tag"
+    info = load_taginfo()
+    text = str(item.get("text") or "").strip()[:2000]
+    if text:
+        info.setdefault("desc", {})[g] = text
+    else:
+        info.setdefault("desc", {}).pop(g, None)
+    json.dump(info, open(TAGINFO, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return "tagged"
+
+
 def apply_recheck(data, item):
     """Result of the weekly link check: mark links dead / working again, and tag the tracks."""
     meta_path = os.path.join(ROOT, "data", "meta.json")
@@ -389,6 +433,10 @@ def main():
             res = apply_tag(data, item)
         elif action == "recheck":
             res = apply_recheck(data, item)
+        elif action == "tagrename":
+            res = apply_tagrename(data, item)
+        elif action == "tagdesc":
+            res = apply_tagdesc(item)
         else:
             res = apply_add(data, by_id, item)
         print(os.path.basename(f), res)
