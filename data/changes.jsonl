@@ -852,3 +852,5 @@
 {"action": "move", "thread": "p390268277656569", "id": "t390268487656548_0", "to": "xt390268470989883_0", "ts": 1792949001}
 {"action": "tag", "ids": ["t390268487656548_0"], "add": ["brutal"], "remove": [], "ts": 1792949033}
 {"url": "https://www.youtube.com/watch?v=iJmD-D2b_LQ", "title": "Dirty Projectors - Maybe That Was It (2012)", "thread": "p484657418217654", "tags": ["alt rock"], "ts": 1792949209}
+{"url": "https://www.youtube.com/watch?v=TceHWNzbS7o", "title": "Dirty Projectors - No Intention (2009)", "thread": "p484657418217654", "tags": ["alt rock"], "ts": 1792949255}
+{"action": "edit", "thread": "p484657418217654", "id": "t1792949255_0", "title": "Dirty Projectors - No Intention (2009)", "url": "https://www.youtube.com/watch?v=TceHWNzbS7o", "tags": ["indie"], "ts": 1792949264}
