@@ -888,3 +888,4 @@
 {"url": "https://www.youtube.com/watch?v=lBSx9UhkL9Y", "title": "R. Stevie Moore - I Like To Stay Home (1986)", "thread": "p29524814260441917", "tags": ["new wave"], "ts": 1792951293}
 {"action": "edit", "thread": "p29524814260441917", "id": "t1792951293_0", "title": "R. Stevie Moore - I Like To Stay Home (1986)", "url": "https://www.youtube.com/watch?v=lBSx9UhkL9Y", "tags": ["new wave"], "ts": 1792951316, "alt": "https://www.youtube.com/watch?v=o4_ccIBUpCQ"}
 {"action": "edit", "thread": "p615514135131981", "id": "t615514135131981_0", "title": "Kevin Ayers - Song for Insane Times (1969)", "url": "https://www.youtube.com/watch?v=GEGNfw-jd_M", "tags": ["evergreens", "prog"], "ts": 1792951461}
+{"action": "move", "thread": "p615514135131981", "id": "t615514135131981_0", "to": "p29389900680599943", "ts": 1792951524}
