@@ -1838,8 +1838,6 @@ function moreInfo(tr, edit, tags) {
       el("div", { class: "notes-row" }, notes, edit && edit.t.tracks.length > 1 ? el("div", { class: "order-btns" },
         orderBtn(true, () => reorderTrack(box.closest("form"), edit, -1), edit.i === 0),
         orderBtn(false, () => reorderTrack(box.closest("form"), edit, 1), edit.i === edit.t.tracks.length - 1)) : null)),
-    edit ? el("label", { class: "af-field af-alt" }, el("span", {}, "Alternative link"),
-      Object.assign(el("input", { name: "alt", type: "url", inputmode: "url", autocomplete: "off", spellcheck: "false", placeholder: "Plays if the main link stops working" }), { value: (tr && tr.alt) || "" })) : null,
     edit ? movePanel(() => box.closest("form"), edit) : null);
   if (edit && edit.i === 0) {
     const date = el("input", { name: "date", type: "hidden" }); // YYYY-MM-DD, sent with Save
@@ -1910,6 +1908,8 @@ function moreInfo(tr, edit, tags) {
       descBox.textContent = d[tr.url] || "No description found.";
     } }, "Description");
     const metaBox = el("div", { class: "af-meta", hidden: true },
+      edit ? el("label", { class: "af-field af-alt" }, el("span", { class: "af-label" }, "Alternative link"),
+        Object.assign(el("input", { name: "alt", type: "url", inputmode: "url", autocomplete: "off", spellcheck: "false", placeholder: "Plays if the main link stops working" }), { value: (tr && tr.alt) || "" })) : null,
       el("div", {}, el("span", { class: "af-label" }, "Uploader"), x.by || el("span", { class: "hint" }, "unknown")),
       el("div", {}, el("span", { class: "af-label" }, "Uploaded"), x.up ? fmtDay(x.up) : el("span", { class: "hint" }, "unknown")),
       el("div", {}, descBtn), descBox);
