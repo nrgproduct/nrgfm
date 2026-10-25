@@ -895,3 +895,7 @@
 {"action": "edit", "thread": "p595547407128654", "id": "t595547407128654_0", "title": "Synd Og Skam - Ulvene Omkring (2012)", "url": "https://www.youtube.com/watch?v=0JljyhMpoMY", "tags": ["dansk"], "ts": 1792951943}
 {"action": "delete", "thread": "p23980691428187589", "id": "t25524168270506556_0", "ts": 1792952014}
 {"action": "edit", "thread": "p23980691428187589", "id": "t25524023343854382_0", "title": "Thomas Dolby – One of Our Submarines (1982)", "url": "https://www.youtube.com/watch?v=j8i9vGFrvbM", "tags": ["80s", "new wave"], "ts": 1792952115}
+{"action": "tag", "ids": ["t25474365455486838_0"], "add": ["new wave"], "remove": [], "ts": 1792952138}
+{"action": "tag", "ids": ["t25474365455486838_0"], "add": [], "remove": ["duplicate"], "ts": 1792952144}
+{"action": "edit", "thread": "p23980691428187589", "id": "t25474365455486838_0", "title": "Thompson Twins – Hold Me Now (12\" Version) 1983", "url": "https://www.youtube.com/watch?v=R4AQV-uA5pY", "tags": ["new wave"], "ts": 1792952172}
+{"action": "tag", "ids": ["t23980691428187589_0"], "add": ["alt rock"], "remove": [], "ts": 1792952180}
