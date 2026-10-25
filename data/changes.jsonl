@@ -717,3 +717,4 @@
 {"action": "edit", "thread": "p27670740379182657", "id": "t27670740379182657_0", "title": "Ceephax Acid Crew - Capsule in Space", "url": "https://www.youtube.com/watch?v=7dqimbX0l0E", "tags": ["duplicate"], "ts": 1792913320}
 {"action": "edit", "thread": "p27670740379182657", "id": "t27670778695845492_0", "title": "Ceephax Acid Crew - Mediterranean Acid", "url": "https://www.youtube.com/watch?v=OPyZGCKu2wg", "tags": [], "ts": 1792913325}
 {"url": "https://www.youtube.com/watch?v=vVPf5_V5BVw", "title": "The Knife - Silent Shout (2006)", "thread": "p27743596928563668", "tags": ["synth pop"], "ts": 1792913397}
+{"action": "tag", "ids": ["t27744098335180194_0"], "add": [], "remove": ["zoomer"], "ts": 1792914853}
