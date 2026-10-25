@@ -796,3 +796,5 @@
 {"action": "promote", "thread": "xt498656273484435_0", "id": "t517901801559882_0", "to": "original", "ts": 1792945960}
 {"url": "https://www.youtube.com/watch?v=hhV1r5hbQJU", "title": "Daniel Costa - Do You Remember (Original Mix)", "thread": "xt517901801559882_0", "tags": [], "ts": 1792945983}
 {"url": "https://www.youtube.com/watch?v=AIxjtGsrL94", "title": "Timewarp - Bullshit", "thread": "xt517901801559882_0", "tags": [], "ts": 1792946036}
+{"url": "https://www.youtube.com/watch?v=1Z1qNsm-NUk", "title": "Caetano Veloso - Tropicalia (1967)", "thread": "p453600094656720", "tags": ["latin"], "ts": 1792946255}
+{"action": "edit", "thread": "p453600094656720", "id": "t1792946255_0", "title": "Caetano Veloso - Tropicalia (1967)", "url": "https://www.youtube.com/watch?v=1Z1qNsm-NUk", "tags": ["latin"], "ts": 1792946261, "alt": "https://www.youtube.com/watch?v=isU7hhtrcN4"}
