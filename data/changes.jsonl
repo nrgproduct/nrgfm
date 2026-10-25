@@ -919,3 +919,6 @@
 {"action": "edit", "thread": "p877802742236451", "id": "t877802742236451_0", "title": "Television - Marquee Moon (1977)", "url": "https://www.youtube.com/watch?v=NfwoYEcpQhU", "tags": ["alt rock"], "ts": 1792953043}
 {"action": "tag", "ids": ["t877802742236451_0"], "add": [], "remove": ["alt rock"], "ts": 1792953055}
 {"action": "tag", "ids": ["t877802742236451_0"], "add": [], "remove": ["alt rock"], "ts": 1792953056}
+{"action": "tag", "ids": ["t852314444785281_0"], "add": ["mainzerstr"], "remove": [], "ts": 1792953109}
+{"action": "tag", "ids": ["t877213012295424_0"], "add": ["mainzerstr"], "remove": [], "ts": 1792953112}
+{"action": "tag", "ids": ["t843972802286112_0"], "add": ["mainzerstr"], "remove": [], "ts": 1792953117}
