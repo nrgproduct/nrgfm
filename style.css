@@ -1305,14 +1305,14 @@ body:not(.can-add) .owner-only { display: none; }
 .tp-zoom, .tp-sort { margin-left: auto; display: inline-flex; gap: 16px; }
 .tp-zoom .when-link { font-size: 20px; line-height: 1; text-decoration: none; padding: 0 4px; }
 .tp-zoom .when-link:disabled { opacity: .3; cursor: default; }
-.tp-row { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; align-items: start; padding: 10px 8px; border-bottom: 1px dotted var(--line); border-radius: var(--radius-sm); cursor: pointer; }
+.tp-row { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; align-items: start; padding: 10px 8px; border-bottom: 1px dotted #53667c; border-radius: var(--radius-sm); cursor: pointer; }
 .tp-row.on { background: var(--surface); }
 .tp-label { display: grid; gap: 2px; min-width: 0; padding-top: 2px; }
 .tp-name { font-size: 17px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tp-row.on .tp-name, .tp-row:hover .tp-name { color: var(--jade); }
 .tp-meta { color: var(--muted); font-size: 12.5px; }
 .tp-grid.tp-fit { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: 14px; row-gap: 6px; }
-.tp-strip { display: flex; flex-wrap: wrap; gap: 8px; height: 112px; overflow: hidden; } /* one line: the ones that don't fit wrap out of sight */
+.tp-strip { display: flex; gap: 8px; overflow: hidden; } /* one line, as many as fit (the last one cut by the edge) */
 .tp-card { all: unset; cursor: pointer; flex: none; display: grid; gap: 4px; width: 128px; align-content: start; }
 .tp-thumb { width: 128px; height: 72px; object-fit: cover; border-radius: 3px; background: var(--surface-2); display: block; }
 .tp-card:hover .tp-thumb { outline: 2px solid var(--jade); outline-offset: -2px; }
@@ -1375,3 +1375,16 @@ html.tp-own-bar::-webkit-scrollbar { display: none; }
 .view-tags, .view-activity { top: calc(var(--top-h, 60px) - 1px); box-shadow: 0 -2px 0 var(--bg); }
 body[data-view="tags"] .view-tags, body[data-view="activity"] .view-activity { margin-top: -9px; }
 .view-tags { padding-top: 14px; }
+
+/* Tags page: the search field between the sort and − + */
+.tp-search { flex: 1 1 auto; max-width: 420px; margin-left: 10px; }
+.tp-search .tag-field { height: 34px; }
+.tp-search .tag-field .tag-input { height: 32px; }
+.tp-head .tp-views { align-items: center; }
+.side-right { display: inline-flex; gap: 12px; align-items: baseline; margin-left: auto; }
+.side-years { color: var(--muted); font-size: 13px; }
+@media (max-width: 640px) {
+  .tp-head { display: grid; gap: 8px; }
+  .tp-search { max-width: none; margin-left: 0; }
+  .tp-search .tag-field { height: 38px; }
+}

@@ -2560,7 +2560,7 @@ let tagInfo = { desc: {} };
 fetch("data/tags.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { tagInfo = { desc: {}, ...d }; if (view === "tags") renderTagsPage(); } }).catch(() => {});
 const tagPref = (k, def) => { try { return localStorage.getItem("nrgfm-tags-" + k) || def; } catch { return def; } };
 const setTagPref = (k, v) => { try { localStorage.setItem("nrgfm-tags-" + k, v); } catch {} };
-const tp = { active: null, pinned: false, editing: false, order: {}, years: {}, open: new Set(), hoverT: 0 };
+const tp = { active: null, pinned: false, editing: false, order: {}, years: {}, open: new Set(), hoverT: 0, terms: [], q: "" };
 const yearOf = (tr) => (extra[tr.url] || {}).y || null;
 function tagYears(t) { const ys = t.tracks.map(yearOf).filter(Boolean).sort((a, b) => a - b); return ys; }
 function yearsText(ys) { return !ys.length ? "" : ys[0] === ys[ys.length - 1] ? String(ys[0]) : ys[0] + "–" + ys[ys.length - 1]; }
@@ -2583,9 +2583,9 @@ function playTag(t, tr) {
 }
 /* computer: zoom − / 0 / + : 3 rows of 3 small titles, 2 rows of 2 (default), thumbnails with titles under them;
    every row scrolls sideways through all of the tag's tracks */
-const tagZoom = () => Math.max(-1, Math.min(2, +tagPref("zoom", "0") || 0));
+const tagZoom = () => { const z = +tagPref("zoom", "1"); return Math.max(-1, Math.min(2, Number.isFinite(z) ? z : 1)); };
 const tagMode = () => (phone() ? tagPref("phone", "shelves") : tagZoom() > 1 ? "titles" : "list");
-const ZOOM_GRID = { "-1": [3, 3], 0: [2, 3], 1: [2, 2] }; // rows, tracks per row
+const ZOOM_GRID = { "-1": [3, 3], 0: [2, 3], 1: [2, 2] }; // rows, tracks per row (2×2 by default)
 function tagPageHead() {
   const sort = tagPref("sort", "newest"), z = tagZoom();
   const sortBtns = [["newest", "Newest added"], ["az", "A–Z"]].map(([k, name]) => el("button", { class: "when-link" + (sort === k ? " on" : ""),
@@ -2596,12 +2596,65 @@ function tagPageHead() {
     return el("div", { class: "tp-head" }, el("div", { class: "tp-views" },
       [["shelves", "Shelves"], ["lists", "Lists"]].map(([k, name]) => el("button", { class: "when-link" + (mode === k ? " on" : ""),
         onclick: () => { setTagPref("phone", k); drawViewHead(); renderTagsPage(); } }, name)),
-      el("span", { class: "tp-sort" }, sortBtns)));
+      el("span", { class: "tp-sort" }, sortBtns)), tagSearchField());
   }
-  return el("div", { class: "tp-head" }, el("div", { class: "tp-views" }, sortBtns,
+  return el("div", { class: "tp-head" }, el("div", { class: "tp-views" }, sortBtns, tagSearchField(),
     el("span", { class: "tp-zoom" },
       el("button", { class: "when-link", disabled: z <= -1 || null, "aria-label": "Smaller", onclick: () => zoom(-1) }, "−"),
       el("button", { class: "when-link", disabled: z >= 2 || null, "aria-label": "Bigger", onclick: () => zoom(1) }, "+"))));
+}
+/* the search field of the Tags page: the tags show as you type (a word of the name starting with it); Enter keeps
+   the words typed and another can be added; a suggestion picked with the arrows and Enter keeps that tag, which is
+   also kept in the panel */
+const tagMatches = (name, q) => { const f = fold(name), w = fold(q); return !w || f.startsWith(w) || f.split(" ").some((x) => x.startsWith(w)); };
+function tagSearchField() {
+  const input = el("input", { type: "text", class: "tag-input", placeholder: tp.terms.length ? "" : "Search tags", autocomplete: "off", spellcheck: "false", "aria-label": "Search tags" });
+  input.value = tp.q || "";
+  const chips = el("span", { class: "tag-chips-in" });
+  const field = el("span", { class: "tag-field", onmousedown: (e) => { if (e.target === field || e.target === chips) { e.preventDefault(); input.focus(); } } }, chips, input);
+  const drop = el("div", { class: "tag-drop", hidden: true });
+  const clear = el("button", { type: "button", class: "btn ghost square gm-clear", "aria-label": "Clear", onclick: () => { tp.terms = []; tp.q = ""; input.value = ""; update(); input.focus(); } });
+  clear.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+  let opts = [], active = -1;
+  const drawChips = () => {
+    chips.replaceChildren(...tp.terms.map((g) => el("button", { type: "button", class: "tag-chip in", onmousedown: (e) => e.preventDefault(),
+      onclick: () => { tp.terms = tp.terms.filter((x) => x !== g); update(); } }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+    input.placeholder = tp.terms.length ? "" : "Search tags";
+    clear.hidden = !tp.terms.length && !input.value;
+  };
+  const drawDrop = () => {
+    const q = input.value.trim();
+    opts = q ? threads.filter((t) => t.kind === "tag" && tagMatches(t.name, q) && !tp.terms.includes(t.name)).sort((a, b) => b.tracks.length - a.tracks.length).slice(0, 8) : [];
+    active = -1;
+    drop.replaceChildren(el("ul", { class: "drop-list" }, opts.map((t, k) => el("li", { onmousedown: (e) => { e.preventDefault(); pick(t.name); } },
+      t.name, el("span", { class: "gi-n" }, t.tracks.length)))));
+    drop.hidden = !opts.length;
+  };
+  const update = () => { tp.q = input.value; drawChips(); drawDrop(); renderTagsPage(); };
+  const pick = (g) => { // a tag picked from the suggestions: kept as a search, highlighted and in the panel
+    tp.terms = [...tp.terms.filter((x) => x !== g), g]; input.value = ""; tp.q = "";
+    drawChips(); drop.hidden = true; renderTagsPage();
+    if (!phone()) { openTagPanel(g, true); const r = document.querySelector(`.tp-row[data-tag="${CSS.escape(g)}"]`); if (r) r.scrollIntoView({ block: "nearest" }); }
+  };
+  input.addEventListener("input", update);
+  input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
+  input.addEventListener("focus", () => { if (input.value.trim()) drawDrop(); });
+  input.addEventListener("keydown", (e) => {
+    const items = [...drop.querySelectorAll("li")];
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (active > -1 && opts[active]) { pick(opts[active].name); return; }
+      const q = input.value.trim();
+      if (q && !tp.terms.includes(q)) tp.terms = [...tp.terms, q];
+      input.value = ""; tp.q = ""; drawChips(); drop.hidden = true; renderTagsPage();
+    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && items.length && !drop.hidden) {
+      e.preventDefault(); active = e.key === "ArrowDown" ? (active + 1) % items.length : (active <= 0 ? items.length - 1 : active - 1);
+      items.forEach((li, k) => li.classList.toggle("on", k === active));
+    } else if (e.key === "Backspace" && !input.value && tp.terms.length) { tp.terms = tp.terms.slice(0, -1); update(); }
+    else if (e.key === "Escape") { e.stopPropagation(); if (!drop.hidden) drop.hidden = true; else { tp.terms = []; input.value = ""; update(); } }
+  });
+  drawChips();
+  return el("span", { class: "tag-box gm-field tp-search" }, field, clear, drop);
 }
 function tagRowTracks(t, mode) {
   let items = t.tracks;
@@ -2612,7 +2665,7 @@ function tagRowTracks(t, mode) {
       items.map((tr) => { const x = info(tr);
         return el("button", { class: "tp-li" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); } }, img(x.thumb, "tp-mini"), el("span", { class: "tp-li-t" }, x.title)); }));
   }
-  items = items.slice(0, 12); // (as many as fit on one line show)
+  items = items.slice(0, 16); // (as many as fit on the line show; the last one cut by the edge)
   return el("div", { class: "tp-strip titled" }, items.map((tr) => { const x = info(tr);
     return el("button", { class: "tp-card" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); }, "aria-label": "Play " + x.title },
       img(x.thumb, "tp-thumb"), el("span", { class: "tp-card-t" }, x.title)); }));
@@ -2640,7 +2693,7 @@ function tagRow(t, mode) {
     openTagPanel(t.name, true);
   });
   if (!phone()) {
-    row.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); if (!tp.pinned) openTagPanel(t.name); });
+    row.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); if (!tp.pinned) tp.hoverT = setTimeout(() => { if (!tp.pinned) openTagPanel(t.name); }, 80); });
     row.addEventListener("mouseleave", () => clearTimeout(tp.hoverT));
   }
   return row;
@@ -2648,8 +2701,11 @@ function tagRow(t, mode) {
 function renderTagsPage() {
   const list = $("#threads");
   const mode = tagMode();
-  const all = threads.filter((t) => t.kind === "tag").sort(tagPref("sort", "newest") === "az" ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.last - a.last);
+  const words = [...tp.terms, ...(tp.q.trim() ? [tp.q.trim()] : [])];
+  const all = threads.filter((t) => t.kind === "tag" && (!words.length || words.some((w) => tagMatches(t.name, w))))
+    .sort(tagPref("sort", "newest") === "az" ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.last - a.last);
   const own = all.filter((t) => !AUTO_TAGS.has(t.name)), auto = all.filter((t) => AUTO_TAGS.has(t.name));
+  if (!all.length) { list.replaceChildren(el("p", { class: "view-note tp-none" }, "No tags match.")); return; }
   list.replaceChildren(el("div", { class: "tp-page tp-mode-" + mode },
     own.map((t) => tagRow(t, mode)),
     auto.length ? el("div", { class: "tp-group" }, "Automatic tags") : null,
@@ -3121,7 +3177,9 @@ function tagThreadOf(g) { return threads.find((x) => x.kind === "tag" && x.name 
 function showTagSide(g) {
   const t = g && tagThreadOf(g);
   if (!t) { side.hide(); return; }
-  side.show([el("span", { class: "side-title" }, g), el("span", { class: "side-n" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`)],
+  const yrs = yearsText(tagYears(t));
+  side.show([el("span", { class: "side-title" }, g), el("span", { class: "side-right" }, yrs ? el("span", { class: "side-years" }, yrs) : null,
+    el("span", { class: "side-n" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}`))],
     t.tracks.map((tr, i) => {
       const x = info(tr);
       return el("button", { type: "button", class: "side-row" + (playing && playing.thread.tracks[playing.index] === tr ? " playing" : ""),
