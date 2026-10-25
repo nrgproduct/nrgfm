@@ -76,7 +76,14 @@ function info(t) {
   const author = artist || channel;
   let thumb = m.thumbnail_url || (extra[t.url] || {}).cover || ""; // (the Bandcamp cover the lookup found, when the page itself couldn't be read)
   if (t.yt) thumb = `https://i.ytimg.com/vi/${t.yt}/mqdefault.jpg`;
-  const noEmbed = m.status === 401; // video exists but its owner blocks playing it on other sites
+  let noEmbed = m.status === 401; // video exists but its owner blocks playing it on other sites
+  const alt = (m.dead || noEmbed) && altSource(t); // the main link is gone: the alternative link plays (and gives the picture)
+  if (alt) {
+    const am = meta[alt.url] || {};
+    thumb = alt.yt ? `https://i.ytimg.com/vi/${alt.yt}/mqdefault.jpg` : am.thumbnail_url || thumb;
+    if (!t.title && !fetched && !m.wb_title && am.title) title = flipDotTitle(am.title);
+    return { title, author, thumb, dead: false, noEmbed: false, recovered, archive: "", untitled: !t.title && !m.title && !am.title, alt: true };
+  }
   return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, recovered, archive: m.wb_url || "", untitled: !t.title && !m.title };
 }
 
@@ -1370,7 +1377,8 @@ function play(t, i) {
   // the thread you play from gets the selected frame (in search results only the ones that scroll)
   if (pn && activeId !== t.id && !addingId && selectable(pn)) setActive(t.id, `${t.id}:${i}`); // only boxes that scroll
   const token = ++loadToken;
-  const tr = t.tracks[i], x = info(tr), m = meta[tr.url] || {};
+  const tr0 = t.tracks[i], x = info(tr0);
+  const tr = x.alt ? altSource(tr0) : tr0, m = meta[tr.url] || {}; // (the main link is gone: its alternative link plays)
   if (adapter) adapter.destroy();
   adapter = null;
   const box = $("#otherSlot"); box.replaceChildren();
@@ -1378,7 +1386,7 @@ function play(t, i) {
   $("#infoBtn").disabled = $("#copyBtn").disabled = false;
   if (!lockPlayerWidths.done) { lockPlayerWidths(); lockPlayerWidths.done = true; }
   $("#nowTitle").textContent = x.title;
-  startPlayLog(tr, x);
+  startPlayLog(tr0, x);
   $("#dock").classList.remove("wide"); // a new track: the buttons come back
   showFlag();
   $("#threadBtn").textContent = `${i + 1} of ${t.tracks.length}` + (phone() ? "" : t.kind === "tag" ? " in this tag" : " in this thread");
@@ -1830,6 +1838,8 @@ function moreInfo(tr, edit, tags) {
       el("div", { class: "notes-row" }, notes, edit && edit.t.tracks.length > 1 ? el("div", { class: "order-btns" },
         orderBtn(true, () => reorderTrack(box.closest("form"), edit, -1), edit.i === 0),
         orderBtn(false, () => reorderTrack(box.closest("form"), edit, 1), edit.i === edit.t.tracks.length - 1)) : null)),
+    edit ? el("label", { class: "af-field af-alt" }, el("span", {}, "Alternative link"),
+      Object.assign(el("input", { name: "alt", type: "url", inputmode: "url", autocomplete: "off", spellcheck: "false", placeholder: "Plays if the main link stops working" }), { value: (tr && tr.alt) || "" })) : null,
     edit ? movePanel(() => box.closest("form"), edit) : null);
   if (edit && edit.i === 0) {
     const date = el("input", { name: "date", type: "hidden" }); // YYYY-MM-DD, sent with Save
@@ -2002,6 +2012,11 @@ async function writeInbox(item, kind) {
 }
 const netMsg = (e) => (e.message === "Failed to fetch" ? "No connection to GitHub. Nothing was saved; try again." : e.message);
 
+/* a track's alternative link, read like a main link ({platform, url, yt, vimeo}); kept in case the main one breaks */
+function altSource(t) {
+  if (!t.alt) return null;
+  try { return { ...parseLocal(t.alt), id: t.id, title: t.title }; } catch { return null; }
+}
 function parseLocal(url) {
   const yt = (url.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || [])[1];
   const host = new URL(url).hostname;
@@ -2037,6 +2052,13 @@ async function saveEdit(form, { t, i }) {
   if (url !== tr.url) item.tags = item.tags.filter((g) => g !== "broken link" && g !== "plays on youtube only"); // a new link: those tags go
   const notes = form.notes.value.trim();
   if (notes !== (tr.notes || "")) item.notes = notes;
+  const alt = form.alt ? form.alt.value.trim() : (tr.alt || "");
+  if (alt && !LINK_RE.test(alt)) {
+    form.alt.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
+    form.alt.reportValidity(); form.alt.addEventListener("input", () => form.alt.setCustomValidity(""), { once: true });
+    return;
+  }
+  if (alt !== (tr.alt || "")) item.alt = alt;
   const rel = form.querySelector(".af-more")?.releaseChanged?.();
   if (rel) item.release = rel;
   const yr = form.querySelector(".af-more")?.yearChanged?.();
@@ -2061,6 +2083,7 @@ async function saveEdit(form, { t, i }) {
   if (title) tr.title = title; else delete tr.title;
   applyTags(tr, item.tags, item.ts);
   if ("notes" in item) { if (notes) tr.notes = notes; else delete tr.notes; }
+  if ("alt" in item) { if (alt) tr.alt = alt; else delete tr.alt; }
   if (item.release) tr.release = item.release;
   if ("year" in item) { tr.year = item.year; setYear(tr); }
   if ("genres" in item) { tr.genres = item.genres; setGenresOf(tr); }
@@ -2555,7 +2578,7 @@ $("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[pl
    Computer: three ways to show a row's tracks (thumbnails / thumbnails with titles / a list), and the panel on
    the right with the tag's description, a year range, the order to play in, Rename. Phone: the rows open the panel
    full screen ("Shelves"), or open their tracks in place ("Lists"). ---------- */
-const AUTO_TAGS = new Set(["duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
+const AUTO_TAGS = new Set(["backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
 let tagInfo = { desc: {} };
 fetch("data/tags.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { tagInfo = { desc: {}, ...d }; if (view === "tags") renderTagsPage(); } }).catch(() => {});
 const tagPref = (k, def) => { try { return localStorage.getItem("nrgfm-tags-" + k) || def; } catch { return def; } };
@@ -2586,6 +2609,13 @@ function playTag(t, tr) {
 const tagZoom = () => { const z = +tagPref("zoom", "1"); return Math.max(-1, Math.min(2, Number.isFinite(z) ? z : 1)); };
 const tagMode = () => (phone() ? tagPref("phone", "shelves") : tagZoom() > 1 ? "titles" : "list");
 const ZOOM_GRID = { "-1": [3, 3], 0: [2, 3], 1: [2, 2] }; // rows, tracks per row (2×2 by default)
+/* Cmd+click (Ctrl+click on Windows) on a track of the Tags page or its panel: the quick tag field for it */
+function quickClick(e, t, tr) {
+  if (!(e.metaKey || e.ctrlKey) || !getToken() || phone()) return false;
+  e.preventDefault();
+  openQuick(null, { t, i: t.tracks.indexOf(tr), tr });
+  return true;
+}
 function tagPageHead() {
   const sort = tagPref("sort", "newest"), z = tagZoom();
   const sortBtns = [["newest", "Newest added"], ["az", "A–Z"]].map(([k, name]) => el("button", { class: "when-link" + (sort === k ? " on" : ""),
@@ -2663,11 +2693,11 @@ function tagRowTracks(t, mode) {
     if (mode !== "lists") items = items.slice(0, rows * cols); // the newest ones; all of them in the panel
     return el("div", { class: "tp-grid" + (mode === "lists" ? " tp-grid-open" : " tp-fit"), style: mode === "lists" ? null : `--cols:${cols}` },
       items.map((tr) => { const x = info(tr);
-        return el("button", { class: "tp-li" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); } }, img(x.thumb, "tp-mini"), el("span", { class: "tp-li-t" }, x.title)); }));
+        return el("button", { class: "tp-li" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); if (quickClick(e, t, tr)) return; playTag(t, tr); } }, img(x.thumb, "tp-mini"), el("span", { class: "tp-li-t" }, x.title)); }));
   }
   items = items.slice(0, 16); // (as many as fit on the line show; the last one cut by the edge)
   return el("div", { class: "tp-strip titled" }, items.map((tr) => { const x = info(tr);
-    return el("button", { class: "tp-card" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); playTag(t, tr); }, "aria-label": "Play " + x.title },
+    return el("button", { class: "tp-card" + (x.dead ? " dead" : ""), onclick: (e) => { e.stopPropagation(); if (quickClick(e, t, tr)) return; playTag(t, tr); }, "aria-label": "Play " + x.title },
       img(x.thumb, "tp-thumb"), el("span", { class: "tp-card-t" }, x.title)); }));
 }
 function tagRow(t, mode) {
@@ -2686,8 +2716,9 @@ function tagRow(t, mode) {
     el("div", { class: "tp-label" }, name, meta),
     tagRowTracks(t, mode));
   // the whole row is the button (the tracks in it play): computer, click keeps the tag in the panel, again lets go
-  row.addEventListener("click", (e) => {
-    if (e.target.closest(".tp-li, .tp-card")) return;
+  row.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest(".tp-li, .tp-card")) return;
+    clearTimeout(tp.hoverT);
     if (phone()) { openTagPanel(t.name, true); return; }
     if (tp.pinned && tp.active === t.name) { tp.pinned = false; row.classList.remove("on"); return; }
     openTagPanel(t.name, true);
@@ -2801,7 +2832,7 @@ function drawTagPanel(show) {
   const drawTagList = () => {
     const p = tagPlaylist(t);
     list.replaceChildren(...p.tracks.map((tr) => { const x = info(tr), y = yearOf(tr);
-      return el("button", { class: "side-row" + (playing && playing.thread.tracks[playing.index] === tr ? " playing" : ""), onclick: () => playTag(t, tr) },
+      return el("button", { class: "side-row" + (playing && playing.thread.tracks[playing.index] === tr ? " playing" : ""), onclick: (e) => { if (quickClick(e, t, tr)) return; playTag(t, tr); } },
         img(x.thumb, "side-thumb"), el("span", { class: "side-name" }, x.title), y ? el("span", { class: "tp-y" }, y) : null); }));
     if (!p.tracks.length) list.append(el("p", { class: "hint" }, "No tracks in these years."));
   };
@@ -3156,9 +3187,9 @@ const side = (() => {
       if (!fits()) return;
       head.replaceChildren(...[].concat(title));
       list.replaceChildren(...items); list.scrollTop = 0;
-      box.hidden = false; place();
+      box.hidden = false; place(); document.body.classList.add("side-open");
     },
-    hide() { box.hidden = true; },
+    hide() { box.hidden = true; document.body.classList.remove("side-open"); },
     get open() { return !box.hidden; },
   };
 })();

@@ -3,6 +3,8 @@ that is not yet in data/meta.json. Runs on GitHub Actions (which has internet ac
 Results are cached in data/meta.json, keyed by URL, so each link is fetched once.
 Usage: python3 scripts/fetch_meta.py [max_new]"""
 import json, os, re, sys, time, html, urllib.request, urllib.parse, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from build_url import parse  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRACKS = os.path.join(ROOT, "data", "tracks.json")
@@ -71,6 +73,9 @@ def main():
         for t in th["tracks"]:
             if t["url"] not in meta and t["url"] not in [x["url"] for x in todo[-50:]]:
                 todo.append(t)
+            a = parse(t["alt"]) if t.get("alt") else None  # the alternative link is looked up too
+            if a and a["url"] not in meta and a["url"] not in [x["url"] for x in todo[-50:]]:
+                todo.append(a)
     seen, n, errors = set(), 0, 0
     for t in todo:
         if t["url"] in seen or t["url"] in meta: continue

@@ -1388,3 +1388,12 @@ body[data-view="tags"] .view-tags, body[data-view="activity"] .view-activity { m
   .tp-search { max-width: none; margin-left: 0; }
   .tp-search .tag-field { height: 38px; }
 }
+
+/* the quick-tag side space covers the Tags panel completely */
+body.side-open .tag-panel { visibility: hidden; }
+/* Tags search: the clear button with the same space all round */
+.tp-search .gm-clear.btn.square { width: 26px; height: 26px; right: 4px; }
+.tp-search .gm-clear svg { width: 10px; height: 10px; }
+.tp-search .tag-field { padding-right: 36px; }
+/* edit card: the alternative link */
+.af-alt input { width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: 14px; }

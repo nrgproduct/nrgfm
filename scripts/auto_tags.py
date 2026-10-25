@@ -7,13 +7,14 @@
   chinese characters       the title has Han characters (hanzi), no kana, and the track's country is China, Taiwan, Hong Kong,
                            Macau or Singapore (titles with only Han characters are mostly Japanese in this archive)
   korean characters        the title has Hangul (a title can get more than one of these)
+  backup link              the main link is gone and the track plays from its alternative link
 
 Usage: python3 scripts/auto_tags.py"""
 import json, os, re, time, unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
-AUTO = ("duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters")
+AUTO = ("backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters")
 KANA = re.compile(r"[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9f]")                      # hiragana, katakana (also half-width)
 HAN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0003134f]")  # Han characters (CJK unified ideographs)
 HANGUL = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")                     # Hangul syllables and jamo
@@ -81,6 +82,9 @@ def main():
             want.add("chinese characters")
         if hangul:
             want.add("korean characters")
+        mm = meta.get(tr["url"], {})
+        if tr.get("alt") and (mm.get("dead") or mm.get("status") == 401) and not meta.get(tr["alt"], {}).get("dead"):
+            want.add("backup link")
         tags = tr.get("tags") or {}
         have = {g for g in AUTO if g in tags}
         if have == want:

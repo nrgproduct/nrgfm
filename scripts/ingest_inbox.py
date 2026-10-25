@@ -98,6 +98,13 @@ def apply_edit(data, item):
             item["tags"] = [g for g in item["tags"] if g not in ("broken link", "plays on youtube only")]
         for g in ("broken link", "plays on youtube only"):
             (tr.get("tags") or {}).pop(g, None)
+    if "alt" in item:  # the alternative link ("" removes it): plays when the main link stops working
+        alt = (item["alt"] or "").strip()
+        a = parse(alt) if alt else None
+        if a:
+            tr["alt"] = a["url"]
+        elif not alt:
+            tr.pop("alt", None)
     if "title" in item:
         title = (item["title"] or "").strip()[:200]
         if title:
