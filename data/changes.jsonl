@@ -720,3 +720,5 @@
 {"action": "tag", "ids": ["t27744098335180194_0"], "add": [], "remove": ["zoomer"], "ts": 1792914853}
 {"action": "edit", "thread": "xt1448776011805785_0", "id": "t1448776011805785_0", "title": "Bobby Caldwell - Open Your Eyes (1980)", "url": "https://www.youtube.com/watch?v=ApjR5hU3pSE", "tags": ["80s", "soul", "ballad"], "ts": 1792935106}
 {"action": "delete", "thread": "p1403768406306546", "id": "t1428939907122729_0", "ts": 1792937581}
+{"action": "tag", "ids": ["t1403768406306546_0"], "add": ["house"], "remove": [], "ts": 1792937597}
+{"action": "tag", "ids": ["t1403768406306546_0"], "add": ["synth pop"], "remove": [], "ts": 1792937610}
