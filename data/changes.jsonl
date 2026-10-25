@@ -910,3 +910,5 @@
 {"action": "edit", "thread": "p9190195287663780", "id": "t9190195287663780_0", "title": "The Blue Nile - I Love This Life (1981)", "url": "https://www.youtube.com/watch?v=PVMIHrikhDk", "tags": ["duplicate", "new wave"], "ts": 1792952690}
 {"action": "tag", "ids": ["t9197040036979305_0"], "add": ["new wave", "alt rock"], "remove": [], "ts": 1792952714}
 {"action": "edit", "thread": "p9190195287663780", "id": "t9197040036979305_0", "title": "Wire – Map Ref 41 Degrees N 93 Degrees W (1979)", "url": "https://www.youtube.com/watch?v=UKYbylOZB1o", "tags": ["new wave", "alt rock"], "ts": 1792952728}
+{"action": "edit", "thread": "p9190195287663780", "id": "t9197040876979221_0", "title": "Wire – The 15th (1979)", "url": "https://www.youtube.com/watch?v=azpgFemktHg", "tags": ["alt rock"], "ts": 1792952744}
+{"action": "tag", "ids": ["t9197041926979116_0"], "add": ["alt rock"], "remove": [], "ts": 1792952769}
