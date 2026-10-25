@@ -963,3 +963,5 @@
 {"url": "https://www.youtube.com/watch?v=G02pw4u4Rqs", "title": "Abdulla Rashim - Gisaw 3", "thread": "p832959673387425", "tags": [], "ts": 1792957463}
 {"url": "https://www.youtube.com/watch?v=Ox28ROxjP40", "title": "Abdulla Rashim - Asayita 1", "thread": "p832959673387425", "tags": [], "ts": 1792957508}
 {"action": "edit", "thread": "p832959673387425", "id": "t1792957433_0", "title": "Rich Oddie - Driftwork", "url": "https://www.youtube.com/watch?v=wopEv6XK6gE", "tags": [], "ts": 1792957515}
+{"action": "tag", "ids": ["t27657722193817809_0"], "add": ["soft"], "remove": [], "ts": 1792965683}
+{"action": "tag", "ids": ["t27657722193817809_0"], "add": ["ambient hits"], "remove": [], "ts": 1792965690}
