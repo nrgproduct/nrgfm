@@ -765,3 +765,4 @@
 {"url": "https://www.youtube.com/watch?v=LnqkZtcSfdw", "title": "Avanti - Black Magic (2012)", "thread": "p555264687823593", "tags": [], "ts": 1792942145}
 {"action": "tag", "ids": ["t480153235334739_0"], "add": ["2010"], "remove": [], "ts": 1792942226}
 {"action": "edit", "thread": "xt433229590027104_0", "id": "t480153235334739_0", "title": "Gui Boratto - No Turning Back (2009)", "url": "https://www.youtube.com/watch?v=D5TZwIGGu38", "tags": ["2010", "synth pop"], "ts": 1792942250}
+{"action": "tag", "ids": ["t433147470035316_0"], "add": ["synth pop"], "remove": [], "ts": 1792942335}
