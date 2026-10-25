@@ -965,3 +965,5 @@
 {"action": "edit", "thread": "p832959673387425", "id": "t1792957433_0", "title": "Rich Oddie - Driftwork", "url": "https://www.youtube.com/watch?v=wopEv6XK6gE", "tags": [], "ts": 1792957515}
 {"action": "tag", "ids": ["t27657722193817809_0"], "add": ["soft"], "remove": [], "ts": 1792965683}
 {"action": "tag", "ids": ["t27657722193817809_0"], "add": ["ambient hits"], "remove": [], "ts": 1792965690}
+{"action": "tag", "ids": ["t27657722193817809_0"], "add": ["ambient hits", "soft"], "remove": [], "ts": 1792965717}
+{"action": "edit", "thread": "p27441193355470695", "id": "t27657722193817809_0", "title": "Slowdive - Crazy for You (1995)", "url": "https://www.youtube.com/watch?v=YJOMeUqFMFw", "tags": ["ambient hits", "soft"], "ts": 1792965728}
