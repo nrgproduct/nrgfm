@@ -189,7 +189,7 @@ function refreshTags() {
   for (const t of fresh) {
     if (old.some((o) => o.id === t.id)) { threads.push(t); continue; }
     threads.unshift(t); // a new tag shows up at the top (of the Tags page)
-    if (!$("#q").value.trim() && view === "tags") {
+    if (!$("#q").value.trim() && (view === "tags" || view === "tagsold")) {
       const node = threadNode({ t, hits: null });
       $("#threads").prepend(node);
       shown.unshift({ t, hits: null }); rendered++;
@@ -322,11 +322,11 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", genreboxes: "Genres (one box each)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
-  if (view === "tags") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last);
+  if (view === "tags" || view === "tagsold") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last); // (#/tagsold: the Tags page as it was in Oct 2026, kept as a backup)
   if (view === "mixes") return mixThreads();
   if (view === "genres") return gSel.length ? [genreMix()] : []; // no playlist until a genre is picked
   if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
@@ -637,7 +637,7 @@ function drawViewHead() {
     if (years.length) pickYear(years[0]);
   } else if (view === "activity") {
     head.replaceChildren(act.head); head.hidden = false; return;
-  } else if (view === "tags") {
+  } else if (view === "tags" || view === "tagsold") {
     head.hidden = true; return;
   } else { head.hidden = true; return; }
   head.hidden = false;
@@ -1229,6 +1229,7 @@ const fmtTime = (s) => {
 };
 
 function setPlayState(isPlaying) {
+  document.title = isPlaying ? "nrgfm 🔊" : "nrgfm"; // the speaker in the tab and window name while a track plays
   $("#playBtn").textContent = isPlaying ? "Pause" : "Play";
   $("#playBtn").setAttribute("aria-pressed", isPlaying ? "true" : "false");
 }
