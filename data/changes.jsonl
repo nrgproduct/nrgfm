@@ -855,3 +855,4 @@
 {"url": "https://www.youtube.com/watch?v=TceHWNzbS7o", "title": "Dirty Projectors - No Intention (2009)", "thread": "p484657418217654", "tags": ["alt rock"], "ts": 1792949255}
 {"action": "edit", "thread": "p484657418217654", "id": "t1792949255_0", "title": "Dirty Projectors - No Intention (2009)", "url": "https://www.youtube.com/watch?v=TceHWNzbS7o", "tags": ["indie"], "ts": 1792949264}
 {"action": "move", "thread": "p565784100104985", "id": "t565784150104980_0", "to": "xt565784100104985_0", "ts": 1792949324}
+{"action": "promote", "thread": "xt533361873347208_0", "id": "t540418822641513_0", "to": "original", "ts": 1792949380}
