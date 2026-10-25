@@ -931,3 +931,4 @@
 {"action": "move", "thread": "p824865294196863", "id": "t826523037364422_0", "to": "p877213012295424", "ts": 1792953350}
 {"url": "https://www.youtube.com/watch?v=_YsgqfO59Gc", "title": "Donnie & Joe Emerson - Baby (1979)", "thread": "p29389900680599943", "tags": ["evergreens"], "ts": 1792953492}
 {"action": "delete", "thread": "xt390269804323083_0", "id": "t390269377656459_0", "ts": 1792953505}
+{"action": "tag", "ids": ["t966370676712990_0"], "add": ["folk", "evergreens"], "remove": ["duplicate"], "ts": 1792953521}
