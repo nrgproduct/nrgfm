@@ -929,3 +929,5 @@
 {"url": "https://www.youtube.com/watch?v=EPe8z9iuOos", "title": "Inigo Kennedy - Accordion", "thread": "p843972802286112", "tags": ["mainzerstr"], "ts": 1792953264}
 {"url": "https://www.youtube.com/watch?v=kv_Vn9yUwgQ", "title": "Leon Vynehall - Step or Stone (Breath or Bone)", "thread": "p877213012295424", "tags": ["mainzerstr"], "ts": 1792953333}
 {"action": "move", "thread": "p824865294196863", "id": "t826523037364422_0", "to": "p877213012295424", "ts": 1792953350}
+{"url": "https://www.youtube.com/watch?v=_YsgqfO59Gc", "title": "Donnie & Joe Emerson - Baby (1979)", "thread": "p29389900680599943", "tags": ["evergreens"], "ts": 1792953492}
+{"action": "delete", "thread": "xt390269804323083_0", "id": "t390269377656459_0", "ts": 1792953505}
