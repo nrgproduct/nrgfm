@@ -780,3 +780,5 @@
 {"url": "https://www.youtube.com/watch?v=UOYAlP5Qbc8", "title": "Luca C & Brigante feat. Róisín Murphy - Flash of Light (Solomun Mix) 2012", "thread": "p544927085524020", "tags": [], "ts": 1792944475}
 {"url": "https://www.youtube.com/watch?v=FUa4Rw5VBhY", "title": "Audiojack, Kevin Knapp - These Days (Jimmy Edgar Implication) 2012", "thread": "p544927085524020", "tags": [], "ts": 1792944521}
 {"action": "promote", "thread": "xt498656273484435_0", "id": "t510604258956303_0", "to": "original", "ts": 1792944587}
+{"action": "move", "thread": "xt498656273484435_0", "id": "t510580912291971_0", "to": "xt510604258956303_0", "ts": 1792944605}
+{"action": "delete", "thread": "p569902513026477", "id": "t571006629582732_0", "ts": 1792944624}
