@@ -904,3 +904,4 @@
 {"action": "move", "thread": "p855883427761716", "id": "t860617050621687_0", "to": "p23980691428187589", "ts": 1792952233}
 {"action": "edit", "thread": "p23980691428187589", "id": "t860598497290209_0", "title": "Icehouse - Hey Little Girl (1982)", "url": "https://www.youtube.com/watch?v=FvMmM_yQIOQ", "tags": [], "ts": 1792952386}
 {"action": "tag", "ids": ["t860598497290209_0"], "add": ["new wave"], "remove": [], "ts": 1792952393}
+{"action": "tag", "ids": ["t25585354591054590_0"], "add": ["ballad", "80s"], "remove": [], "ts": 1792952409}
