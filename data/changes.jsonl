@@ -835,3 +835,4 @@
 {"action": "edit", "thread": "p2045746118775435", "id": "t2085592968124083_0", "title": "Carly Rae Jepsen - All That (2015)", "url": "https://www.youtube.com/watch?v=W374tWnsk70", "tags": ["ballad", "soft pop"], "ts": 1792948082}
 {"action": "edit", "thread": "p2045746118775435", "id": "t2085593761457337_0", "title": "Lady GaGa - So Happy I Could Die (2009)", "url": "https://www.youtube.com/watch?v=6aQLpayx0i4", "tags": ["pop banger"], "ts": 1792948176}
 {"action": "edit", "thread": "p2045746118775435", "id": "t2085593761457337_0", "title": "Lady Gaga - So Happy I Could Die (2009)", "url": "https://www.youtube.com/watch?v=6aQLpayx0i4", "tags": ["pop banger"], "ts": 1792948184}
+{"action": "tag", "ids": ["t2085592378124142_0"], "add": ["deconstructed"], "remove": [], "ts": 1792948217}
