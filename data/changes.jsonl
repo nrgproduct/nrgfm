@@ -745,3 +745,4 @@
 {"action": "edit", "thread": "p27441196272137070", "id": "t27779097795013581_0", "title": "Robert Palmer – Johnny And Mary (1980)", "url": "https://www.youtube.com/watch?v=g6kRjyFjHi4", "tags": ["80s", "new wave"], "ts": 1792939232}
 {"action": "tag", "ids": ["t28645383881718297_0"], "add": ["synth theme"], "remove": [], "ts": 1792939259}
 {"action": "tag", "ids": ["t25523830120540371_0"], "add": ["elena"], "remove": [], "ts": 1792939288}
+{"action": "tag", "ids": ["t27268836382706394_0"], "add": ["indie"], "remove": [], "ts": 1792939314}
