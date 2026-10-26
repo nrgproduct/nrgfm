@@ -1079,3 +1079,5 @@
 {"url": "https://www.youtube.com/watch?v=z9rFU5BJWPg", "title": "Admas - Kalatashe Waga (Sons of Ethiopia 1984)", "thread": "p28666645716258780", "tags": ["fusion", "funk"], "ts": 1793011694}
 {"action": "tag", "ids": ["t28666645716258780_0"], "add": [], "remove": ["70s"], "ts": 1793011756}
 {"action": "tag", "ids": ["t28666645716258780_0"], "add": ["prog"], "remove": [], "ts": 1793011772}
+{"action": "edit", "thread": "p28666645716258780", "id": "t1793011694_0", "title": "Admas - Kalatashe Waga (Sons of Ethiopia 1984)", "url": "https://www.youtube.com/watch?v=z9rFU5BJWPg", "tags": ["fusion", "funk"], "ts": 1793011778}
+{"action": "tag", "ids": ["t29263822219874457_0"], "add": ["soul", "funk"], "remove": [], "ts": 1793011795}
