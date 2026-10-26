@@ -1019,3 +1019,5 @@
 {"action": "edit", "thread": "p7628619470488044", "id": "t8146939425322710_0", "title": "Nena - Irgendwie, irgendwo, irgendwann (1985)", "url": "https://www.youtube.com/watch?v=HatI_CtFmUI", "tags": ["new wave", "german"], "ts": 1793003241, "alt": "https://www.youtube.com/watch?v=VJon9iS5sXw"}
 {"action": "edit", "thread": "p7628619470488044", "id": "t8146939425322710_0", "title": "Nena - Irgendwie, irgendwo, irgendwann (1985)", "url": "https://www.youtube.com/watch?v=oMHLkcc9I9c", "tags": ["new wave", "german"], "ts": 1793003302}
 {"url": "https://www.youtube.com/watch?v=eN4LYsre_XM", "title": "Nena - Irgendwie, irgendwo, irgendwann (Special 12\" Dance Mix)", "thread": "p7628619470488044", "tags": [], "ts": 1793003361}
+{"action": "tag", "ids": ["x1699282520_0"], "add": ["dansk", "hiphop"], "remove": [], "ts": 1793003381}
+{"action": "tag", "ids": ["x1699282520_0"], "add": ["outsider"], "remove": [], "ts": 1793003389}
