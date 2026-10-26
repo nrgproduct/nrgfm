@@ -1328,3 +1328,4 @@
 {"action": "tag", "ids": ["t1062030453813678_0"], "add": ["new wave"], "remove": [], "ts": 1793050522}
 {"url": "https://www.youtube.com/watch?v=lo0UDvxGPD4", "title": "Pages - You Need A Hero (1981)", "thread": "p1219093751440680", "tags": ["soul", "funk", "easy listening", "evergreens"], "ts": 1793050751}
 {"action": "promote", "thread": "p1219093751440680", "id": "t1793050751_0", "to": "original", "ts": 1793050758}
+{"action": "tag", "ids": ["t1227414860608569_0"], "add": [], "remove": ["new wave", "french"], "ts": 1793050848}
