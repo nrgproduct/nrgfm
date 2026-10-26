@@ -1061,3 +1061,5 @@
 {"action": "tag", "ids": ["t6659422630741071_0"], "add": ["art pop", "euphoric"], "remove": [], "ts": 1793005699}
 {"action": "tag", "ids": ["t6659422630741071_0"], "add": ["celtic"], "remove": [], "ts": 1793005738}
 {"action": "edit", "thread": "p6532677473415588", "id": "t6659422630741071_0", "title": "Dreams - The Cranberries (1992)", "url": "https://www.youtube.com/watch?v=K1pY9lSzDro", "tags": ["art pop", "euphoric", "celtic"], "ts": 1793005753}
+{"action": "tag", "ids": ["t6642935975723070_0"], "add": ["shoegaze", "alt rock"], "remove": [], "ts": 1793005770}
+{"action": "edit", "thread": "p6532677473415588", "id": "t6642935975723070_0", "title": "my bloody valentine - only shallow (1991)", "url": "https://www.youtube.com/watch?v=wdXGll5sc6Y", "tags": ["shoegaze", "alt rock"], "ts": 1793005793}
