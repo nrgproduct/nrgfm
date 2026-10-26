@@ -1225,3 +1225,4 @@
 {"action": "delete", "thread": "p1532724536744265", "id": "t1555323454484373_0", "ts": 1793044170}
 {"action": "tag", "ids": ["t1532724536744265_0"], "add": ["kosmische musik", "full album"], "remove": [], "ts": 1793044291}
 {"action": "edit", "thread": "p1532724536744265", "id": "t1604658406217544_0", "title": "So Inagawa - Logo Queen (2013)", "url": "https://www.youtube.com/watch?v=AoiEtZSQoMc", "tags": [], "ts": 1793044405}
+{"action": "delete", "thread": "p1532724536744265", "id": "t1604640252886026_0", "ts": 1793044432}
