@@ -999,3 +999,4 @@
 {"action": "tag", "ids": ["t8013547718661882_0"], "add": ["zoinked", "soft pop", "2000s pop", "art pop"], "remove": [], "ts": 1793002359}
 {"action": "tag", "ids": ["t8145226775493975_0"], "add": ["80s", "new wave"], "remove": [], "ts": 1793002375}
 {"action": "tag", "ids": ["t8145226775493975_0"], "add": ["80s", "new wave"], "remove": [], "ts": 1793002375}
+{"action": "delete", "thread": "p7628619470488044", "id": "t8013522738664380_0", "ts": 1793002425}
