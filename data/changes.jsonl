@@ -985,3 +985,4 @@
 {"action": "tag", "ids": ["t5081575548525795_0"], "add": ["anime", "synth pop"], "remove": [], "ts": 1793000124}
 {"action": "edit", "thread": "p5081575548525795", "id": "t5154585627891453_0", "title": "Dora Jar – Quiver", "url": "https://www.youtube.com/watch?v=tYebzJ3uAJA", "tags": ["anime", "art pop"], "ts": 1793000188, "alt": "https://www.youtube.com/watch?v=ACuEPeY5XAE"}
 {"action": "tag", "ids": ["t25201860356070684_0"], "add": ["rnb"], "remove": [], "ts": 1793000203}
+{"action": "tag", "ids": ["t5154585627891453_0"], "add": ["soft pop"], "remove": [], "ts": 1793000215}
