@@ -1110,3 +1110,8 @@
 {"action": "tag", "ids": ["t27944678455122180_0"], "add": ["euphoric", "zoomer"], "remove": [], "ts": 1793025822}
 {"action": "tag", "ids": ["t26508362098753830_0"], "add": ["london", "synth pop"], "remove": [], "ts": 1793025894}
 {"action": "tag", "ids": ["t26508362098753830_0"], "add": ["zoomer"], "remove": [], "ts": 1793025899}
+{"action": "tag", "ids": ["t27789850067271687_0"], "add": ["dansk", "pop banger"], "remove": [], "ts": 1793025993}
+{"action": "tag", "ids": ["t27394001686856529_0"], "add": ["zoomer"], "remove": [], "ts": 1793026012}
+{"action": "tag", "ids": ["t26508362098753830_0"], "add": ["pop banger"], "remove": ["synth pop"], "ts": 1793026040}
+{"action": "delete", "thread": "p26508362098753830", "id": "t26757300597193311_0", "ts": 1793026054}
+{"action": "tag", "ids": ["t27957600727163286_0"], "add": ["euphoric"], "remove": [], "ts": 1793026104}
