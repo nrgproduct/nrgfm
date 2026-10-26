@@ -1220,3 +1220,6 @@
 {"action": "edit", "thread": "p1100747829941940", "id": "t1100747829941940_0", "title": "The Durutti Column - Otis", "url": "https://www.youtube.com/watch?v=_lpS3JKpqEE", "tags": ["art pop"], "ts": 1793044060}
 {"action": "tag", "ids": ["t1100747829941940_0"], "add": ["minimalism"], "remove": [], "ts": 1793044069}
 {"action": "tag", "ids": ["t7397556743594319_0"], "add": ["art pop", "ambient hits"], "remove": [], "ts": 1793044124}
+{"action": "tag", "ids": ["t7397592326924094_0"], "add": ["art pop", "soft"], "remove": [], "ts": 1793044158}
+{"action": "tag", "ids": ["t7397592326924094_0"], "add": ["soft pop"], "remove": [], "ts": 1793044163}
+{"action": "delete", "thread": "p1532724536744265", "id": "t1555323454484373_0", "ts": 1793044170}
