@@ -1313,3 +1313,5 @@
 {"url": "https://www.youtube.com/watch?v=e6EYVYXNUIQ", "title": "Blue Russel - I Wanna Fly Away", "thread": "xt1213485708668151_0", "tags": [], "ts": 1793049468}
 {"action": "edit", "thread": "xt1213485708668151_0", "id": "t1213485708668151_0", "title": "LOGIC SYSTEM - Intro + Unit (1981 Japan)", "url": "https://www.youtube.com/watch?v=N30syGI2ya4", "tags": ["prog"], "ts": 1793049592}
 {"action": "tag", "ids": ["t1155361821147207_0"], "add": ["city pop", "funk"], "remove": [], "ts": 1793049744}
+{"action": "tag", "ids": ["t1155361821147207_0"], "add": [], "remove": ["funk"], "ts": 1793049755}
+{"action": "tag", "ids": ["t1155361821147207_0"], "add": ["easy listening"], "remove": [], "ts": 1793049770}
