@@ -992,3 +992,4 @@
 {"action": "edit", "thread": "p1792945098", "id": "t1792946847_0", "title": "Lower - But There Has To Be More (Outtake)", "url": "https://www.youtube.com/watch?v=53cDnsvh-_s", "tags": ["dansk", "backup link"], "ts": 1793000349, "alt": "https://soundcloud.com/user3780785/but-there-has-to-be-more"}
 {"action": "tag", "ids": ["t1792946847_0"], "add": [], "remove": ["backup link"], "ts": 1793000353}
 {"action": "tag", "ids": ["t8145227635493889_0"], "add": ["post punk"], "remove": [], "ts": 1793002090}
+{"action": "tag", "ids": ["t7741583472524976_0"], "add": ["alt rock", "shoegaze"], "remove": [], "ts": 1793002115}
