@@ -1275,3 +1275,4 @@
 {"action": "tag", "ids": ["t1115444828472240_0"], "add": ["brutal"], "remove": [], "ts": 1793046821}
 {"action": "edit", "thread": "p1115438928472830", "id": "t1117520261598030_0", "title": "ETNICA - Astral way (1995)", "url": "https://www.youtube.com/watch?v=G8I7neMUsRI", "tags": ["trance"], "ts": 1793046832}
 {"url": "https://www.youtube.com/watch?v=R0lLDX1d-ow", "title": "Frak - Alice In Acidland (1993)", "thread": "p1115438928472830", "tags": [], "ts": 1793046869}
+{"action": "tag", "ids": ["t1132082720141784_0"], "add": ["leftfield"], "remove": [], "ts": 1793046908}
