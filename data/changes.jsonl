@@ -1312,3 +1312,4 @@
 {"url": "https://www.youtube.com/watch?v=3xr4lqSpZ1w", "title": "Funky Family - Funky Is On (1984)", "thread": "xt1213485708668151_0", "tags": ["disco", "italo"], "ts": 1793049371}
 {"url": "https://www.youtube.com/watch?v=e6EYVYXNUIQ", "title": "Blue Russel - I Wanna Fly Away", "thread": "xt1213485708668151_0", "tags": [], "ts": 1793049468}
 {"action": "edit", "thread": "xt1213485708668151_0", "id": "t1213485708668151_0", "title": "LOGIC SYSTEM - Intro + Unit (1981 Japan)", "url": "https://www.youtube.com/watch?v=N30syGI2ya4", "tags": ["prog"], "ts": 1793049592}
+{"action": "tag", "ids": ["t1155361821147207_0"], "add": ["city pop", "funk"], "remove": [], "ts": 1793049744}
