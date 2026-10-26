@@ -1270,3 +1270,5 @@
 {"action": "delete", "thread": "p1040362459313811", "id": "t1040362459313811_0", "ts": 1793046688}
 {"action": "tag", "ids": ["t1026046584078732_0"], "add": ["outsider", "hiphop"], "remove": [], "ts": 1793046697}
 {"action": "tag", "ids": ["t1047554368594620_0"], "add": ["funk"], "remove": [], "ts": 1793046709}
+{"url": "https://www.youtube.com/watch?v=U3NfI9jbUGI", "title": "Cybotron - Techno City", "thread": "p1176759765674079", "tags": [], "ts": 1793046774}
+{"action": "tag", "ids": ["t1115438928472830_0"], "add": ["brutal"], "remove": [], "ts": 1793046814}
