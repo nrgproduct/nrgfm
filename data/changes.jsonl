@@ -1303,3 +1303,4 @@
 {"action": "promote", "thread": "p1212613192088736", "id": "t1793048628_0", "to": "main", "ts": 1793048646}
 {"url": "https://www.youtube.com/watch?v=E0ju5RBLr5g", "title": "The Circle City Band - Magic (12\" Extended 1983)", "thread": "p1125235577493165", "tags": ["disco", "funk"], "ts": 1793048890}
 {"action": "promote", "thread": "p1125235577493165", "id": "t1793048890_0", "to": "main", "ts": 1793048897}
+{"action": "edit", "thread": "p1125235577493165", "id": "t1793048890_0", "title": "The Circle City Band - Magic (12\" Extended 1983)", "url": "https://www.youtube.com/watch?v=E0ju5RBLr5g", "tags": ["disco", "funk"], "ts": 1793048908, "alt": "https://www.youtube.com/watch?v=XUJkaJqFg2c"}
