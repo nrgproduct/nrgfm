@@ -1126,3 +1126,4 @@
 {"action": "edit", "thread": "p10041975149152452", "id": "t10042294305787203_0", "title": "Bread - The Guitar Man (1972)", "url": "https://www.youtube.com/watch?v=75TUfO2TWFg", "tags": ["evergreens", "folk"], "ts": 1793030007}
 {"action": "tag", "ids": ["t9692525067430797_0"], "add": ["funk"], "remove": [], "ts": 1793030051}
 {"action": "edit", "thread": "p9692525067430797", "id": "t10042064805810153_0", "title": "George Michael - Father Figure [HQ]", "url": "https://www.youtube.com/watch?v=cT6y24Ddn0w", "tags": ["pop", "ballad"], "ts": 1793030193}
+{"action": "tag", "ids": ["t9453947434621896_0"], "add": ["steamy"], "remove": [], "ts": 1793030323}
