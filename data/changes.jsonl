@@ -978,3 +978,4 @@
 {"action": "tag", "ids": ["t6470394812977188_0"], "add": ["house"], "remove": [], "ts": 1792999293}
 {"url": "https://www.youtube.com/watch?v=0QJh-K3EBvw", "title": "Imogen Heap (Frou Frou) - A New Kind of Love", "thread": "", "tags": ["anime"], "ts": 1792999672}
 {"action": "edit", "thread": "p1792999672", "id": "t1792999672_0", "title": "Imogen Heap (Frou Frou) - A New Kind of Love", "url": "https://www.youtube.com/watch?v=0QJh-K3EBvw", "tags": ["anime"], "ts": 1792999695, "date": "2023-11-26"}
+{"action": "edit", "thread": "p1792999672", "id": "t1792999672_0", "title": "Imogen Heap (Frou Frou) - A New Kind of Love", "url": "https://www.youtube.com/watch?v=0QJh-K3EBvw", "tags": ["anime", "synth pop"], "ts": 1792999813}
