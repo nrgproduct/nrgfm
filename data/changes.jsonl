@@ -1308,3 +1308,4 @@
 {"url": "https://www.youtube.com/watch?v=edsrDr3gIXU", "title": "Tatsuro Yamashita - Dancer", "thread": "p1125235577493165", "tags": [], "ts": 1793049129}
 {"url": "https://www.youtube.com/watch?v=MrpfIuGzRco", "title": "O B Ignitt - Let It Do What It Does (Omar S Mix)", "thread": "p1083899971626726", "tags": [], "ts": 1793049195}
 {"action": "tag", "ids": ["t1213485708668151_0"], "add": ["prog"], "remove": [], "ts": 1793049253}
+{"action": "promote", "thread": "xt1176752205674835_0", "id": "t1213485708668151_0", "to": "original", "ts": 1793049352}
