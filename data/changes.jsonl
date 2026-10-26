@@ -1182,3 +1182,6 @@
 {"action": "edit", "thread": "xt2238327629517282_0", "id": "t2238327629517282_0", "title": "Abekejser - St. Puma (Episode 1)", "url": "https://www.youtube.com/watch?v=h3ndE4Df8PE", "tags": ["dansk", "fusion"], "ts": 1793036006}
 {"action": "edit", "thread": "xt390273887656008_0", "id": "x1312760449_0", "title": "Von D ft. Phephe - Love Music", "url": "https://www.youtube.com/watch?v=W8c-QxOOyyY", "tags": ["dubstep", "london"], "ts": 1793036080}
 {"action": "tag", "ids": ["t25127907696799284_0"], "add": ["deus ex"], "remove": [], "ts": 1793036139}
+{"action": "tag", "ids": ["t25187402930849760_0"], "add": ["idm", "ambient hits", "steamy"], "remove": [], "ts": 1793036156}
+{"action": "tag", "ids": ["t25187402930849760_0"], "add": [], "remove": ["steamy"], "ts": 1793036171}
+{"action": "tag", "ids": ["t25187402930849760_0"], "add": ["leftfield"], "remove": [], "ts": 1793036181}
