@@ -1010,3 +1010,4 @@
 {"action": "tag", "ids": ["t7018871578129506_0"], "add": ["soft pop"], "remove": [], "ts": 1793002630}
 {"action": "tag", "ids": ["t7129345100415486_0"], "add": ["soft pop"], "remove": ["duplicate"], "ts": 1793002682}
 {"action": "delete", "thread": "p8322210567795594", "id": "t8322210567795594_0", "ts": 1793002686}
+{"action": "tag", "ids": ["t9107364982613478_0"], "add": ["pop banger"], "remove": [], "ts": 1793002765}
