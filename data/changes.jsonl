@@ -1307,3 +1307,4 @@
 {"action": "edit", "thread": "p1125235577493165", "id": "t1126659557350767_0", "title": "MAKOTO MATUSHITA - FIRST LIGHT (1981)", "url": "https://www.youtube.com/watch?v=6LBoP3CLzBg", "tags": ["city pop", "funk"], "ts": 1793049063, "alt": "https://www.youtube.com/watch?v=4ESWmrPmJA8"}
 {"url": "https://www.youtube.com/watch?v=edsrDr3gIXU", "title": "Tatsuro Yamashita - Dancer", "thread": "p1125235577493165", "tags": [], "ts": 1793049129}
 {"url": "https://www.youtube.com/watch?v=MrpfIuGzRco", "title": "O B Ignitt - Let It Do What It Does (Omar S Mix)", "thread": "p1083899971626726", "tags": [], "ts": 1793049195}
+{"action": "tag", "ids": ["t1213485708668151_0"], "add": ["prog"], "remove": [], "ts": 1793049253}
