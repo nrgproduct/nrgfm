@@ -1228,3 +1228,7 @@
 {"action": "delete", "thread": "p1532724536744265", "id": "t1604640252886026_0", "ts": 1793044432}
 {"action": "tag", "ids": ["t8501804203169562_0"], "add": ["euphoric", "dnb hits"], "remove": [], "ts": 1793044459}
 {"action": "delete", "thread": "p7741986332484690", "id": "t8207991042550881_0", "ts": 1793044473}
+{"action": "tag", "ids": ["t8501804203169562_0"], "add": [], "remove": ["duplicate"], "ts": 1793044485}
+{"action": "tag", "ids": ["t8501804203169562_0"], "add": ["leftfield"], "remove": [], "ts": 1793044492}
+{"action": "tag", "ids": ["t8553132188036763_0"], "add": [], "remove": ["duplicate"], "ts": 1793044500}
+{"action": "tag", "ids": ["t8553132188036763_0"], "add": [], "remove": ["duplicate"], "ts": 1793044501}
