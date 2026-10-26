@@ -1219,3 +1219,4 @@
 {"action": "edit", "thread": "p425888690761194", "id": "t1793043854_0", "title": "China Crisis - Blue Sea", "url": "https://www.youtube.com/watch?v=zCa9RE04lPU", "tags": ["new wave", "ballad"], "ts": 1793043873}
 {"action": "edit", "thread": "p1100747829941940", "id": "t1100747829941940_0", "title": "The Durutti Column - Otis", "url": "https://www.youtube.com/watch?v=_lpS3JKpqEE", "tags": ["art pop"], "ts": 1793044060}
 {"action": "tag", "ids": ["t1100747829941940_0"], "add": ["minimalism"], "remove": [], "ts": 1793044069}
+{"action": "tag", "ids": ["t7397556743594319_0"], "add": ["art pop", "ambient hits"], "remove": [], "ts": 1793044124}
