@@ -1005,3 +1005,4 @@
 {"action": "delete", "thread": "p7628619470488044", "id": "t7749178655098791_0", "ts": 1793002514}
 {"action": "tag", "ids": ["t7401269866556340_0"], "add": ["celtic", "art pop"], "remove": ["duplicate"], "ts": 1793002544}
 {"action": "tag", "ids": ["t7129390830410913_0"], "add": ["2000s pop", "art pop"], "remove": [], "ts": 1793002561}
+{"action": "tag", "ids": ["t7050658314950832_0"], "add": ["alt rock", "prog"], "remove": [], "ts": 1793002591}
