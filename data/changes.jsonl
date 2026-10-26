@@ -1001,3 +1001,4 @@
 {"action": "tag", "ids": ["t8145226775493975_0"], "add": ["80s", "new wave"], "remove": [], "ts": 1793002375}
 {"action": "delete", "thread": "p7628619470488044", "id": "t8013522738664380_0", "ts": 1793002425}
 {"action": "tag", "ids": ["t27268868676036498_0"], "add": ["emo", "alt rock"], "remove": [], "ts": 1793002464}
+{"action": "tag", "ids": ["t27073196295603738_0"], "add": ["metal", "emo"], "remove": [], "ts": 1793002484}
