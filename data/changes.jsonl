@@ -1257,3 +1257,4 @@
 {"action": "edit", "thread": "p1233887253294663", "id": "t1240287665987955_0", "title": "Claro Intelecto - Peace Of Mind", "url": "https://www.youtube.com/watch?v=YEpqFvoEFCc", "tags": ["electro", "london"], "ts": 1793046166}
 {"url": "https://www.youtube.com/watch?v=pVPHMrwZnwA", "title": "Derek Carr - Cuba (2004)", "thread": "p1233887253294663", "tags": ["house"], "ts": 1793046208}
 {"url": "https://www.youtube.com/watch?v=8nsO9jVTsY4", "title": "Andrea - Machine (2015 Ilian Tape)", "thread": "p1233887253294663", "tags": ["mainzerstr"], "ts": 1793046292}
+{"action": "tag", "ids": ["t1252697924746929_0"], "add": ["house"], "remove": [], "ts": 1793046326}
