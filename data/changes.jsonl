@@ -1295,3 +1295,5 @@
 {"action": "tag", "ids": ["t1814630731886976_0"], "add": ["steamy"], "remove": [], "ts": 1793047946}
 {"url": "https://www.youtube.com/watch?v=HNXFbyZoK5I", "title": "Code of Practice - Can We Change The Future (Sounds of Life Remix) 1995", "thread": "p1201089333241122", "tags": [], "ts": 1793048048}
 {"url": "https://www.youtube.com/watch?v=T7xEEKnxjGs", "title": "Damon Wild presents Nightivison - Nuclear Sun [EX-23] 1993", "thread": "p1201089333241122", "tags": [], "ts": 1793048123}
+{"url": "https://www.youtube.com/watch?v=EU8XjRro5rc", "title": "Ebi - Hi [ST 006] 1994", "thread": "p1166342666715789", "tags": ["downtempo", "old school techno"], "ts": 1793048308}
+{"action": "promote", "thread": "p1166342666715789", "id": "t1793048308_0", "to": "main", "ts": 1793048314}
