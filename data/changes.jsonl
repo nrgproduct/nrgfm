@@ -1003,3 +1003,5 @@
 {"action": "tag", "ids": ["t27268868676036498_0"], "add": ["emo", "alt rock"], "remove": [], "ts": 1793002464}
 {"action": "tag", "ids": ["t27073196295603738_0"], "add": ["metal", "emo"], "remove": [], "ts": 1793002484}
 {"action": "delete", "thread": "p7628619470488044", "id": "t7749178655098791_0", "ts": 1793002514}
+{"action": "tag", "ids": ["t7401269866556340_0"], "add": ["celtic", "art pop"], "remove": ["duplicate"], "ts": 1793002544}
+{"action": "tag", "ids": ["t7129390830410913_0"], "add": ["2000s pop", "art pop"], "remove": [], "ts": 1793002561}
