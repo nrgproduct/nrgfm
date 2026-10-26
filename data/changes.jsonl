@@ -1166,3 +1166,6 @@
 {"action": "tag", "ids": ["t3166736940009675_0"], "add": ["trap"], "remove": [], "ts": 1793032100}
 {"action": "delete", "thread": "p3171407246209311", "id": "t3231247943558574_0", "ts": 1793032158}
 {"action": "tag", "ids": ["t4003683142981713_0"], "add": ["progressive trance", "london"], "remove": ["duplicate"], "ts": 1793032182}
+{"action": "delete", "thread": "p3885790368104325", "id": "t4031210823562278_0", "ts": 1793032206}
+{"action": "tag", "ids": ["t2235036113179767_0"], "add": ["house"], "remove": ["duplicate"], "ts": 1793032211}
+{"action": "tag", "ids": ["t2235036113179767_0"], "add": ["uk"], "remove": [], "ts": 1793032225}
