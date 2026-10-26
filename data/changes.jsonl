@@ -1073,3 +1073,4 @@
 {"url": "https://www.youtube.com/watch?v=Wpjea9pcm0Y", "title": "Eric Regnier - Cycle lunaire (synth pop, France 1983)", "thread": "p29811169505139723", "tags": ["synth theme"], "ts": 1793011227}
 {"action": "tag", "ids": ["t1793011227_0"], "add": [], "remove": ["synth theme"], "ts": 1793011300}
 {"action": "tag", "ids": ["t29265084103081602_0"], "add": ["leftfield"], "remove": [], "ts": 1793011447}
+{"action": "tag", "ids": ["t1197897316893657_0"], "add": ["euphoric", "london"], "remove": [], "ts": 1793011507}
