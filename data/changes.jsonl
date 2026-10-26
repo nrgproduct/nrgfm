@@ -1201,3 +1201,5 @@
 {"url": "https://www.youtube.com/watch?v=1nf8u0L5HSs", "title": "China Crisis - You Did Cut Me", "thread": "p425888690761194", "tags": ["soul"], "ts": 1793043396}
 {"action": "edit", "thread": "p425888690761194", "id": "t1793043396_0", "title": "China Crisis - You Did Cut Me", "url": "https://www.youtube.com/watch?v=1nf8u0L5HSs", "tags": ["soul", "new wave"], "ts": 1793043406}
 {"url": "https://www.youtube.com/watch?v=9Lz1SI7V-Wc", "title": "China Crisis - King in a Catholic Style", "thread": "p425888690761194", "tags": [], "ts": 1793043526}
+{"url": "https://www.youtube.com/watch?v=rWbz-BjrgKA", "title": "China Crisis - Bigger the Punch I'm Feeling", "thread": "p425888690761194", "tags": ["new wave", "soul"], "ts": 1793043621}
+{"action": "reorder", "thread": "p425888690761194", "id": "t1793043621_0", "to": 6, "ts": 1793043629}
