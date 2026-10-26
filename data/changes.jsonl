@@ -1310,3 +1310,4 @@
 {"action": "tag", "ids": ["t1213485708668151_0"], "add": ["prog"], "remove": [], "ts": 1793049253}
 {"action": "promote", "thread": "xt1176752205674835_0", "id": "t1213485708668151_0", "to": "original", "ts": 1793049352}
 {"url": "https://www.youtube.com/watch?v=3xr4lqSpZ1w", "title": "Funky Family - Funky Is On (1984)", "thread": "xt1213485708668151_0", "tags": ["disco", "italo"], "ts": 1793049371}
+{"url": "https://www.youtube.com/watch?v=e6EYVYXNUIQ", "title": "Blue Russel - I Wanna Fly Away", "thread": "xt1213485708668151_0", "tags": [], "ts": 1793049468}
