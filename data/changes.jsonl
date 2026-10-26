@@ -1261,3 +1261,4 @@
 {"action": "tag", "ids": ["t1262370723779649_0"], "add": ["house"], "remove": [], "ts": 1793046350}
 {"action": "edit", "thread": "p1242504539099601", "id": "t1262370723779649_0", "title": "Pal Joey - Spend The Night", "url": "https://www.youtube.com/watch?v=PE5TS-LTchw", "tags": ["house"], "ts": 1793046356}
 {"action": "edit", "thread": "p1252240141459374", "id": "t1252240141459374_0", "title": "Billy Joel - Don't Ask Me Why", "url": "https://www.youtube.com/watch?v=LwSWEJmQgkE", "tags": ["evergreens"], "ts": 1793046380}
+{"action": "tag", "ids": ["t1267312526618802_0"], "add": ["dansk"], "remove": [], "ts": 1793046417}
