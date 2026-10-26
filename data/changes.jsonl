@@ -1266,3 +1266,7 @@
 {"action": "tag", "ids": ["t1214543601895695_0"], "add": ["leftfield"], "remove": [], "ts": 1793046500}
 {"url": "https://www.youtube.com/watch?v=9C1ppH8vJLg", "title": "Paul Mac - Bits Of These", "thread": "p1214498021900253", "tags": [], "ts": 1793046535}
 {"url": "https://www.youtube.com/watch?v=U3MTFV0TmD8", "title": "Rio De Janeiro - Gary Criss (1978)", "thread": "p1042489292434461", "tags": ["disco"], "ts": 1793046662}
+{"action": "edit", "thread": "p1042489292434461", "id": "t1047554368594620_0", "title": "The Andrea True Connection -  Party Line", "url": "https://www.youtube.com/watch?v=yKbF9_VFsKc", "tags": [], "ts": 1793046681}
+{"action": "delete", "thread": "p1040362459313811", "id": "t1040362459313811_0", "ts": 1793046688}
+{"action": "tag", "ids": ["t1026046584078732_0"], "add": ["outsider", "hiphop"], "remove": [], "ts": 1793046697}
+{"action": "tag", "ids": ["t1047554368594620_0"], "add": ["funk"], "remove": [], "ts": 1793046709}
