@@ -1059,3 +1059,5 @@
 {"action": "tag", "ids": ["t6718252884858045_0"], "add": ["shoegaze", "alt rock"], "remove": [], "ts": 1793005646}
 {"action": "tag", "ids": ["t6663004273716240_0"], "add": ["shoegaze", "alt rock", "euphoric"], "remove": [], "ts": 1793005666}
 {"action": "tag", "ids": ["t6659422630741071_0"], "add": ["art pop", "euphoric"], "remove": [], "ts": 1793005699}
+{"action": "tag", "ids": ["t6659422630741071_0"], "add": ["celtic"], "remove": [], "ts": 1793005738}
+{"action": "edit", "thread": "p6532677473415588", "id": "t6659422630741071_0", "title": "Dreams - The Cranberries (1992)", "url": "https://www.youtube.com/watch?v=K1pY9lSzDro", "tags": ["art pop", "euphoric", "celtic"], "ts": 1793005753}
