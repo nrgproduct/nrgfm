@@ -1044,3 +1044,5 @@
 {"action": "edit", "thread": "p1201545779862144", "id": "t1208419089174813_0", "title": "First Contact - I Call Upon [1992]", "url": "https://www.youtube.com/watch?v=_VLxjVPS1dE", "tags": [], "ts": 1793004869, "genres": ["house", "techno", "ambient", "electronic", "tech", "euro house", "new beat"]}
 {"action": "tag", "ids": ["t1203421113007944_0"], "add": ["evergreens"], "remove": [], "ts": 1793004910}
 {"action": "tag", "ids": ["t1216569521693103_0"], "add": ["leftfield"], "remove": [], "ts": 1793004946}
+{"action": "tag", "ids": ["t1209855415697847_0"], "add": ["dnb"], "remove": [], "ts": 1793004965}
+{"action": "tag", "ids": ["t1208124265870962_0"], "add": ["synth theme"], "remove": [], "ts": 1793004989}
