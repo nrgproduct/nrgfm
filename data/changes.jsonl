@@ -1127,3 +1127,6 @@
 {"action": "tag", "ids": ["t9692525067430797_0"], "add": ["funk"], "remove": [], "ts": 1793030051}
 {"action": "edit", "thread": "p9692525067430797", "id": "t10042064805810153_0", "title": "George Michael - Father Figure [HQ]", "url": "https://www.youtube.com/watch?v=cT6y24Ddn0w", "tags": ["pop", "ballad"], "ts": 1793030193}
 {"action": "tag", "ids": ["t9453947434621896_0"], "add": ["steamy"], "remove": [], "ts": 1793030323}
+{"action": "tag", "ids": ["t9453947434621896_0"], "add": ["progressive trance"], "remove": [], "ts": 1793030343}
+{"action": "delete", "thread": "p7829456560404333", "id": "t7908237355859586_0", "ts": 1793030388}
+{"action": "tag", "ids": ["t9444527868897186_0"], "add": ["art pop"], "remove": ["duplicate"], "ts": 1793030396}
