@@ -1164,3 +1164,5 @@
 {"action": "tag", "ids": ["t3174400599243309_0"], "add": [], "remove": ["steamy"], "ts": 1793032056}
 {"action": "tag", "ids": ["t3166736940009675_0"], "add": ["leftfield", "london", "bass"], "remove": [], "ts": 1793032093}
 {"action": "tag", "ids": ["t3166736940009675_0"], "add": ["trap"], "remove": [], "ts": 1793032100}
+{"action": "delete", "thread": "p3171407246209311", "id": "t3231247943558574_0", "ts": 1793032158}
+{"action": "tag", "ids": ["t4003683142981713_0"], "add": ["progressive trance", "london"], "remove": ["duplicate"], "ts": 1793032182}
