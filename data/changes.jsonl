@@ -1056,3 +1056,4 @@
 {"action": "promote", "thread": "p7628619470488044", "id": "t8145227635493889_0", "to": "original", "ts": 1793005535}
 {"action": "promote", "thread": "p7628619470488044", "id": "t7741583472524976_0", "to": "original", "ts": 1793005543}
 {"action": "edit", "thread": "p6532677473415588", "id": "t6738000252883308_0", "title": "Cocteau Twins ~ Heaven Or Las Vegas (1990)", "url": "https://www.youtube.com/watch?v=JlwcQR5HHck", "tags": ["art pop", "euphoric", "shoegaze", "alt rock"], "ts": 1793005620}
+{"action": "tag", "ids": ["t6718252884858045_0"], "add": ["shoegaze", "alt rock"], "remove": [], "ts": 1793005646}
