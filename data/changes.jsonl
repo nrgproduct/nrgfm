@@ -1301,3 +1301,5 @@
 {"action": "tag", "ids": ["t1152219654794757_0"], "add": ["hardcore"], "remove": [], "ts": 1793048415}
 {"url": "https://www.youtube.com/watch?v=JYcpPUou9i8", "title": "Future Bound - Sorrow (1996)", "thread": "p1212613192088736", "tags": ["atmospheric jungle", "steamy"], "ts": 1793048628}
 {"action": "promote", "thread": "p1212613192088736", "id": "t1793048628_0", "to": "main", "ts": 1793048646}
+{"url": "https://www.youtube.com/watch?v=E0ju5RBLr5g", "title": "The Circle City Band - Magic (12\" Extended 1983)", "thread": "p1125235577493165", "tags": ["disco", "funk"], "ts": 1793048890}
+{"action": "promote", "thread": "p1125235577493165", "id": "t1793048890_0", "to": "main", "ts": 1793048897}
