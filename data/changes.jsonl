@@ -1211,3 +1211,8 @@
 {"action": "reorder", "thread": "p425888690761194", "id": "t1793043396_0", "to": 4, "ts": 1793043651}
 {"action": "edit", "thread": "p425888690761194", "id": "t1793043396_0", "title": "China Crisis - You Did Cut Me", "url": "https://www.youtube.com/watch?v=1nf8u0L5HSs", "tags": ["soul", "new wave"], "ts": 1793043654}
 {"url": "https://www.youtube.com/watch?v=-yn4ix-1R7c", "title": "China Crisis - The World Spins, I'm Part Of It", "thread": "p425888690761194", "tags": [], "ts": 1793043759}
+{"url": "https://www.youtube.com/watch?v=zCa9RE04lPU", "title": "China Crisis - Blue Sea", "thread": "p425888690761194", "tags": ["new wave", "ballad"], "ts": 1793043854}
+{"action": "reorder", "thread": "p425888690761194", "id": "t1793043854_0", "to": 8, "ts": 1793043858}
+{"action": "reorder", "thread": "p425888690761194", "id": "t1793043854_0", "to": 7, "ts": 1793043861}
+{"action": "reorder", "thread": "p425888690761194", "id": "t1793043854_0", "to": 6, "ts": 1793043864}
+{"action": "reorder", "thread": "p425888690761194", "id": "t1793043854_0", "to": 5, "ts": 1793043870}
