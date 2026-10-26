@@ -1160,3 +1160,7 @@
 {"action": "tag", "ids": ["t3167934973223205_0"], "add": ["soft pop", "soul"], "remove": [], "ts": 1793031973}
 {"action": "tag", "ids": ["t3174400599243309_0"], "add": ["steamy", "london"], "remove": [], "ts": 1793032026}
 {"action": "tag", "ids": ["t3174400599243309_0"], "add": ["downtempo"], "remove": [], "ts": 1793032043}
+{"action": "tag", "ids": ["t3174400599243309_0"], "add": ["euphoric"], "remove": [], "ts": 1793032049}
+{"action": "tag", "ids": ["t3174400599243309_0"], "add": [], "remove": ["steamy"], "ts": 1793032056}
+{"action": "tag", "ids": ["t3166736940009675_0"], "add": ["leftfield", "london", "bass"], "remove": [], "ts": 1793032093}
+{"action": "tag", "ids": ["t3166736940009675_0"], "add": ["trap"], "remove": [], "ts": 1793032100}
