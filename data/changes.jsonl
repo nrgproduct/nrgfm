@@ -1096,3 +1096,4 @@
 {"action": "edit", "thread": "p1197897316893657", "id": "t1208610832488972_0", "title": "SPQR UNLIMITED DREAMS EP HYPNOTIC STATE", "url": "https://www.youtube.com/watch?v=uUcL2sQWzMc", "tags": ["plays on youtube only"], "ts": 1793012607}
 {"url": "https://www.youtube.com/watch?v=0vgN26KxcBY", "title": "S.P.Q.R. - Hypnotic State (1993 Mix)", "thread": "p1197897316893657", "tags": ["trance", "euphoric"], "ts": 1793012676}
 {"action": "delete", "thread": "p1197897316893657", "id": "t1203684116314977_0", "ts": 1793012701}
+{"action": "tag", "ids": ["t1207688395914549_0"], "add": ["leftfield"], "remove": [], "ts": 1793012739}
