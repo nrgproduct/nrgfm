@@ -1008,3 +1008,5 @@
 {"action": "tag", "ids": ["t7050658314950832_0"], "add": ["alt rock", "prog"], "remove": [], "ts": 1793002591}
 {"action": "tag", "ids": ["t6843657455650920_0"], "add": ["zoinked", "art pop"], "remove": [], "ts": 1793002610}
 {"action": "tag", "ids": ["t7018871578129506_0"], "add": ["soft pop"], "remove": [], "ts": 1793002630}
+{"action": "tag", "ids": ["t7129345100415486_0"], "add": ["soft pop"], "remove": ["duplicate"], "ts": 1793002682}
+{"action": "delete", "thread": "p8322210567795594", "id": "t8322210567795594_0", "ts": 1793002686}
