@@ -1336,3 +1336,6 @@
 {"action": "edit", "thread": "p5043444632338887", "id": "t5099768176706532_0", "title": "Basement Jaxx - Something About You (2014)", "url": "https://www.youtube.com/watch?v=-8P1RMFJ5-Ya", "tags": [], "ts": 1793092021}
 {"action": "tag", "ids": ["t5046301162053234_0"], "add": ["leftfield"], "remove": [], "ts": 1793092099}
 {"action": "tag", "ids": ["t5099768176706532_0"], "add": ["art pop"], "remove": [], "ts": 1793092113}
+{"action": "tag", "ids": ["t5081574311859252_0"], "add": ["art pop", "trap"], "remove": [], "ts": 1793092138}
+{"action": "tag", "ids": ["t5151141854902497_0"], "add": ["art pop"], "remove": [], "ts": 1793092149}
+{"action": "tag", "ids": ["t5123535977663085_0"], "add": ["art pop"], "remove": [], "ts": 1793092172}
