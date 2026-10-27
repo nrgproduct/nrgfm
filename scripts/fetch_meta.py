@@ -71,6 +71,8 @@ def main():
     todo = []
     for th in tracks["threads"]:
         for t in th["tracks"]:
+            if not t.get("url"):
+                continue  # (a track without a link)
             if t["url"] not in meta and t["url"] not in [x["url"] for x in todo[-50:]]:
                 todo.append(t)
             a = parse(t["alt"]) if t.get("alt") else None  # the alternative link is looked up too

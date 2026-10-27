@@ -2,6 +2,8 @@
    POST /play     (anyone visiting the site) one play, sent after 10 seconds of playing and updated as it goes on
    GET  /days     (key)  the days with plays and how many, in the viewer's time zone (?tz=minutes east of UTC, ?who=)
    GET  /plays    (key)  the plays of one day (?day=YYYY-MM-DD&tz=&who=), or of some tracks (?urls=a|b|c)
+   GET  /periods  (key)  the months (?group=month), years (year) or all time (all) with plays, and how many (?min= seconds)
+   GET  /top      (key)  the tracks played most in one of them (?group=&p=2026-10&min=&who=)
    GET  /devices  (key)  every device/guest that played
    POST /name     (key)  give a device a name {who, name}
    "key": the site's GitHub key (Authorization: Bearer …), accepted when it can write to the nrgfm repository. */
@@ -65,8 +67,9 @@ export default {
       const who = url.searchParams.get("who");
       const since = Math.floor(Date.now() / 1000) - YEAR;
       if (path === "/days") {
+        const m0 = Math.max(0, Math.min(600, Math.round(+url.searchParams.get("min") || 0)));
         const { results } = await env.DB.prepare(`SELECT date(ts + ?1, 'unixepoch') AS day, COUNT(*) AS n FROM plays
-          WHERE ts > ?2 AND (?3 IS NULL OR who = ?3) GROUP BY day ORDER BY day DESC`).bind(tz, since, who).all();
+          WHERE ts > ?2 AND (?3 IS NULL OR who = ?3) AND (sec IS NULL OR sec >= ?4) GROUP BY day ORDER BY day DESC`).bind(tz, since, who, m0).all();
         return json(req, results);
       }
       if (path === "/plays") {
@@ -82,6 +85,22 @@ export default {
         const start = Math.floor(Date.parse(day + "T00:00:00Z") / 1000) - tz;
         const { results } = await env.DB.prepare(`SELECT * FROM plays WHERE ts >= ?1 AND ts < ?2 AND (?3 IS NULL OR who = ?3) ORDER BY ts DESC`)
           .bind(start, start + 86400, who).all();
+        return json(req, results);
+      }
+      // most played: the months (or years) with plays, and the tracks played most in one of them
+      const minSec = Math.max(0, Math.min(600, Math.round(+url.searchParams.get("min") || 0)));
+      const group = url.searchParams.get("group") === "year" ? "%Y" : url.searchParams.get("group") === "all" ? "all" : "%Y-%m";
+      const per = group === "all" ? "'all'" : `strftime('${group}', ts + ?1, 'unixepoch')`;
+      if (path === "/periods") {
+        const { results } = await env.DB.prepare(`SELECT ${per} AS p, COUNT(*) AS n FROM plays
+          WHERE ts > ?2 AND (?3 IS NULL OR who = ?3) AND (sec IS NULL OR sec >= ?4) GROUP BY p ORDER BY p DESC`).bind(tz, since, who, minSec).all();
+        return json(req, results);
+      }
+      if (path === "/top") {
+        const pp = url.searchParams.get("p") || "all";
+        const { results } = await env.DB.prepare(`SELECT url, MAX(tid) AS tid, MAX(title) AS title, COUNT(*) AS n, SUM(COALESCE(sec, 0)) AS sec, MAX(ts) AS last FROM plays
+          WHERE ts > ?2 AND (?3 IS NULL OR who = ?3) AND (sec IS NULL OR sec >= ?4) AND ${per} = ?5
+          GROUP BY url ORDER BY n DESC, last DESC LIMIT 200`).bind(tz, since, who, minSec, pp).all();
         return json(req, results);
       }
       if (path === "/devices") {

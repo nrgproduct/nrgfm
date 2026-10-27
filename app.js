@@ -64,6 +64,7 @@ function flipDotTitle(title) {
 const HAS_ARTIST_SEP = /\s[-–—]\s|\S[-–—]\s|\s[-–—]\S/;
 
 function info(t) {
+  if (!t.url) return { title: t.title || "Untitled", author: "", thumb: "", dead: false, noEmbed: false, recovered: false, archive: "", untitled: !t.title, nolink: true }; // (added without a link)
   const m = meta[t.url] || {};
   const recovered = !!(m.dead && m.wb_title);
   const fetched = BAD_TITLES.has((m.title || "").toLowerCase()) ? "" : m.title;
@@ -331,7 +332,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", threadsold: "Threads (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -648,7 +649,9 @@ function drawViewHead() {
   } else if (view === "activity") {
     head.replaceChildren(act.head); head.hidden = false; return;
   } else if (view === "tags") {
-    head.replaceChildren(tagPageHead()); head.hidden = false; return;
+    head.replaceChildren(tagPageHead()); head.hidden = false;
+    if (!phone() && !tp.focused) { tp.focused = true; requestAnimationFrame(() => { const a = document.activeElement; if (!a || !a.matches("input, textarea")) head.querySelector(".tp-search .tag-input")?.focus({ preventScroll: true }); }); }
+    return;
   } else if (view === "tagsold") {
     head.hidden = true; return;
   } else { head.hidden = true; return; }
@@ -700,6 +703,7 @@ function setView(v, keepHash) {
   }
   view = VIEW_NAMES[v] ? v : "threads";
   if (view !== "tags") hideTagPanel();
+  tp.focused = false; // (opening Tags puts the cursor in its search field)
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : "#/" + view);
   document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   $("#q").value = ""; syncClear();
@@ -781,11 +785,11 @@ function trackRow(t, tr, i, hits) {
 /* right side of a row: "Edit" (only on a device with a key) and the platform link */
 function rowLinks(t, i, x) {
   const tr = t.tracks[i];
-  const findable = x.dead && x.title !== "Unavailable";
+  const findable = (x.dead && x.title !== "Unavailable") || x.nolink; // (a track without a link: look its title up on YouTube)
   return el("span", { class: "row-links" },
     el("button", { class: "linkbtn edit-btn", onclick: (e) => toggleEditForm(t, i, e.currentTarget.closest("[data-k]")) }, "Edit"),
     findable ? el("a", { class: "src find-yt", href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener", title: "Look for this title on YouTube" }, "Search") : null,
-    x.archive
+    x.nolink ? null : x.archive
       ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
       : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
 }
@@ -1259,7 +1263,7 @@ function setTime(cur, dur) {
   seek.style.setProperty("--p", (dur > 0 ? (cur / dur) * 100 : 0) + "%");
 }
 /* autoplay goes to the next track that can play, skipping deleted links and ones that only play on YouTube */
-function playable(tr) { const x = info(tr); return !x.dead && !x.noEmbed; }
+function playable(tr) { const x = info(tr); return !x.dead && !x.noEmbed && !x.nolink; }
 function autoNext() {
   if (!autoplay || !playing) return;
   const { thread: t, index: i } = playing;
@@ -1397,7 +1401,10 @@ function play(t, i) {
   setPlayState(false); setTime(0, 0);
 
   let kind = "video";
-  if (x.dead) {
+  if (x.nolink) {
+    kind = "note";
+    box.append(el("p", { class: "nolink" }, "This track has no link yet. ", el("a", { href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener" }, "Search for it on YouTube")));
+  } else if (x.dead) {
     kind = "note";
     box.append(el("p", { class: "nolink" }, x.archive
       ? "This track was deleted."
@@ -1805,7 +1812,7 @@ function addForm(thread, edit, row) {
     el("div", { class: "af-field" },
       el("input", { name: "title", type: "text", "aria-label": "Title", placeholder: "Artist – Track (optional, filled in automatically)" })),
     el("div", { class: "af-field" },
-      el("input", { name: "url", type: "url", required: true, "aria-label": "Link", placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link" })),
+      el("input", { name: "url", type: "url", "aria-label": "Link", placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link (or leave it empty)" })),
     el("div", { class: "af-actions" },
       tags.box,
       el("span", { class: "af-gap" }),
@@ -2042,8 +2049,8 @@ function rerenderThread(t, flashIndex) {
 async function saveEdit(form, { t, i }) {
   const tr = t.tracks[i];
   const fromThread = form.closest(".thread") ? form.closest(".thread").id.slice(3) : t.id; // where the track was edited (a tag thread or its own)
-  const url = form.url.value.trim(), title = form.title.value.trim();
-  if (!LINK_RE.test(url)) {
+  const url = form.url.value.trim() || tr.url, title = form.title.value.trim();
+  if (url && !LINK_RE.test(url)) {
     form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
     form.url.reportValidity();
     return;
@@ -2421,7 +2428,8 @@ function refreshHistory() {
 
 async function saveTrack(form, thread) {
   const url = form.url.value.trim();
-  if (!LINK_RE.test(url)) {
+  if (!url && !form.title.value.trim()) { form.title.setCustomValidity("A title, a link, or both."); form.title.reportValidity(); form.title.addEventListener("input", () => form.title.setCustomValidity(""), { once: true }); return; }
+  if (url && !LINK_RE.test(url)) {
     form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
     form.url.reportValidity();
     return;
@@ -2440,8 +2448,8 @@ async function saveTrack(form, thread) {
 /* show the new track right away; the full title and thumbnail arrive with the next site update */
 function showLocally(item) {
   const yt = (item.url.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/) || [])[1];
-  const host = new URL(item.url).hostname;
-  const platform = yt ? "youtube" : /soundcloud/.test(host) ? "soundcloud" : /bandcamp/.test(host) ? "bandcamp" : /vimeo/.test(host) ? "vimeo" : /mixcloud/.test(host) ? "mixcloud" : "link";
+  const host = item.url ? new URL(item.url).hostname : "";
+  const platform = !item.url ? "none" : yt ? "youtube" : /soundcloud/.test(host) ? "soundcloud" : /bandcamp/.test(host) ? "bandcamp" : /vimeo/.test(host) ? "vimeo" : /mixcloud/.test(host) ? "mixcloud" : "link";
   const tr = { id: `t${item.ts}_0`, date: new Date(item.ts * 1000).toISOString().slice(0, 10), ts: item.ts, platform, url: item.url };
   if (yt) tr.yt = yt;
   if (item.title) tr.title = item.title;
@@ -2618,7 +2626,7 @@ function quickClick(e, t, tr) {
 }
 function tagPageHead() {
   const sort = tagPref("sort", "newest"), z = tagZoom();
-  const sortBtns = [["newest", "Newest added"], ["az", "A–Z"]].map(([k, name]) => el("button", { class: "when-link" + (sort === k ? " on" : ""),
+  const sortBtns = [["newest", "Newest added"], ["az", "A–Z"], ["count", "Track count"]].map(([k, name]) => el("button", { class: "when-link" + (sort === k ? " on" : ""),
     onclick: () => { setTagPref("sort", k); drawViewHead(); renderTagsPage(); pageScrollTo(0); } }, name));
   const zoom = (d) => { setTagPref("zoom", String(Math.max(-1, Math.min(2, z + d)))); drawViewHead(); renderTagsPage(); };
   if (phone()) {
@@ -2734,7 +2742,7 @@ function renderTagsPage() {
   const mode = tagMode();
   const words = [...tp.terms, ...(tp.q.trim() ? [tp.q.trim()] : [])];
   const all = threads.filter((t) => t.kind === "tag" && (!words.length || words.some((w) => tagMatches(t.name, w))))
-    .sort(tagPref("sort", "newest") === "az" ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.last - a.last);
+    .sort({ az: (a, b) => a.name.localeCompare(b.name), count: (a, b) => b.tracks.length - a.tracks.length || b.last - a.last }[tagPref("sort", "newest")] || ((a, b) => b.last - a.last));
   const own = all.filter((t) => !AUTO_TAGS.has(t.name)), auto = all.filter((t) => AUTO_TAGS.has(t.name));
   if (!all.length) { list.replaceChildren(el("p", { class: "view-note tp-none" }, "No tags match.")); return; }
   list.replaceChildren(el("div", { class: "tp-page tp-mode-" + mode },
@@ -2941,7 +2949,8 @@ function logUncounted() { // players that don't say where they are (Bandcamp, Mi
 addEventListener("pagehide", endPlayLog);
 document.addEventListener("visibilitychange", () => { if (document.hidden && plog && plog.sent && plog.sec !== plog.sentSec) sendPlay(true); });
 
-const act = { day: null, who: null, flagged: false, days: [], devices: [], head: el("div", { class: "act-head" }), token: 0 };
+const act = { day: null, who: null, flagged: false, full: false, days: [], devices: [], periods: [], period: null, group: "month",
+  mode: (() => { try { return localStorage.getItem("nrgfm-act-mode") || "plays"; } catch { return "plays"; } })(), head: el("div", { class: "act-head" }), token: 0 };
 const actTz = () => -new Date().getTimezoneOffset();
 const actApi = (path) => fetch(ACT_URL + path + (path.includes("?") ? "&" : "?") + "tz=" + actTz(), { headers: { Authorization: "Bearer " + getToken() } })
   .then((r) => { if (!r.ok) throw new Error(r.status === 401 ? "The key wasn't accepted." : "The Activity server answered " + r.status + "."); return r.json(); });
@@ -2969,18 +2978,53 @@ async function renderActivity() {
   if (!ACT_URL) { act.head.replaceChildren(); list.replaceChildren(el("p", { class: "view-note" }, "The Activity server isn't set up yet.")); return; }
   list.replaceChildren(el("p", { class: "view-note" }, "Loading…"));
   try {
-    const who = act.who ? "?who=" + encodeURIComponent(act.who) : "";
-    [act.days, act.devices] = await Promise.all([actApi("/days" + who), actApi("/devices")]);
+    const q = "?min=" + (act.full ? 15 : 0) + (act.who ? "&who=" + encodeURIComponent(act.who) : "");
+    if (act.mode === "top") [act.periods, act.devices] = await Promise.all([actApi("/periods" + q + "&group=" + act.group), actApi("/devices")]);
+    else [act.days, act.devices] = await Promise.all([actApi("/days" + q), actApi("/devices")]);
   } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message || "The Activity server didn't answer.")); return; }
   if (token !== act.token) return;
-  if (!act.days.some((d) => d.day === act.day)) act.day = act.days.length ? act.days[0].day : null;
+  if (act.mode === "top") { if (!act.periods.some((d) => d.p === act.period)) act.period = act.periods.length ? act.periods[0].p : null; }
+  else if (!act.days.some((d) => d.day === act.day)) act.day = act.days.length ? act.days[0].day : null;
   drawActHead();
-  await drawActList(token);
+  await (act.mode === "top" ? drawTopList(token) : drawActList(token));
+}
+const actPeriodName = (p) => (p === "all" ? "All time" : /^\d{4}-\d\d$/.test(p) ? MONTHS[+p.slice(5) - 1].slice(0, 3) + " " + p.slice(0, 4) : p);
+/* Most played: the tracks played most in the month (year, all time) picked, with how many times */
+async function drawTopList(token) {
+  const list = $("#threads");
+  let rows = [];
+  try {
+    if (act.period) rows = await actApi(`/top?group=${act.group}&p=${encodeURIComponent(act.period)}&min=${act.full ? 15 : 0}` + (act.who ? "&who=" + encodeURIComponent(act.who) : ""));
+  } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message)); return; }
+  if (token !== act.token) return;
+  if (act.flagged) rows = rows.filter((r) => { const at = trackByPlay(r), tr = at && at.t.tracks[at.i]; return tr && tr.tags && tr.tags.flagged; });
+  if (!rows.length) { list.replaceChildren(el("p", { class: "view-note" }, "Nothing has been played yet.")); return; }
+  list.replaceChildren(el("ul", { class: "act-list act-top" }, rows.map((r, k) => {
+    const at = trackByPlay(r), tr = at && at.t.tracks[at.i], x = tr ? info(tr) : null;
+    const flagBtn = tr ? el("button", { class: "act-flag" + (tr.tags && tr.tags.flagged ? " on" : ""), "aria-label": "Flag", onclick: async (e) => {
+      const b = e.currentTarget; if (await toggleFlag(tr)) { const on = !!(tr.tags && tr.tags.flagged); b.classList.toggle("on", on); b.replaceChildren(FLAG_SVG(on)); }
+    } }, FLAG_SVG(!!(tr.tags && tr.tags.flagged))) : el("span");
+    return el("li", { class: "act-line" },
+      el("span", { class: "act-time act-rank" }, k + 1),
+      el("button", { class: "play month-play", disabled: !tr || null, onclick: () => tr && play(at.t, at.i) },
+        img(x ? x.thumb : "", "mini"), el("span", { class: "act-text" }, el("span", { class: "tr-title" }, x ? x.title : r.title || r.url))),
+      el("span", { class: "act-count" }, `${r.n} ${r.n === 1 ? "play" : "plays"}`),
+      flagBtn);
+  })));
 }
 function drawActHead() {
   const go = (fn) => () => { fn(); renderActivity(); };
-  const dayRow = el("div", { class: "hist-years act-days" }, act.days.map((d) => el("button", { class: "when-link" + (!act.flagged && d.day === act.day ? " on" : ""),
-    onclick: go(() => { act.day = d.day; act.flagged = false; }) }, actDayName(d.day), el("span", { class: "gi-n" }, d.n))));
+  const top = act.mode === "top";
+  const dayRow = el("div", { class: "hist-years act-days" }, top
+    ? act.periods.map((d) => el("button", { class: "when-link" + (d.p === act.period ? " on" : ""), onclick: go(() => { act.period = d.p; }) }, actPeriodName(d.p), el("span", { class: "gi-n" }, d.n)))
+    : act.days.map((d) => el("button", { class: "when-link" + (!act.flagged && d.day === act.day ? " on" : ""),
+      onclick: go(() => { act.day = d.day; act.flagged = false; }) }, actDayName(d.day), el("span", { class: "gi-n" }, d.n))));
+  const setMode = (m) => { act.mode = m; try { localStorage.setItem("nrgfm-act-mode", m); } catch {} };
+  const views = el("div", { class: "act-views" },
+    el("button", { class: "when-link" + (!top ? " on" : ""), onclick: go(() => setMode("plays")) }, "Plays"),
+    el("button", { class: "when-link" + (top ? " on" : ""), onclick: go(() => setMode("top")) }, "Most played"),
+    top ? el("span", { class: "act-groups" }, [["month", "By month"], ["year", "By year"], ["all", "All time"]].map(([g, name]) =>
+      el("button", { class: "when-link" + (act.group === g ? " on" : ""), onclick: go(() => { act.group = g; act.period = null; }) }, name))) : null);
   const edgeFade = () => { dayRow.classList.toggle("fade-l", dayRow.scrollLeft > 2); dayRow.classList.toggle("fade-r", dayRow.scrollLeft + dayRow.clientWidth < dayRow.scrollWidth - 2); };
   dayRow.addEventListener("scroll", edgeFade, { passive: true }); requestAnimationFrame(edgeFade);
   dayRow.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && dayRow.scrollWidth > dayRow.clientWidth) { e.preventDefault(); dayRow.scrollLeft += e.deltaY; } }, { passive: false });
@@ -2991,7 +3035,8 @@ function drawActHead() {
     owners.map((d) => el("button", { class: "when-link" + (act.who === d.who ? " on" : ""), onclick: go(() => { act.who = d.who; }) }, deviceLabel(d))),
     cur && !cur.owner ? el("button", { class: "when-link on", onclick: go(() => { act.who = null; }) }, deviceLabel(cur) + " ×") : null,
     el("span", { class: "act-sep" }),
-    el("button", { class: "when-link act-flag-filter" + (act.flagged ? " on" : ""), onclick: go(() => { act.flagged = !act.flagged; }) }, FLAG_SVG(act.flagged), "flagged"));
+    el("button", { class: "when-link act-flag-filter" + (act.flagged ? " on" : ""), onclick: go(() => { act.flagged = !act.flagged; }) }, FLAG_SVG(act.flagged), "flagged"),
+    el("button", { class: "when-link" + (act.full ? " on" : ""), onclick: go(() => { act.full = !act.full; }) }, "Full plays"));
   // this device: give it a name (once)
   let naming = null;
   if (!myName()) {
@@ -3008,7 +3053,7 @@ function drawActHead() {
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } });
     naming = el("span", { class: "act-naming" }, input, el("button", { type: "button", class: "when-link", onclick: save }, "Save"));
   }
-  act.head.replaceChildren(dayRow, el("div", { class: "hist-months-row act-row2" }, chips, naming));
+  act.head.replaceChildren(views, dayRow, el("div", { class: "hist-months-row act-row2" }, chips, naming));
   const head = $("#viewHead");
   if (view === "activity" && !$("#q").value.trim()) { head.className = "view-head view-history view-activity"; head.replaceChildren(act.head); head.hidden = false; }
 }
@@ -3024,6 +3069,7 @@ async function drawActList(token) {
     } else plays = [];
   } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message)); return; }
   if (token !== act.token) return;
+  if (act.full) plays = plays.filter((p) => p.sec === null || p.sec >= 15); // (players that don't say how long count as full)
   if (!plays.length) { list.replaceChildren(el("p", { class: "view-note" }, act.flagged ? "No flagged tracks have been played." : "Nothing has been played yet.")); return; }
   const devs = new Map(act.devices.map((d) => [d.who, d]));
   const part = (ts) => { const h = new Date(ts * 1000).getHours(); return h < 5 ? "Night" : h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening"; };
@@ -3111,7 +3157,11 @@ $("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if 
 // phones: Enter, or touching anywhere outside the search field, puts the keyboard away
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
 document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
-$("#home").onclick = (e) => { e.preventDefault(); HOVER_MENU ? toggleMenu(true) : toggleMenu(); };
+$("#home").onclick = (e) => {
+  e.preventDefault();
+  if (e.metaKey || e.ctrlKey) { open(location.pathname, "_blank"); return; } // Cmd/Ctrl+click: the site in a new tab
+  HOVER_MENU ? toggleMenu(true) : toggleMenu();
+};
 /* laptop: the menu opens as soon as the pointer is on the logo and stays open while the pointer is anywhere in
    the header (search, Add track, the menu itself); it closes ~0.4 s after leaving the header. A click on the
    logo only opens it. */

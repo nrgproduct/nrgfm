@@ -7,7 +7,7 @@
   chinese characters       the title has Han characters (hanzi), no kana, and the track's country is China, Taiwan, Hong Kong,
                            Macau or Singapore (titles with only Han characters are mostly Japanese in this archive)
   korean characters        the title has Hangul (a title can get more than one of these)
-  backup link              the main link is gone and the track plays from its alternative link
+  backup link              the main link has been gone for more than a day and the track plays from its alternative link
 
 Usage: python3 scripts/auto_tags.py"""
 import json, os, re, time, unicodedata
@@ -36,6 +36,8 @@ def fold(s):
 
 
 def link_key(tr):
+    if not tr.get("url"):
+        return "id:" + tr["id"]  # (no link: never a duplicate by link)
     if tr.get("yt"):
         return "yt:" + tr["yt"]
     u = re.sub(r"^https?://(www\.|m\.)?", "", tr["url"].strip().lower()).split("#")[0].rstrip("/")
@@ -60,6 +62,8 @@ def main():
             by_title.setdefault(t, []).append(tr)
     dup = {id(tr) for group in list(by_link.values()) + list(by_title.values()) if len(group) > 1 for tr in group}
     now, changed = int(time.time()), 0
+    dp = os.path.join(DATA, "link-down.json")  # main links found gone, and since when (for "backup link")
+    down = json.load(open(dp, encoding="utf-8")) if os.path.exists(dp) else {}
     for tr in tracks:
         want = set()
         if id(tr) in dup:
@@ -84,7 +88,11 @@ def main():
             want.add("korean characters")
         mm = meta.get(tr["url"], {})
         if tr.get("alt") and (mm.get("dead") or mm.get("status") == 401) and not meta.get(tr["alt"], {}).get("dead"):
-            want.add("backup link")
+            since = down.setdefault(tr["url"], now)  # first seen gone; the tag only after a day
+            if now - since > 86400:
+                want.add("backup link")
+        else:
+            down.pop(tr["url"], None)
         tags = tr.get("tags") or {}
         have = {g for g in AUTO if g in tags}
         if have == want:
@@ -98,6 +106,8 @@ def main():
             tr["tags"] = tags
         else:
             tr.pop("tags", None)
+    if down or os.path.exists(dp):
+        json.dump(down, open(dp, "w", encoding="utf-8"), indent=1)
     if changed:
         json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print("automatic tags changed on", changed, "tracks;", len(dup), "duplicates")

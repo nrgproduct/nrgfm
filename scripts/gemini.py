@@ -279,7 +279,7 @@ def main():
     for th in tracks["threads"]:
         for tr in th["tracks"]:
             u = tr["url"]
-            if u in seen or meta.get(u, {}).get("dead") and not title_of(tr, meta):
+            if not u or u in seen or meta.get(u, {}).get("dead") and not title_of(tr, meta):
                 continue
             seen.add(u)
             f = facts(tr, meta, extra, desc)

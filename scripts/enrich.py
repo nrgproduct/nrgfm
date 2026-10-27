@@ -361,7 +361,7 @@ def main():
     for th in tracks["threads"]:
         for tr in th["tracks"]:
             u = tr["url"]
-            if u in seen:
+            if not u or u in seen:  # (a track without a link)
                 continue
             seen.add(u)
             e = extra.get(u, {})

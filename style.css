@@ -1397,3 +1397,10 @@ body.side-open .tag-panel { visibility: hidden; }
 .tp-search .tag-field { padding-right: 36px; }
 /* edit card: the alternative link */
 .af-alt input { width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; font-size: 14px; }
+
+/* Activity: Plays / Most played */
+.act-views { display: flex; gap: 18px; align-items: baseline; margin-bottom: 10px; font-size: 15px; }
+.act-groups { display: inline-flex; gap: 14px; margin-left: auto; font-size: 14px; }
+.act-rank { text-align: right; padding-right: 6px; }
+.act-count { color: var(--muted); font-size: 13px; white-space: nowrap; }
+@media (max-width: 640px) { .act-views { flex-wrap: wrap; } .act-count { display: none; } .act-top .act-line { grid-template-columns: 30px minmax(0, 1fr) 28px; } }

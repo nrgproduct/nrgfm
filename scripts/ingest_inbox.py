@@ -59,7 +59,8 @@ def find(data, thread_id, track_id):
 
 
 def apply_add(data, by_id, item):
-    t = parse(item.get("url", "").strip())
+    url = item.get("url", "").strip()
+    t = parse(url) if url else ({"platform": "none", "url": ""} if (item.get("title") or "").strip() else None)  # (no link: just the title)
     if not t:
         return "not a music link"
     ts = int(item.get("ts") or time.time())
