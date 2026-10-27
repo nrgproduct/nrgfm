@@ -332,7 +332,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", threadsold: "Threads (Oct 2026)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Tagged", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", threadsold: "Threads (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -343,6 +343,7 @@ function viewItems() {
   if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
   if (view === "history") return historyMonths();
   if (view === "activity") return []; // drawn by renderActivity
+  if (view === "tagged") return threads.filter((t) => isBase(t) && t.tracks.some(userTagged));
   return threads.filter(isBase);
 }
 const baseTracks = () => threads.filter(isBase).flatMap((t) => t.tracks);
@@ -1091,7 +1092,21 @@ function searchRows(t, hits) {
 }
 const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a + k);
 
+/* a track with one of the group's own tags (the automatic ones don't count) */
+const userTagged = (tr) => shownTags(tr).some((g) => !AUTO_TAGS.has(g));
+/* Tagged: a thread as only its tagged tracks; an untagged main track stays, greyed, as a normal row */
+function taggedNode(t) {
+  const rows = [];
+  t.tracks.forEach((tr, i) => {
+    if (i === 0 || userTagged(tr)) { const r = trackRow(t, tr, i, null); if (!userTagged(tr)) r.classList.add("tg-ctx"); rows.push(r); }
+  });
+  const head = t.tracks[0];
+  return el("li", { class: "thread tagged-thread", id: "th-" + t.id },
+    el("div", { class: "tg-when" }, el("button", { class: "when-link", onclick: () => { setView("threads"); setTimeout(() => goToThread(t), 0); } }, fmtDay(head.shown_date || head.date))),
+    el("ol", { class: "tracks tg-tracks" }, rows));
+}
 function threadNode({ t, hits }) {
+  if (view === "tagged" && !hits && t.kind === "thread") return taggedNode(t);
   if (t.kind === "month") return monthNode({ t });
   if (t.mix) return genreMixNode(t);
   if (t.kind === "tag") return tagThreadNode({ t, hits });
@@ -2908,6 +2923,60 @@ addEventListener("scroll", () => {
 addEventListener("resize", placeTpBar);
 function fmtTs(ts) { const d = new Date(ts * 1000); return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear(); }
 addEventListener("scroll", () => placeTagPanel(), { passive: true });
+
+/* ---------- Threads and Tagged: the page you are on (25 threads a page), shown beside the scroll bar while scrolling;
+   clicking it opens a box to jump to a page ---------- */
+const PER_PAGE = 25;
+const pageBox = el("button", { type: "button", class: "page-pill", hidden: true });
+const pagePop = el("div", { class: "page-pop", hidden: true });
+document.body.append(pageBox, pagePop);
+const pagingOn = () => (view === "threads" || view === "tagged") && !$("#q").value.trim() && shown.length > PER_PAGE;
+function pageNow() { // the first thread at the top of the window
+  const top = headerBottom() + 4;
+  for (let k = 0; k < rendered; k++) { const n = document.getElementById("th-" + shown[k].t.id); if (n && n.getBoundingClientRect().bottom > top) return k; }
+  return 0;
+}
+const monthYear = (t) => { const d = (t.tracks[0].shown_date || t.tracks[0].date || "").split("-"); return d[1] ? MONTHS[+d[1] - 1].slice(0, 3) + " " + d[0] : ""; };
+function showPage() {
+  if (!pagingOn()) { pageBox.hidden = true; return; }
+  const k = pageNow(), page = Math.floor(k / PER_PAGE) + 1, pages = Math.ceil(shown.length / PER_PAGE);
+  pageBox.replaceChildren(el("span", {}, `Page ${page} of ${pages}`), el("span", { class: "page-when" }, monthYear(shown[k].t)));
+  const docH = document.documentElement.scrollHeight, vh = innerHeight, y0 = headerBottom(), d = $("#dock");
+  const H = (d.hidden ? vh : d.getBoundingClientRect().top) - y0;
+  const frac = Math.max(0, Math.min(1, (INNER_SCROLL ? document.body.scrollTop : scrollY) / Math.max(1, docH - vh)));
+  pageBox.hidden = false;
+  pageBox.style.top = Math.round(y0 + 8 + frac * Math.max(0, H - 16 - pageBox.offsetHeight)) + "px";
+  pageBox.classList.add("live"); clearTimeout(pageBox._t);
+  pageBox._t = setTimeout(() => { if (!pageBox.matches(":hover") && pagePop.hidden) pageBox.classList.remove("live"); }, 1200);
+}
+pageBox.addEventListener("mouseleave", () => { clearTimeout(pageBox._t); pageBox._t = setTimeout(() => { if (pagePop.hidden) pageBox.classList.remove("live"); }, 800); });
+addEventListener("scroll", showPage, { passive: true });
+if (INNER_SCROLL) document.body.addEventListener("scroll", showPage, { passive: true });
+function goToPage(page) {
+  const k = Math.max(0, Math.min(shown.length - 1, (page - 1) * PER_PAGE));
+  closePagePop();
+  jumpTo(shown[k].t.id);
+}
+function closePagePop() { pagePop.hidden = true; pageBox.classList.remove("open"); showPage(); }
+pageBox.onclick = () => {
+  if (!pagePop.hidden) { closePagePop(); return; }
+  const pages = Math.ceil(shown.length / PER_PAGE), cur = Math.floor(pageNow() / PER_PAGE) + 1;
+  const input = el("input", { type: "number", min: 1, max: pages, class: "page-input", placeholder: "Page", "aria-label": "Go to page" });
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { const n = parseInt(input.value, 10); if (n >= 1 && n <= pages) goToPage(n); } if (e.key === "Escape") closePagePop(); });
+  const list = el("ol", { class: "page-list" }, Array.from({ length: pages }, (_, i) => {
+    const a = shown[i * PER_PAGE].t, b = shown[Math.min(shown.length, (i + 1) * PER_PAGE) - 1].t;
+    const ma = monthYear(a), mb = monthYear(b);
+    return el("li", {}, el("button", { class: "when-link" + (i + 1 === cur ? " on" : ""), onclick: () => goToPage(i + 1) },
+      el("span", { class: "page-n" }, i + 1), el("span", { class: "page-when" }, ma === mb ? ma : `${ma} – ${mb}`)));
+  }));
+  pagePop.replaceChildren(el("div", { class: "page-pop-head" }, input, el("span", { class: "hint" }, `of ${pages}`)), list);
+  pagePop.hidden = false; pageBox.classList.add("open", "live"); clearTimeout(pageBox._t);
+  const r = pageBox.getBoundingClientRect();
+  pagePop.style.top = Math.max(headerBottom() + 8, Math.min(r.top, innerHeight - pagePop.offsetHeight - 16)) + "px";
+  const on = list.querySelector(".on"); if (on) on.scrollIntoView({ block: "center" });
+  if (!phone()) input.focus();
+};
+document.addEventListener("pointerdown", (e) => { if (!pagePop.hidden && !e.target.closest(".page-pop, .page-pill")) closePagePop(); });
 /* ---------- Activity: every play of 10 seconds or more is logged on the Activity server (worker/, on Cloudflare);
    only a device with the key can see the log. Each browser has a random id; devices with the key can be named. ---------- */
 let ACT_URL = "";
@@ -2979,11 +3048,11 @@ async function renderActivity() {
   list.replaceChildren(el("p", { class: "view-note" }, "Loading…"));
   try {
     const q = "?min=" + (act.full ? 15 : 0) + (act.who ? "&who=" + encodeURIComponent(act.who) : "");
-    if (act.mode === "top") [act.periods, act.devices] = await Promise.all([actApi("/periods" + q + "&group=" + act.group), actApi("/devices")]);
+    if (act.mode === "top") [act.periods, act.devices] = await Promise.all([actApi("/periods" + q + "&group=month"), actApi("/devices")]);
     else [act.days, act.devices] = await Promise.all([actApi("/days" + q), actApi("/devices")]);
   } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message || "The Activity server didn't answer.")); return; }
   if (token !== act.token) return;
-  if (act.mode === "top") { if (!act.periods.some((d) => d.p === act.period)) act.period = act.periods.length ? act.periods[0].p : null; }
+  if (act.mode === "top") { if (act.period !== "all" && !act.periods.some((d) => d.p === act.period)) act.period = act.periods.length ? act.periods[0].p : null; }
   else if (!act.days.some((d) => d.day === act.day)) act.day = act.days.length ? act.days[0].day : null;
   drawActHead();
   await (act.mode === "top" ? drawTopList(token) : drawActList(token));
@@ -2994,7 +3063,7 @@ async function drawTopList(token) {
   const list = $("#threads");
   let rows = [];
   try {
-    if (act.period) rows = await actApi(`/top?group=${act.group}&p=${encodeURIComponent(act.period)}&min=${act.full ? 15 : 0}` + (act.who ? "&who=" + encodeURIComponent(act.who) : ""));
+    if (act.period) rows = await actApi(`/top?group=${act.period === "all" ? "all" : "month"}&p=${encodeURIComponent(act.period)}&min=${act.full ? 15 : 0}` + (act.who ? "&who=" + encodeURIComponent(act.who) : ""));
   } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message)); return; }
   if (token !== act.token) return;
   if (act.flagged) rows = rows.filter((r) => { const at = trackByPlay(r), tr = at && at.t.tracks[at.i]; return tr && tr.tags && tr.tags.flagged; });
@@ -3022,9 +3091,8 @@ function drawActHead() {
   const setMode = (m) => { act.mode = m; try { localStorage.setItem("nrgfm-act-mode", m); } catch {} };
   const views = el("div", { class: "act-views" },
     el("button", { class: "when-link" + (!top ? " on" : ""), onclick: go(() => setMode("plays")) }, "Plays"),
-    el("button", { class: "when-link" + (top ? " on" : ""), onclick: go(() => setMode("top")) }, "Most played"),
-    top ? el("span", { class: "act-groups" }, [["month", "By month"], ["year", "By year"], ["all", "All time"]].map(([g, name]) =>
-      el("button", { class: "when-link" + (act.group === g ? " on" : ""), onclick: go(() => { act.group = g; act.period = null; }) }, name))) : null);
+    el("button", { class: "when-link" + (top ? " on" : ""), onclick: go(() => setMode("top")) }, "Most played"));
+  if (top) dayRow.append(el("button", { class: "when-link" + (act.period === "all" ? " on" : ""), onclick: go(() => { act.period = "all"; }) }, "All time"));
   const edgeFade = () => { dayRow.classList.toggle("fade-l", dayRow.scrollLeft > 2); dayRow.classList.toggle("fade-r", dayRow.scrollLeft + dayRow.clientWidth < dayRow.scrollWidth - 2); };
   dayRow.addEventListener("scroll", edgeFade, { passive: true }); requestAnimationFrame(edgeFade);
   dayRow.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && dayRow.scrollWidth > dayRow.clientWidth) { e.preventDefault(); dayRow.scrollLeft += e.deltaY; } }, { passive: false });
@@ -3035,7 +3103,7 @@ function drawActHead() {
     owners.map((d) => el("button", { class: "when-link" + (act.who === d.who ? " on" : ""), onclick: go(() => { act.who = d.who; }) }, deviceLabel(d))),
     cur && !cur.owner ? el("button", { class: "when-link on", onclick: go(() => { act.who = null; }) }, deviceLabel(cur) + " ×") : null,
     el("span", { class: "act-sep" }),
-    el("button", { class: "when-link act-flag-filter" + (act.flagged ? " on" : ""), onclick: go(() => { act.flagged = !act.flagged; }) }, FLAG_SVG(act.flagged), "flagged"),
+    el("button", { class: "when-link act-flag-filter" + (act.flagged ? " on" : ""), onclick: go(() => { act.flagged = !act.flagged; }) }, FLAG_SVG(act.flagged), "Flagged"),
     el("button", { class: "when-link" + (act.full ? " on" : ""), onclick: go(() => { act.full = !act.full; }) }, "Full plays"));
   // this device: give it a name (once)
   let naming = null;
@@ -3053,7 +3121,7 @@ function drawActHead() {
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } });
     naming = el("span", { class: "act-naming" }, input, el("button", { type: "button", class: "when-link", onclick: save }, "Save"));
   }
-  act.head.replaceChildren(views, dayRow, el("div", { class: "hist-months-row act-row2" }, chips, naming));
+  act.head.replaceChildren(el("div", { class: "act-row1" }, dayRow, views), el("div", { class: "hist-months-row act-row2" }, chips, naming));
   const head = $("#viewHead");
   if (view === "activity" && !$("#q").value.trim()) { head.className = "view-head view-history view-activity"; head.replaceChildren(act.head); head.hidden = false; }
 }
