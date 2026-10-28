@@ -1414,22 +1414,6 @@ body.side-open .tag-panel { visibility: hidden; }
 .tg-when { font-size: 13px; margin: 0 0 4px; }
 .tg-when .when-link { color: var(--muted); }
 .tg-tracks { list-style: none; margin: 0; padding: 0; }
-.track.tg-ctx { opacity: .45; }
-.track.tg-ctx:hover { opacity: .8; }
-/* the page counter beside the scroll bar, and its jump box */
-.page-pill { position: fixed; right: 18px; z-index: 6; display: flex; gap: 8px; align-items: baseline; padding: 4px 10px; font: inherit; font-size: 13px;
-  color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .3s; }
-.page-pill.live { opacity: 1; pointer-events: auto; transition: none; }
-.page-pill[hidden] { display: none; }
-.page-pill:hover, .page-pill.open { border-color: var(--jade); }
-.page-pill .page-when, .page-list .page-when { color: var(--muted); font-size: 12px; }
-.page-pop { position: fixed; right: 18px; z-index: 7; width: 230px; max-height: 60vh; display: flex; flex-direction: column; gap: 6px; padding: 8px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 8px 24px #0008; }
-.page-pop[hidden] { display: none; }
-.page-pop-head { display: flex; gap: 8px; align-items: center; }
-.page-input { width: 80px; height: 30px; padding: 0 8px; font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.page-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; scrollbar-width: thin; }
-.page-list .when-link { display: flex; gap: 10px; align-items: baseline; width: 100%; padding: 3px 4px; text-decoration: none; border-radius: 3px; }
-.page-list .when-link:hover { background: var(--surface-2); }
-.page-n { min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
-@media (max-width: 640px) { .page-pill { right: 8px; } .page-pop { right: 8px; } }
+.tagged-thread .track { grid-template-columns: 112px 1fr auto; }
+.tagged-thread .track .chip { width: 112px; height: 63px; }
+@media (max-width: 640px) { .tagged-thread .track { grid-template-columns: 112px 1fr; } }

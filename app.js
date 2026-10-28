@@ -1094,11 +1094,11 @@ const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a +
 
 /* a track with one of the group's own tags (the automatic ones don't count) */
 const userTagged = (tr) => shownTags(tr).some((g) => !AUTO_TAGS.has(g));
-/* Tagged: a thread as only its tagged tracks; an untagged main track stays, greyed, as a normal row */
+/* Tagged: a thread as only its tagged tracks (bigger thumbnails) */
 function taggedNode(t) {
   const rows = [];
   t.tracks.forEach((tr, i) => {
-    if (i === 0 || userTagged(tr)) { const r = trackRow(t, tr, i, null); if (!userTagged(tr)) r.classList.add("tg-ctx"); rows.push(r); }
+    if (userTagged(tr)) rows.push(trackRow(t, tr, i, null));
   });
   const head = t.tracks[0];
   return el("li", { class: "thread tagged-thread", id: "th-" + t.id },
@@ -2924,59 +2924,6 @@ addEventListener("resize", placeTpBar);
 function fmtTs(ts) { const d = new Date(ts * 1000); return d.getDate() + " " + MONTHS[d.getMonth()].slice(0, 3) + " " + d.getFullYear(); }
 addEventListener("scroll", () => placeTagPanel(), { passive: true });
 
-/* ---------- Threads and Tagged: the page you are on (25 threads a page), shown beside the scroll bar while scrolling;
-   clicking it opens a box to jump to a page ---------- */
-const PER_PAGE = 25;
-const pageBox = el("button", { type: "button", class: "page-pill", hidden: true });
-const pagePop = el("div", { class: "page-pop", hidden: true });
-document.body.append(pageBox, pagePop);
-const pagingOn = () => (view === "threads" || view === "tagged") && !$("#q").value.trim() && shown.length > PER_PAGE;
-function pageNow() { // the first thread at the top of the window
-  const top = headerBottom() + 4;
-  for (let k = 0; k < rendered; k++) { const n = document.getElementById("th-" + shown[k].t.id); if (n && n.getBoundingClientRect().bottom > top) return k; }
-  return 0;
-}
-const monthYear = (t) => { const d = (t.tracks[0].shown_date || t.tracks[0].date || "").split("-"); return d[1] ? MONTHS[+d[1] - 1].slice(0, 3) + " " + d[0] : ""; };
-function showPage() {
-  if (!pagingOn()) { pageBox.hidden = true; return; }
-  const k = pageNow(), page = Math.floor(k / PER_PAGE) + 1, pages = Math.ceil(shown.length / PER_PAGE);
-  pageBox.replaceChildren(el("span", {}, `Page ${page} of ${pages}`), el("span", { class: "page-when" }, monthYear(shown[k].t)));
-  const docH = document.documentElement.scrollHeight, vh = innerHeight, y0 = headerBottom(), d = $("#dock");
-  const H = (d.hidden ? vh : d.getBoundingClientRect().top) - y0;
-  const frac = Math.max(0, Math.min(1, (INNER_SCROLL ? document.body.scrollTop : scrollY) / Math.max(1, docH - vh)));
-  pageBox.hidden = false;
-  pageBox.style.top = Math.round(y0 + 8 + frac * Math.max(0, H - 16 - pageBox.offsetHeight)) + "px";
-  pageBox.classList.add("live"); clearTimeout(pageBox._t);
-  pageBox._t = setTimeout(() => { if (!pageBox.matches(":hover") && pagePop.hidden) pageBox.classList.remove("live"); }, 1200);
-}
-pageBox.addEventListener("mouseleave", () => { clearTimeout(pageBox._t); pageBox._t = setTimeout(() => { if (pagePop.hidden) pageBox.classList.remove("live"); }, 800); });
-addEventListener("scroll", showPage, { passive: true });
-if (INNER_SCROLL) document.body.addEventListener("scroll", showPage, { passive: true });
-function goToPage(page) {
-  const k = Math.max(0, Math.min(shown.length - 1, (page - 1) * PER_PAGE));
-  closePagePop();
-  jumpTo(shown[k].t.id);
-}
-function closePagePop() { pagePop.hidden = true; pageBox.classList.remove("open"); showPage(); }
-pageBox.onclick = () => {
-  if (!pagePop.hidden) { closePagePop(); return; }
-  const pages = Math.ceil(shown.length / PER_PAGE), cur = Math.floor(pageNow() / PER_PAGE) + 1;
-  const input = el("input", { type: "number", min: 1, max: pages, class: "page-input", placeholder: "Page", "aria-label": "Go to page" });
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { const n = parseInt(input.value, 10); if (n >= 1 && n <= pages) goToPage(n); } if (e.key === "Escape") closePagePop(); });
-  const list = el("ol", { class: "page-list" }, Array.from({ length: pages }, (_, i) => {
-    const a = shown[i * PER_PAGE].t, b = shown[Math.min(shown.length, (i + 1) * PER_PAGE) - 1].t;
-    const ma = monthYear(a), mb = monthYear(b);
-    return el("li", {}, el("button", { class: "when-link" + (i + 1 === cur ? " on" : ""), onclick: () => goToPage(i + 1) },
-      el("span", { class: "page-n" }, i + 1), el("span", { class: "page-when" }, ma === mb ? ma : `${ma} – ${mb}`)));
-  }));
-  pagePop.replaceChildren(el("div", { class: "page-pop-head" }, input, el("span", { class: "hint" }, `of ${pages}`)), list);
-  pagePop.hidden = false; pageBox.classList.add("open", "live"); clearTimeout(pageBox._t);
-  const r = pageBox.getBoundingClientRect();
-  pagePop.style.top = Math.max(headerBottom() + 8, Math.min(r.top, innerHeight - pagePop.offsetHeight - 16)) + "px";
-  const on = list.querySelector(".on"); if (on) on.scrollIntoView({ block: "center" });
-  if (!phone()) input.focus();
-};
-document.addEventListener("pointerdown", (e) => { if (!pagePop.hidden && !e.target.closest(".page-pop, .page-pill")) closePagePop(); });
 /* ---------- Activity: every play of 10 seconds or more is logged on the Activity server (worker/, on Cloudflare);
    only a device with the key can see the log. Each browser has a random id; devices with the key can be named. ---------- */
 let ACT_URL = "";
@@ -3052,7 +2999,7 @@ async function renderActivity() {
     else [act.days, act.devices] = await Promise.all([actApi("/days" + q), actApi("/devices")]);
   } catch (e) { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, e.message || "The Activity server didn't answer.")); return; }
   if (token !== act.token) return;
-  if (act.mode === "top") { if (act.period !== "all" && !act.periods.some((d) => d.p === act.period)) act.period = act.periods.length ? act.periods[0].p : null; }
+  if (act.mode === "top") { if (!act.periods.some((d) => d.p === act.period)) act.period = act.periods.length ? act.periods[0].p : null; }
   else if (!act.days.some((d) => d.day === act.day)) act.day = act.days.length ? act.days[0].day : null;
   drawActHead();
   await (act.mode === "top" ? drawTopList(token) : drawActList(token));
@@ -3092,7 +3039,6 @@ function drawActHead() {
   const views = el("div", { class: "act-views" },
     el("button", { class: "when-link" + (!top ? " on" : ""), onclick: go(() => setMode("plays")) }, "Plays"),
     el("button", { class: "when-link" + (top ? " on" : ""), onclick: go(() => setMode("top")) }, "Most played"));
-  if (top) dayRow.append(el("button", { class: "when-link" + (act.period === "all" ? " on" : ""), onclick: go(() => { act.period = "all"; }) }, "All time"));
   const edgeFade = () => { dayRow.classList.toggle("fade-l", dayRow.scrollLeft > 2); dayRow.classList.toggle("fade-r", dayRow.scrollLeft + dayRow.clientWidth < dayRow.scrollWidth - 2); };
   dayRow.addEventListener("scroll", edgeFade, { passive: true }); requestAnimationFrame(edgeFade);
   dayRow.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && dayRow.scrollWidth > dayRow.clientWidth) { e.preventDefault(); dayRow.scrollLeft += e.deltaY; } }, { passive: false });
