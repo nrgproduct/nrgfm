@@ -234,7 +234,9 @@ function runSearch() {
       if (t.kind === "tag") continue; // tags are searched on the tracks themselves
       const hits = new Set();
       let rank = 99;
+      const forced = dupFilter && dupFilter.q === query ? dupFilter.ids : null;
       t.tracks.forEach((tr, i) => {
+        if (forced) { if (forced.has(tr.id)) { hits.add(i); rank = 0; } return; }
         if (!matches(tr, terms, none)) return;
         const f = fieldsOf(tr);
         for (const [k] of FIELDS) if (terms.some((w) => has(f[k], w))) used.add(k); // which filters are worth showing
@@ -596,7 +598,7 @@ function monthNode({ t }) {
     el("ol", { class: "month-list" }, t.threads.map((th) => {
       const x = info(th.tracks[0]), n = th.tracks.length;
       return el("li", { class: "month-row" + (x.dead ? " dead" : "") }, el("div", { class: "month-line", "data-k": `${th.id}:0` },
-        el("button", { class: "when-link", title: "Go to the thread (" + fmtDay(postDate(th)) + ")", onclick: () => goToThread(th) }, fmtDay(postDate(th)).replace(/ \d{4}$/, "")),
+        el("button", { class: "when-link", "data-thread": th.id, title: "Go to the thread (" + fmtDay(postDate(th)) + ")", onclick: () => goToThread(th) }, fmtDay(postDate(th)).replace(/ \d{4}$/, "")),
         el("button", { class: "play month-play", onclick: () => play(th, 0), "aria-label": `Play ${x.title}` }, img(x.thumb, "mini"), el("span", { class: "tr-title" }, x.title)),
         n > 1 ? el("button", { class: "when-link month-n", "aria-expanded": "false", title: "Show the tracks",
           onclick: (e) => { const box = e.currentTarget.closest(".month-row").querySelector(".month-tracks"), open = box.hidden;
@@ -767,7 +769,37 @@ document.addEventListener("click", (e) => {
   const row = tag.closest("[data-k]"), at = row && trackAt(row.dataset.k);
   if (!at || (row.nextElementSibling && row.nextElementSibling.classList.contains("edit-wrap"))) return; // (editing: the tag is being removed)
   e.preventDefault(); e.stopPropagation();
-  searchFor(coreTitle(info(at.tr).title));
+  const group = duplicatesOf(at.tr), q = coreTitle(info(at.tr).title);
+  dupFilter = group.size > 1 ? { q: fold(q), ids: group } : null;
+  searchFor(q);
+}, true);
+/* the tracks the automatic "duplicate" tag counts as copies of this one: the same link (same YouTube video), or the same
+   title once "(Official Video)", years and punctuation are left out */
+const DUP_NOISE = /[\(\[][^\)\]]*\b(official|lyric|lyrics|audio|video|hd|hq|4k|remaster(ed)?|visuali[sz]er|explicit|clip|music video|mv|full album|out now|premiere)\b[^\)\]]*[\)\]]/gi;
+function dupTitleKey(tr) {
+  const m = meta[tr.url] || {};
+  let t = (tr.title || m.title || m.wb_title || "").toLowerCase();
+  if (t.includes(" · ")) { const [a, b] = t.split(" · "); t = b + " - " + a; }
+  return fold(t.replace(DUP_NOISE, " ").replace(/\b(19|20)\d\d\b/g, " "));
+}
+function dupLinkKey(tr) {
+  if (!tr.url) return "id:" + tr.id;
+  if (tr.yt) return "yt:" + tr.yt;
+  return "u:" + tr.url.trim().toLowerCase().replace(/^https?:\/\/(www\.|m\.)?/, "").split("#")[0].replace(/\/$/, "").replace(/[?&](si|feature|utm_[a-z]+)=[^&]*/g, "");
+}
+function duplicatesOf(tr) {
+  const lk = dupLinkKey(tr), tk = dupTitleKey(tr), ids = new Set([tr.id]);
+  for (const t of threads) if (isBase(t)) for (const x of t.tracks) if (dupLinkKey(x) === lk || (tk.length >= 6 && dupTitleKey(x) === tk)) ids.add(x.id);
+  return ids;
+}
+let dupFilter = null; // {q, ids}: the search shows exactly these tracks (cleared when the search changes)
+/* a post's date (and "source" in the player): Cmd+click (Ctrl+click on Windows) opens that thread in a new tab */
+const openThreadTab = (id) => open(location.pathname + "#t/" + encodeURIComponent(id), "_blank");
+document.addEventListener("click", (e) => {
+  const b = (e.metaKey || e.ctrlKey) && e.target.closest && e.target.closest("[data-thread]");
+  if (!b) return;
+  e.preventDefault(); e.stopPropagation();
+  openThreadTab(b.dataset.thread);
 }, true);
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
@@ -1102,7 +1134,7 @@ function taggedNode(t) {
   });
   const head = t.tracks[0];
   return el("li", { class: "thread tagged-thread", id: "th-" + t.id },
-    el("div", { class: "tg-when" }, el("button", { class: "when-link", onclick: () => { setView("threads"); setTimeout(() => goToThread(t), 0); } }, fmtDay(head.shown_date || head.date))),
+    el("div", { class: "tg-when" }, el("button", { class: "when-link", "data-thread": t.id, onclick: () => { setView("threads"); setTimeout(() => goToThread(t), 0); } }, fmtDay(head.shown_date || head.date))),
     el("ol", { class: "tracks tg-tracks" }, rows));
 }
 function threadNode({ t, hits }) {
@@ -1141,7 +1173,7 @@ function threadNode({ t, hits }) {
   let side = null, foot = null, after = null;
   // under the thumbnail: the post date; in search results it leads to the thread, with the track count under it
   const when = el("div", { class: "t-when" + (hits ? " in-search" : "") },
-    hits ? el("button", { class: "when-link", title: "Show this thread in the feed", onclick: () => goToThread(t) }, day) : el("span", {}, day),
+    el("button", { class: "when-link", "data-thread": t.id, onclick: () => goToThread(t) }, day), // (Cmd/Ctrl+click: the thread in a new tab)
     // "4 matches": selects the result, then each press brings the next match to the top of its box
     hits && hits.size > 1 ? el("button", { class: "when-link", title: "Next match", onclick: (e) => nextMatch(e.currentTarget.closest(".thread")) }, `${hits.size} matches`) : null);
   if (hits && !mobile) {
@@ -1154,7 +1186,7 @@ function threadNode({ t, hits }) {
     // phone search: the post date (to the thread, as on a computer) and, when there is more, the counter as the
     // button that lets the box scroll (lit while it does)
     foot = el("div", { class: "search-foot phone-foot" },
-      el("button", { class: "when-link foot-date", onclick: (e) => { e.stopPropagation(); goToThread(t); } }, day),
+      el("button", { class: "when-link foot-date", "data-thread": t.id, onclick: (e) => { e.stopPropagation(); goToThread(t); } }, day),
       searching ? el("button", { class: "more-toggle scroll-link" + (scrolling ? " on" : ""), style: `--digits:${String(n).length}`, onclick: (e) => {
         e.stopPropagation();
         const on = activeId !== t.id; // (the tap may already have selected it: ask the page, not this button)
@@ -1181,7 +1213,8 @@ function threadNode({ t, hits }) {
           el("span", { class: "t-title" }, hi.title),
           el("span", { class: "t-sub t-tags" }, tagLine(head)),
           el("span", { class: "t-sub t-date" + (hi.recovered ? "" : " only-date") },
-            hits ? null : el("span", { class: "t-date-phone" }, day + (hi.recovered ? " · " : "")), // phone: the date under the title
+            hits ? null : el("span", { class: "t-date-phone" }, el("span", { class: "when-link", role: "link", "data-thread": t.id,
+              onclick: (e) => { e.stopPropagation(); goToThread(t); } }, day), hi.recovered ? " · " : ""), // phone: the date under the title (a link)
             hi.recovered ? el("span", { class: "sub-note" }, RECOVERED) : null))),
       el("span", { class: "head-side" }, rowLinks(t, 0, hi))),
     when,
@@ -2576,9 +2609,10 @@ $("#discogsBtn").onclick = () => {
   const title = info(playing.thread.tracks[playing.index]).title;
   open("https://www.google.com/search?q=" + encodeURIComponent("discogs " + title), "_blank", "noopener");
 };
-$("#sourceBtn").onclick = () => {
+$("#sourceBtn").onclick = (e) => {
   if (!playing) return;
   const home = homeOf(playing.thread.tracks[playing.index]);
+  if (home && (e.metaKey || e.ctrlKey)) { openThreadTab(home.id); return; }
   if (home) goToThread(home);
 };
 /* "flag" in the player (phone): tags the playing track "flagged" (again: takes it off) */
