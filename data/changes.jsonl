@@ -1386,3 +1386,5 @@
 {"action": "tag", "ids": ["t1729542450395805_0"], "add": ["chillout room"], "remove": [], "ts": 1793210350}
 {"action": "tag", "ids": ["t27268831712706861_0"], "add": ["new wave"], "remove": [], "ts": 1793210681}
 {"action": "tag", "ids": ["t26777690035154367_0"], "add": ["new wave"], "remove": [], "ts": 1793210736}
+{"action": "delete", "thread": "p5189443034405712", "id": "t5296455523704462_0", "ts": 1793210754}
+{"action": "tag", "ids": ["t5361402630543084_0"], "add": ["post punk", "new wave"], "remove": [], "ts": 1793210771}
