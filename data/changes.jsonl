@@ -1380,3 +1380,4 @@
 {"action": "delete", "thread": "p7539295202753805", "id": "t7554013731281952_0", "ts": 1793201249}
 {"action": "tag", "ids": ["t1793043396_0"], "add": ["easy listening"], "remove": [], "ts": 1793208739}
 {"action": "tag", "ids": ["t8147971388552847_0"], "add": ["euphoric", "progressive trance"], "remove": [], "ts": 1793209007}
+{"action": "delete", "thread": "p8147971388552847", "id": "t8200362613313724_0", "ts": 1793209016}
