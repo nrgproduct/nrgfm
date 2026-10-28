@@ -1346,3 +1346,7 @@
 {"action": "edit", "thread": "xt26948668181389884_0", "id": "t569885616361500_0", "title": "Marcus Intalex - TB or not TB", "url": "https://www.youtube.com/watch?v=WxiOl-1utGY", "tags": [], "ts": 1793199719}
 {"action": "tag", "ids": ["t1792946847_0"], "add": ["post punk"], "remove": [], "ts": 1793199778}
 {"action": "tag", "ids": ["t1792852297_0"], "add": ["dubstep"], "remove": [], "ts": 1793199826}
+{"action": "tag", "ids": ["t1792852297_0"], "add": ["dnb hits"], "remove": ["dubstep"], "ts": 1793199847}
+{"action": "tag", "ids": ["t1792852297_0"], "add": ["ipod"], "remove": [], "ts": 1793199861}
+{"action": "tag", "ids": ["t1792773772_0"], "add": ["ipod"], "remove": [], "ts": 1793199866}
+{"action": "tag", "ids": ["t1792774084_0"], "add": ["ipod"], "remove": [], "ts": 1793199870}
