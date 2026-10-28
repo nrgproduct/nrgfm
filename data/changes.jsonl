@@ -1389,3 +1389,4 @@
 {"action": "delete", "thread": "p5189443034405712", "id": "t5296455523704462_0", "ts": 1793210754}
 {"action": "tag", "ids": ["t5361402630543084_0"], "add": ["post punk", "new wave"], "remove": [], "ts": 1793210771}
 {"url": "https://www.youtube.com/watch?v=dB_c7oZWo1g", "title": "Desireless - Voyage, Voyage (1986)", "thread": "p29811169505139723", "tags": ["80s", "italo", "new wave"], "ts": 1793211812}
+{"action": "edit", "thread": "p1125235577493165", "id": "t1793048890_0", "title": "The Circle City Band - Magic (12\" Extended 1983)", "url": "https://www.youtube.com/watch?v=E0ju5RBLr5g", "tags": ["disco", "funk"], "ts": 1793211863, "date": "2015-10-26"}
