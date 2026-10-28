@@ -1360,3 +1360,4 @@
 {"action": "tag", "ids": ["t1792941459_0"], "add": ["ipod"], "remove": [], "ts": 1793199965}
 {"action": "delete", "thread": "p3040328735983830", "id": "t3040328735983830_0", "ts": 1793200266}
 {"action": "edit", "thread": "p3040328735983830", "id": "t3074407242575979_0", "title": "SHYGIRL - BB (original version)", "url": "https://www.youtube.com/watch?v=0T76weSyaKQ", "tags": ["trap", "london"], "ts": 1793200372}
+{"action": "tag", "ids": ["t7730559336960723_0"], "add": ["alt rock"], "remove": [], "ts": 1793200464}
