@@ -321,7 +321,7 @@ def main():
             fps = {u: fp for u, _, fp in items[i:i + PER_CALL[how]]}
             try:
                 answers = None
-                for attempt in range(4):  # "high demand" (503) usually passes after a short wait
+                for attempt in range(8):  # "high demand" (503) usually passes after a short wait
                     try:
                         answers = ask(models[0], how, batch, vocab)
                         status["model"] = models[0]
@@ -334,7 +334,10 @@ def main():
                             print("rate limit:", why(e)[:120], "- waiting a minute")
                             time.sleep(65)
                             continue
-                        if e.code not in (500, 503) or attempt == 3:
+                        if e.code == 429 and len(models) > 1:  # this model's free quota is used up: the next model has its own
+                            print(models.pop(0), "out of quota, trying", models[0])
+                            continue
+                        if e.code not in (500, 503) or attempt == 7:
                             raise
                         print(models[0], "busy:", why(e), "- waiting")
                         time.sleep(20 * (attempt + 1))

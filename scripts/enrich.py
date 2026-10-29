@@ -15,7 +15,7 @@ Sources
 
 Suggestions only come from titles that clearly say "Artist - Title"; anything else is skipped rather
 than guessed. Usage: python3 scripts/enrich.py [max_tracks] [max_minutes]"""
-import html, json, os, re, sys, time, urllib.parse, urllib.request, urllib.error
+import html, json, os, re, sys, time, unicodedata, urllib.parse, urllib.request, urllib.error
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -107,6 +107,12 @@ def musicbrainz_once(artist, title):
             "g": [t for t, _ in sorted(tags.items(), key=lambda x: -x[1])]}
 
 
+def norm_artist(a):
+    """ "Andrea (3)" and "Andrea*" -> "andrea" (Discogs marks namesakes with a number and name variations with *)"""
+    a = re.sub(r"\s*\(\d+\)\s*$", "", a or "").replace("*", "")
+    return re.sub(r"[^\w]+", " ", unicodedata.normalize("NFKD", a).encode("ascii", "ignore").decode().lower()).strip()
+
+
 def discogs(artist, title):
     if not DISCOGS:
         return None
@@ -115,13 +121,23 @@ def discogs(artist, title):
     time.sleep(1.1)  # 60 requests per minute with a token
     d = get_json(url, {"Authorization": f"Discogs token={DISCOGS}"})
     res = d.get("results", [])
+    # only releases by that artist (Discogs titles are "Artist - Release"; namesakes are "Andrea (3)", collaborations "A & B")
+    want = norm_artist(artist)
+    res = [r for r in res if norm_artist((r.get("title") or "").split(" - ", 1)[0]) == want]
     if not res:
         return None
     years = [int(r["year"]) for r in res if str(r.get("year", "")).isdigit() and int(r["year"]) > 1900]
     count = {}
     for r in res:
-        for g in (r.get("style") or []) + (r.get("genre") or []):
-            count[g.lower()] = count.get(g.lower(), 0) + 1
+        for g in set(x.lower() for x in (r.get("style") or []) + (r.get("genre") or [])):
+            count[g] = count.get(g, 0) + 1
+    # genres the releases agree on: with several releases, a genre has to be on at least a third of them (and 2);
+    # when they don't agree at all (a common name: unrelated artists), none
+    if len(res) >= 3:
+        need = max(2, -(-len(res) // 3))
+        count = {g: n for g, n in count.items() if n >= need}
+        if not count or max(count.values()) < len(res) / 2:
+            count = {}
     rels = []
     for r in res:  # Discogs titles are "Artist - Release"
         name = r.get("title") or ""

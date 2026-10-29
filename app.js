@@ -795,11 +795,12 @@ function duplicatesOf(tr) {
 let dupFilter = null; // {q, ids}: the search shows exactly these tracks (cleared when the search changes)
 /* a post's date (and "source" in the player): Cmd+click (Ctrl+click on Windows) opens that thread in a new tab */
 const openThreadTab = (id) => open(location.pathname + "#t/" + encodeURIComponent(id), "_blank");
+const markThread = (id) => history.replaceState(null, "", location.pathname + "#t/" + encodeURIComponent(id)); // the address remembers the post (a reload comes back to it)
 document.addEventListener("click", (e) => {
-  const b = (e.metaKey || e.ctrlKey) && e.target.closest && e.target.closest("[data-thread]");
+  const b = e.target.closest && e.target.closest("[data-thread]");
   if (!b) return;
-  e.preventDefault(); e.stopPropagation();
-  openThreadTab(b.dataset.thread);
+  if (e.metaKey || e.ctrlKey) { e.preventDefault(); e.stopPropagation(); openThreadTab(b.dataset.thread); return; }
+  setTimeout(() => markThread(b.dataset.thread), 0); // (after the page has gone there)
 }, true);
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
@@ -2613,7 +2614,7 @@ $("#sourceBtn").onclick = (e) => {
   if (!playing) return;
   const home = homeOf(playing.thread.tracks[playing.index]);
   if (home && (e.metaKey || e.ctrlKey)) { openThreadTab(home.id); return; }
-  if (home) goToThread(home);
+  if (home) { goToThread(home); markThread(home.id); }
 };
 /* "flag" in the player (phone): tags the playing track "flagged" (again: takes it off) */
 function showFlag() {
@@ -3538,10 +3539,7 @@ document.addEventListener("click", (e) => {
     return;
   }
   const deep = location.hash.match(/^#t\/(.+)$/);
-  if (deep) {
-    const i = threads.findIndex((t) => t.id === deep[1]);
-    if (i > -1) threads.unshift(threads.splice(i, 1)[0]);
-  }
+  const deepT = deep && threads.find((t) => t.id === decodeURIComponent(deep[1])); // a post's address: the feed opens at that post
   const page = location.hash.match(/^#\/(\w+)/);
   if (page && VIEW_NAMES[page[1]]) view = page[1];
   if (page && page[1] === "random") setTimeout(() => setView("random"), 0); // Random opened in a new tab
@@ -3551,6 +3549,7 @@ document.addEventListener("click", (e) => {
   document.body.dataset.view = view;
   if (!phone()) idleDock(); // the empty player bar is there from the start on a computer
   runSearch();
+  if (deepT) { goToThread(deepT); markThread(deepT.id); }
   watchHistory();
   checkSetupHash();
 })();
