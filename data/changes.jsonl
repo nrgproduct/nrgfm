@@ -1401,3 +1401,5 @@
 {"url": "https://www.youtube.com/watch?v=jItmQEpiOtA", "title": "2XL - Destruction (Armageddon Mix) 1990", "thread": "p1198837516799637", "tags": [], "ts": 1793212449}
 {"action": "tag", "ids": ["t5803861862963823_0"], "add": ["disco"], "remove": [], "ts": 1793254621}
 {"action": "tag", "ids": ["t5802638666419476_0"], "add": ["zoomer"], "remove": [], "ts": 1793259699}
+{"action": "tag", "ids": ["t5802639199752756_0"], "add": ["hyper"], "remove": [], "ts": 1793259718}
+{"action": "tag", "ids": ["t5802638666419476_0"], "add": ["hyper"], "remove": ["zoomer"], "ts": 1793259725}
