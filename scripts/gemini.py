@@ -330,6 +330,8 @@ def main():
                         if e.code == 404 and len(models) > 1:  # retired for this key: drop it
                             print(models.pop(0), "not available:", why(e))
                             continue
+                        if how == "bandcamp" and e.code in (400, 429):  # the URL tool has its own (small) quota: skip the Bandcamp pages
+                            raise
                         if e.code == 429 and attempt == 0:  # a per-minute limit passes; a daily one doesn't (stop then)
                             print("rate limit:", why(e)[:120], "- waiting a minute")
                             time.sleep(65)
@@ -342,7 +344,7 @@ def main():
                         print(models[0], "busy:", why(e), "- waiting")
                         time.sleep(20 * (attempt + 1))
             except urllib.error.HTTPError as e:
-                if how == "bandcamp" and e.code == 400:  # the URL tool isn't available for this model: skip the Bandcamp pages
+                if how == "bandcamp" and e.code in (400, 429):  # the URL tool isn't available (or out of quota): skip the Bandcamp pages
                     print("Bandcamp pages skipped:", why(e))
                     break
                 status["state"] = "error: " + why(e)
