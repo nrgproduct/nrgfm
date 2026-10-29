@@ -1403,3 +1403,5 @@
 {"action": "tag", "ids": ["t5802638666419476_0"], "add": ["zoomer"], "remove": [], "ts": 1793259699}
 {"action": "tag", "ids": ["t5802639199752756_0"], "add": ["hyper"], "remove": [], "ts": 1793259718}
 {"action": "tag", "ids": ["t5802638666419476_0"], "add": ["hyper"], "remove": ["zoomer"], "ts": 1793259725}
+{"action": "tag", "ids": ["t6388106184539385_0"], "add": ["trap"], "remove": [], "ts": 1793259756}
+{"action": "tag", "ids": ["t6388106184539385_0"], "add": ["k-pop"], "remove": [], "ts": 1793259779}
