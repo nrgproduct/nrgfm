@@ -1430,3 +1430,6 @@
 {"action": "tag", "ids": ["t2908618535821518_0"], "add": ["new wave"], "remove": [], "ts": 1793475251}
 {"action": "tag", "ids": ["t8552626071420708_0"], "add": ["rnb"], "remove": [], "ts": 1793475357}
 {"action": "tag", "ids": ["t6769200156429984_0"], "add": ["hyper", "euphoric"], "remove": [], "ts": 1793475402}
+{"action": "tag", "ids": ["t6769331676416832_0"], "add": ["euphoric", "deconstructed"], "remove": [], "ts": 1793475426}
+{"action": "tag", "ids": ["t6769200156429984_0"], "add": ["deconstructed"], "remove": [], "ts": 1793475429}
+{"action": "tag", "ids": ["t6769201989763134_0"], "add": ["hyper"], "remove": [], "ts": 1793475443}
