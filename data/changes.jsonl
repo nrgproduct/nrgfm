@@ -1421,3 +1421,4 @@
 {"action": "edit", "thread": "p2347425585274152", "id": "t1793467835_0", "title": "MONDO GROSSO - Life (M.G.2.7. Stepped Mix) (2000)", "url": "https://www.youtube.com/watch?v=ov8Q_WjjJv4", "tags": ["j-pop"], "ts": 1793467878}
 {"action": "tag", "ids": ["t1802662026417180_0"], "add": ["ambient hits"], "remove": [], "ts": 1793474545}
 {"action": "delete", "thread": "p1786309418052441", "id": "t1828478970502152_0", "ts": 1793474572}
+{"action": "tag", "ids": ["t2336262923057085_0"], "add": ["jazz"], "remove": ["duplicate"], "ts": 1793474641}
