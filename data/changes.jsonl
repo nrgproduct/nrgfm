@@ -1451,3 +1451,4 @@
 {"url": "https://www.youtube.com/watch?v=kUX9pf_wJmg", "title": "Duran Duran - The Chauffeur (1982)", "thread": "p29811169505139723", "tags": ["80s", "new wave"], "ts": 1793477449}
 {"action": "tagrename", "from": "wack", "to": "curio", "ts": 1793521625}
 {"action": "tag", "ids": ["t29811424665114207_0"], "add": ["hype"], "remove": [], "ts": 1793521649}
+{"action": "tag", "ids": ["t27971842759072416_0"], "add": ["progressive trance"], "remove": [], "ts": 1793521695}
