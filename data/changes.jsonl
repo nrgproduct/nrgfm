@@ -1484,3 +1484,7 @@
 {"action": "tag", "ids": ["t27178829048373795_0"], "add": ["ballad", "pop-punk"], "remove": [], "ts": 1793527278}
 {"action": "tag", "ids": ["t27178829048373795_0"], "add": ["emo"], "remove": [], "ts": 1793527282}
 {"action": "edit", "thread": "p26776190818637622", "id": "t27178829048373795_0", "title": "Plain White T's - Hey There Delilah (2005)", "url": "https://www.youtube.com/watch?v=SrIxz9wHUX8", "tags": ["celtic", "ballad", "pop-punk", "emo"], "ts": 1793527304}
+{"action": "edit", "thread": "p26690029280587110", "id": "t27268830919373607_0", "title": "The Korgis - Everybody's Got To Learn Sometime (Audio Remastered) (HQ)", "url": "https://www.youtube.com/watch?v=UloDrzwcdxc", "tags": ["ballad", "evergreens"], "ts": 1793527324}
+{"action": "tag", "ids": ["t26690029280587110_0"], "add": ["ballad"], "remove": [], "ts": 1793527333}
+{"action": "tag", "ids": ["t26873615828895120_0"], "add": ["dansk"], "remove": [], "ts": 1793527374}
+{"action": "tag", "ids": ["t29540060482250628_0"], "add": ["dansk"], "remove": [], "ts": 1793527381}
