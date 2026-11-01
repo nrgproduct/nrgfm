@@ -1463,3 +1463,5 @@
 {"action": "tag", "ids": ["x1778010144_0"], "add": ["melody"], "remove": ["theme"], "ts": 1793522079}
 {"action": "tag", "ids": ["x1777988998_0"], "add": ["new wave", "alt rock"], "remove": [], "ts": 1793522087}
 {"action": "tag", "ids": ["x1777988998_0"], "add": ["pop-punk"], "remove": [], "ts": 1793522102}
+{"action": "tag", "ids": ["x1779129538_0"], "add": ["hiphop", "soft pop"], "remove": [], "ts": 1793522135}
+{"action": "tag", "ids": ["x1779129538_0"], "add": ["rnb"], "remove": [], "ts": 1793522138}
