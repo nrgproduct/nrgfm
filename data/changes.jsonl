@@ -1492,3 +1492,4 @@
 {"action": "tag", "ids": ["t29265117609744918_0"], "add": ["funk"], "remove": [], "ts": 1793527449}
 {"action": "tag", "ids": ["t29263661446557201_0"], "add": ["emo"], "remove": [], "ts": 1793527458}
 {"action": "recheck", "ts": 1793597644, "meta_set": {"https://www.youtube.com/watch?v=S9ZYPiYWtKo": {"dead": true, "status": 403}}, "meta_clear": [], "tag": [{"ids": ["t390271604322903_0"], "add": ["broken link"]}, {"ids": [], "add": ["plays on youtube only"]}, {"ids": [], "remove": ["broken link", "plays on youtube only"]}]}
+{"action": "tag", "ids": ["t25048876541369067_0"], "add": ["elena", "art pop", "folk"], "remove": [], "ts": 1793611014}
