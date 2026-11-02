@@ -1493,3 +1493,5 @@
 {"action": "tag", "ids": ["t29263661446557201_0"], "add": ["emo"], "remove": [], "ts": 1793527458}
 {"action": "recheck", "ts": 1793597644, "meta_set": {"https://www.youtube.com/watch?v=S9ZYPiYWtKo": {"dead": true, "status": 403}}, "meta_clear": [], "tag": [{"ids": ["t390271604322903_0"], "add": ["broken link"]}, {"ids": [], "add": ["plays on youtube only"]}, {"ids": [], "remove": ["broken link", "plays on youtube only"]}]}
 {"action": "tag", "ids": ["t25048876541369067_0"], "add": ["elena", "art pop", "folk"], "remove": [], "ts": 1793611014}
+{"action": "tag", "ids": ["t24592287283694664_0"], "add": ["evergreens", "crooner"], "remove": [], "ts": 1793611036}
+{"action": "tag", "ids": ["t24592287283694664_0"], "add": ["score"], "remove": [], "ts": 1793611042}
