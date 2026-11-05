@@ -1518,3 +1518,4 @@
 {"action": "delete", "thread": "p1001941429822581", "id": "t1001963923153665_0", "ts": 1793863642}
 {"action": "delete", "thread": "p997349516948439", "id": "t997349516948439_0", "ts": 1793863650}
 {"url": "https://www.youtube.com/watch?v=CgUacQ5cx_w", "title": "Loscil - Endless Falls [Full Album]", "thread": "", "tags": ["ambient"], "ts": 1793868326}
+{"action": "tag", "ids": ["t1793868326_0"], "add": ["dmt"], "remove": [], "ts": 1793882407}
