@@ -1532,3 +1532,5 @@
 {"action": "tag", "ids": ["t5612357875447557_0"], "add": ["euphoric"], "remove": [], "ts": 1793884068}
 {"action": "tag", "ids": ["t5296535603696454_0"], "add": ["leftfield"], "remove": [], "ts": 1793884128}
 {"action": "tag", "ids": ["t5301041426579205_0"], "add": ["electro", "emotional", "leftfield"], "remove": [], "ts": 1793884157}
+{"action": "delete", "thread": "p3799031323446897", "id": "t3799848886698474_0", "ts": 1793884190}
+{"action": "tag", "ids": ["t5432639206752759_0"], "add": ["electro"], "remove": ["duplicate"], "ts": 1793884196}
