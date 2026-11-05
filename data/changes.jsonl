@@ -1534,3 +1534,5 @@
 {"action": "tag", "ids": ["t5301041426579205_0"], "add": ["electro", "emotional", "leftfield"], "remove": [], "ts": 1793884157}
 {"action": "delete", "thread": "p3799031323446897", "id": "t3799848886698474_0", "ts": 1793884190}
 {"action": "tag", "ids": ["t5432639206752759_0"], "add": ["electro"], "remove": ["duplicate"], "ts": 1793884196}
+{"action": "tag", "ids": ["t5432639206752759_0"], "add": ["balearic"], "remove": [], "ts": 1793884203}
+{"action": "tag", "ids": ["t5432639206752759_0"], "add": ["chillout room"], "remove": [], "ts": 1793884211}
