@@ -1632,3 +1632,6 @@
 {"url": "https://www.youtube.com/watch?v=SNL44peow04", "title": "PLUSTWO - Stop fantasy (1983)", "thread": "p1152211011462288", "tags": ["italo", "funk"], "ts": 1794067101}
 {"url": "https://www.youtube.com/watch?v=JsMri1GElC4", "title": "My Mine - Hypnotic Tango (12\" Version)", "thread": "p1152211011462288", "tags": ["italo"], "ts": 1794067405}
 {"url": "https://www.youtube.com/watch?v=l5V6FjilB54", "title": "Evo - Din-Din (Vocal Version 1983)", "thread": "p1152211011462288", "tags": [], "ts": 1794067506}
+{"action": "edit", "thread": "p1152211011462288", "id": "t1157541467595909_0", "title": "Renee Geyer - Be There In The Morning (ultra rare 1976 version)", "url": "https://www.youtube.com/watch?v=XENP0S9JtSQ", "tags": ["soul", "easy listening"], "ts": 1794067639, "alt": "https://www.youtube.com/watch?v=Sm6dRbA7_zU"}
+{"action": "edit", "thread": "p1152211011462288", "id": "t1157541467595909_0", "title": "Renee Geyer - Be There In The Morning (1976 version)", "url": "https://www.youtube.com/watch?v=XENP0S9JtSQ", "tags": ["soul", "easy listening"], "ts": 1794067659}
+{"action": "promote", "thread": "p1152211011462288", "id": "t1157541467595909_0", "to": "original", "ts": 1794067667}
