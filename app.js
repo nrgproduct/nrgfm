@@ -27,7 +27,7 @@ const fold = (s) => (s || "").toLowerCase()
   .normalize("NFD").replace(/[̀-ͯ]/g, "").normalize("NFC") // (NFC again: Korean and Japanese letters stay whole)
   .replace(/[^\p{L}\p{N}]+/gu, " ").trim(); // letters of every script are kept (Japanese, Korean, Chinese, Greek…)
 
-const PLATFORM = { youtube: "YouTube", soundcloud: "SoundCloud", bandcamp: "Bandcamp", vimeo: "Vimeo", mixcloud: "Mixcloud", spotify: "Spotify" };
+const PLATFORM = { youtube: "Youtube", soundcloud: "Soundcloud", bandcamp: "Bandcamp", vimeo: "Vimeo", mixcloud: "Mixcloud", spotify: "Spotify" };
 
 const BAD_TITLES = new Set(["client challenge", "just a moment...", "attention required!"]);
 // Readable fallback from a Bandcamp link: artist.bandcamp.com/album/some-title -> "Some Title – artist"
@@ -85,7 +85,7 @@ function info(t) {
     if (!t.title && !fetched && !m.wb_title && am.title) title = flipDotTitle(am.title);
     return { title, author, thumb, dead: false, noEmbed: false, recovered, archive: "", untitled: !t.title && !m.title && !am.title, alt: true };
   }
-  return { title: noEmbed && !t.title ? "Plays on YouTube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, recovered, archive: m.wb_url || "", untitled: !t.title && !m.title };
+  return { title: noEmbed && !t.title ? "Plays on Youtube only" : title, author, thumb, dead: !!m.dead && !noEmbed, noEmbed, recovered, archive: m.wb_url || "", untitled: !t.title && !m.title };
 }
 
 /* What search looks in, field by field (the filters next to the result count switch fields off) */
@@ -862,7 +862,7 @@ function rowLinks(t, i, x) {
   const findable = (x.dead && x.title !== "Unavailable") || x.nolink; // (a track without a link: look its title up on YouTube)
   return el("span", { class: "row-links" },
     el("button", { class: "linkbtn edit-btn", onclick: (e) => toggleEditForm(t, i, e.currentTarget.closest("[data-k]")) }, "Edit"),
-    findable ? el("a", { class: "src find-yt", href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener", title: "Look for this title on YouTube" }, "Search") : null,
+    findable ? el("a", { class: "src find-yt", href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener" }, "Search") : null,
     x.nolink ? null : x.archive
       ? el("a", { class: "src", href: x.archive, target: "_blank", rel: "noopener" }, "Archive")
       : el("a", { class: "src", href: tr.url, target: "_blank", rel: "noopener" }, PLATFORM[tr.platform] || "Open"));
@@ -1430,7 +1430,7 @@ function makeYouTube(tr) {
   return a;
 }
 function makeSoundCloud(box, tr, src) {
-  const f = el("iframe", { src, allow: "autoplay", title: "SoundCloud player" }); box.append(f);
+  const f = el("iframe", { src, allow: "autoplay", title: "Soundcloud player" }); box.append(f);
   let w = null, dur = 0;
   return {
     controllable: true,
@@ -1502,7 +1502,7 @@ function play(t, i) {
   let kind = "video";
   if (x.nolink) {
     kind = "note";
-    box.append(el("p", { class: "nolink" }, "This track has no link yet. ", el("a", { href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener" }, "Search for it on YouTube")));
+    box.append(el("p", { class: "nolink" }, "This track has no link yet. ", el("a", { href: "https://www.youtube.com/results?search_query=" + encodeURIComponent(x.title), target: "_blank", rel: "noopener" }, "Search for it on Youtube")));
   } else if (x.dead) {
     kind = "note";
     box.append(el("p", { class: "nolink" }, x.archive
@@ -1911,8 +1911,8 @@ function addForm(thread, edit, row) {
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
     el("div", { class: "af-field" }, inBtn(edit && "Google", "https://www.google.com/search?q=",
       el("input", { name: "title", type: "text", "aria-label": "Title", placeholder: "Artist – Track (optional, filled in automatically)" }))),
-    el("div", { class: "af-field" }, inBtn(edit && "YouTube", "https://www.youtube.com/results?search_query=",
-      el("input", { name: "url", type: "url", "aria-label": "Link", placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link (or leave it empty)" }))),
+    el("div", { class: "af-field" }, inBtn(edit && "Youtube", "https://www.youtube.com/results?search_query=",
+      el("input", { name: "url", type: "url", "aria-label": "Link", placeholder: "Youtube, Soundcloud, Bandcamp or Vimeo link (or leave it empty)" }))),
     el("div", { class: "af-actions" },
       tags.box,
       el("span", { class: "af-gap" }),
@@ -1923,6 +1923,10 @@ function addForm(thread, edit, row) {
       edit ? null : arrow,
       el("button", { type: "submit", class: "btn" }, "Save")),
     more);
+  if (edit) { // the Google and Youtube buttons in the fields: as wide as Save under them
+    const save = form.querySelector('button[type="submit"]');
+    new ResizeObserver(() => { if (save.offsetWidth) form.style.setProperty("--save-w", save.offsetWidth + "px"); }).observe(save);
+  }
   if (tr) { form.title.value = tr.title ? flipDotTitle(tr.title) : info(tr).title; form.url.value = tr.url; } // YouTube's "Title · Artist" shown as "Artist – Title", as on the page
   form.url.addEventListener("input", () => form.url.setCustomValidity(""));
   form.tags = tags;
@@ -2163,7 +2167,7 @@ async function saveEdit(form, { t, i }) {
   const fromThread = form.closest(".thread") ? form.closest(".thread").id.slice(3) : t.id; // where the track was edited (a tag thread or its own)
   const url = form.url.value.trim() || tr.url, title = form.title.value.trim();
   if (url && !LINK_RE.test(url)) {
-    form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
+    form.url.setCustomValidity("Use a Youtube, Soundcloud, Bandcamp, Vimeo or Mixcloud link.");
     form.url.reportValidity();
     return;
   }
@@ -2173,7 +2177,7 @@ async function saveEdit(form, { t, i }) {
   if (notes !== (tr.notes || "")) item.notes = notes;
   const alt = form.alt ? form.alt.value.trim() : (tr.alt || "");
   if (alt && !LINK_RE.test(alt)) {
-    form.alt.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
+    form.alt.setCustomValidity("Use a Youtube, Soundcloud, Bandcamp, Vimeo or Mixcloud link.");
     form.alt.reportValidity(); form.alt.addEventListener("input", () => form.alt.setCustomValidity(""), { once: true });
     return;
   }
@@ -2549,7 +2553,7 @@ async function saveTrack(form, thread) {
   const url = form.url.value.trim();
   if (!url && !form.title.value.trim()) { form.title.setCustomValidity("A title, a link, or both."); form.title.reportValidity(); form.title.addEventListener("input", () => form.title.setCustomValidity(""), { once: true }); return; }
   if (url && !LINK_RE.test(url)) {
-    form.url.setCustomValidity("Use a YouTube, SoundCloud, Bandcamp, Vimeo or Mixcloud link.");
+    form.url.setCustomValidity("Use a Youtube, Soundcloud, Bandcamp, Vimeo or Mixcloud link.");
     form.url.reportValidity();
     return;
   }
