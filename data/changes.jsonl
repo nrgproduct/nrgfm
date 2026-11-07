@@ -1721,3 +1721,7 @@
 {"action": "tag", "ids": ["t1365601120123275_0"], "add": ["80s"], "remove": [], "ts": 1794073901}
 {"action": "edit", "thread": "p1364149756935078", "id": "t1365601120123275_0", "title": "難波弘之 ｰ ブルジョワジーの秘かな愉しみ ( Bourgeoisie no Hisoka na Tanoshimi )", "url": "https://www.youtube.com/watch?v=VCCEmuKCJec", "tags": ["japanese characters", "80s", "new wave"], "ts": 1794073942}
 {"action": "edit", "thread": "p1364149756935078", "id": "t1365601096789944_0", "title": "Hiroyuki Namba - Hiru No Yume", "url": "https://www.youtube.com/watch?v=WmlqRWapess", "tags": [], "ts": 1794073996}
+{"action": "edit", "thread": "p1340482022635185", "id": "t1349091561774231_0", "title": "Hiroyuki Namba — 空中の音楽 (Kūchū no Ongaku)", "url": "https://www.youtube.com/watch?v=38z5_iOnqyg", "tags": ["japanese characters", "eclectic 80s", "japanese"], "ts": 1794074068}
+{"action": "tag", "ids": ["t1349090965107624_0"], "add": ["japanese"], "remove": [], "ts": 1794074128}
+{"action": "tag", "ids": ["t1349090965107624_0"], "add": ["new wave"], "remove": [], "ts": 1794074144}
+{"action": "edit", "thread": "p1340482022635185", "id": "t1352021434814577_0", "title": "AB'S - DJANGO (1983)", "url": "https://www.youtube.com/watch?v=ItOHOdQN17g", "tags": [], "ts": 1794074187}
