@@ -1776,3 +1776,4 @@
 {"action": "tag", "ids": ["t1373926079290779_0"], "add": ["mainzerstr"], "remove": [], "ts": 1794079475}
 {"action": "edit", "thread": "p1373926079290779", "id": "t1373926129290774_0", "title": "ANIKA - I GO TO SLEEP (2013)", "url": "https://www.youtube.com/watch?v=h7DWX6AYbyE", "tags": ["indie"], "ts": 1794079599}
 {"action": "tag", "ids": ["t1373926129290774_0"], "add": ["post punk"], "remove": [], "ts": 1794079618}
+{"action": "edit", "thread": "p1373926079290779", "id": "t1373926212624099_0", "title": "DJ Krush ft. Esthero - Final Home (1999)", "url": "https://www.youtube.com/watch?v=8B8GJwvtqag", "tags": ["art pop"], "ts": 1794079669}
