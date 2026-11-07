@@ -1725,3 +1725,9 @@
 {"action": "tag", "ids": ["t1349090965107624_0"], "add": ["japanese"], "remove": [], "ts": 1794074128}
 {"action": "tag", "ids": ["t1349090965107624_0"], "add": ["new wave"], "remove": [], "ts": 1794074144}
 {"action": "edit", "thread": "p1340482022635185", "id": "t1352021434814577_0", "title": "AB'S - DJANGO (1983)", "url": "https://www.youtube.com/watch?v=ItOHOdQN17g", "tags": [], "ts": 1794074187}
+{"action": "edit", "thread": "p1340482022635185", "id": "t1349090965107624_0", "title": "Hiroyuki Namba - Tropical Exposition ('Who Done It?' Version)", "url": "https://www.youtube.com/watch?v=DRQTcaCu0RY", "tags": ["japanese", "new wave"], "ts": 1794074279}
+{"action": "tag", "ids": ["t1352021434814577_0"], "add": ["funk"], "remove": [], "ts": 1794074302}
+{"action": "tag", "ids": ["t1352021434814577_0"], "add": ["city pop"], "remove": [], "ts": 1794074323}
+{"action": "tag", "ids": ["t1352021434814577_0"], "add": ["#xavi"], "remove": [], "ts": 1794074334}
+{"action": "edit", "thread": "p1340482022635185", "id": "t1352024301480957_0", "title": "AB'S  Girl", "url": "https://www.youtube.com/watch?v=mBhhz0ZEOWA", "tags": [], "ts": 1794074373, "alt": "https://www.youtube.com/watch?v=SRq98O16CB0"}
+{"action": "edit", "thread": "p1340482022635185", "id": "t1352024301480957_0", "title": "AB'S - Girl (1983)", "url": "https://www.youtube.com/watch?v=mBhhz0ZEOWA", "tags": [], "ts": 1794074382}
