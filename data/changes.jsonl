@@ -1831,3 +1831,5 @@
 {"action": "edit", "thread": "p1403768406306546", "id": "t1794083885_0", "title": "Baby Ford - Ford Trax (1988)", "url": "https://www.youtube.com/watch?v=NbkcC6o-eXM", "tags": [], "ts": 1794083896}
 {"action": "delete", "thread": "p1402349909781729", "id": "t1402349909781729_0", "ts": 1794083990}
 {"action": "tag", "ids": ["t1408571432492910_0"], "add": ["new wave"], "remove": [], "ts": 1794084044}
+{"action": "tag", "ids": ["t1414901828526537_0"], "add": ["dansk"], "remove": [], "ts": 1794084061}
+{"action": "delete", "thread": "p6717527188263948", "id": "t6717635894919744_0", "ts": 1794084072}
