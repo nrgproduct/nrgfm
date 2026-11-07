@@ -334,7 +334,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Tagged", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Index", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Tagged", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -709,6 +709,7 @@ function setView(v, keepHash) {
     const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22 + menuH); return;
   }
   view = VIEW_NAMES[v] ? v : "threads";
+  setTimeout(updateTitle, 0);
   if (!tagsView()) hideTagPanel();
   tp.focused = false; // (opening Tags puts the cursor in its search field)
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : view === "tag" ? "#/tag/" + encodeURIComponent(tagPageName) : "#/" + view);
@@ -1139,13 +1140,14 @@ function taggedNode(t) {
   t.tracks.forEach((tr, i) => {
     if (userTagged(tr)) rows.push(trackRow(t, tr, i, null));
   });
+  if (view === "tag") return el("li", { class: "thread tagged-thread tagpage-thread", id: "th-" + t.id }, el("ol", { class: "tracks tg-tracks" }, t.tracks.map((tr, i) => trackRow(t, tr, i, null)))); // (a tag's page: all its tracks)
   const head = t.tracks[0];
   return el("li", { class: "thread tagged-thread", id: "th-" + t.id },
     el("div", { class: "tg-when" }, el("button", { class: "when-link", "data-thread": t.id, onclick: () => { setView("threads"); setTimeout(() => goToThread(t), 0); } }, fmtDay(head.shown_date || head.date))),
     el("ol", { class: "tracks tg-tracks" }, rows));
 }
 function threadNode({ t, hits }) {
-  if (view === "tagged" && !hits && t.kind === "thread") return taggedNode(t);
+  if ((view === "tagged" && !hits && t.kind === "thread") || (view === "tag" && !hits && t.kind === "tag")) return taggedNode(t);
   if (t.kind === "month") return monthNode({ t });
   if (t.mix) return genreMixNode(t);
   if (t.kind === "tag") return tagThreadNode({ t, hits });
@@ -1300,8 +1302,17 @@ const fmtTime = (s) => {
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 };
 
+/* the tab: "nrgfm" (on a tag's page "nrgfm: tag"), with 🔊 and the speaker icon while something plays */
+let soundOn = false;
+function updateTitle() {
+  document.title = (view === "tag" && tagPageName ? "nrgfm: " + tagPageName : "nrgfm") + (soundOn ? " 🔊" : "");
+  for (const l of document.querySelectorAll('link[rel="icon"]')) {
+    const base = l.getAttribute("href").replace("-playing", "");
+    l.setAttribute("href", soundOn ? base.replace(/\.png$/, "-playing.png") : base);
+  }
+}
 function setPlayState(isPlaying) {
-  document.title = "nrgfm 🔊"; // (always the speaker in the tab and window name)
+  if (soundOn !== isPlaying) { soundOn = isPlaying; updateTitle(); }
   $("#playBtn").textContent = isPlaying ? "Pause" : "Play";
   $("#playBtn").setAttribute("aria-pressed", isPlaying ? "true" : "false");
 }
@@ -1486,7 +1497,7 @@ function play(t, i) {
   const controllable = !!(adapter && adapter.controllable);
   $("#dock").classList.toggle("no-transport", !controllable);
   $("#playBtn").disabled = !controllable; $("#seek").disabled = !controllable; $("#volBtn").disabled = !controllable;
-  if (!controllable) { closeVol(); logUncounted(); }
+  if (!controllable) { closeVol(); logUncounted(); soundOn = true; updateTitle(); }
   if (adapter) adapter.ready.catch(() => {
     if (token !== loadToken) return;
     ytSlot().hidden = true;
@@ -1674,6 +1685,7 @@ function idleDock() {
   syncDockSpace();
 }
 function closeDock() {
+  soundOn = false; updateTitle();
   const loaded = !!playing;
   try { adapter && adapter.pause(); } catch {}
   if (adapter) adapter.destroy();
@@ -2675,15 +2687,15 @@ function playTag(t, tr) {
    automatic tags); the line at the top jumps to a letter. Hover: its tracks in the panel; click: the tag's own page
    (Cmd/Ctrl+click: a new tab). ---------- */
 const tagSection = (g) => {
-  if (isPlaylist(g)) return "Playlists";
+  if (isPlaylist(g)) return "#";
   if (isAutoTag(g)) return "Automatic";
   const c = fold(g).charAt(0).toUpperCase();
   return /[A-Z]/.test(c) ? c : "0–9";
 };
-const SECTION_ORDER = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0–9", "Playlists", "Automatic"];
+const SECTION_ORDER = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0–9", "#", "Automatic"];
 function tagGridHead() {
   const have = new Set(threads.filter((t) => t.kind === "tag").map((t) => tagSection(t.name)));
-  const jumps = SECTION_ORDER.filter((k) => k !== "Automatic" || (getToken() && have.has(k))).map((k) => el("button", {
+  const jumps = SECTION_ORDER.filter((k) => k !== "Automatic").map((k) => el("button", {
     class: "when-link tg-jump" + (have.has(k) ? "" : " none"), disabled: !have.has(k) || null,
     onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k));
   return el("div", { class: "tp-head tg-head" }, el("div", { class: "tg-jumps" }, jumps), tagSearchField());
@@ -2706,9 +2718,10 @@ function renderTagsGrid() {
     return b;
   };
   const out = [];
-  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k), el("div", { class: "tg-grid" }, ts.map(card)));
+  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k === "#" ? "# Playlists" : k === "Automatic" ? "Automatic tags" : k), el("div", { class: "tg-grid" }, ts.map(card)));
   list.replaceChildren(el("div", { class: "tg-page" }, out));
-  if (!phone() && (!tp.active || !all.some((t) => t.name === tp.active))) tp.active = all[0].name;
+  const first = [...groups.values()].flat()[0]; // (the first box on the page: A, not an automatic tag)
+  if (!phone() && (!tp.active || !all.some((t) => t.name === tp.active))) tp.active = first.name;
   tp.pinned = false;
   if (!phone()) drawTagPanel();
 }
@@ -2962,6 +2975,16 @@ function drawTagPanel(show, page) {
     if (!p.tracks.length) list.append(el("p", { class: "hint" }, "No tracks in these years."));
   };
   if (!page) drawTagList();
+  if (page) { // a tag's page: the name and how many tracks, the years on the right; the order and Add description / Rename under
+    const n = t.tracks.length;
+    head.append(el("span", { class: "tp-page-n" }, `${n} ${n === 1 ? "track" : "tracks"}`));
+    const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
+      el("div", { class: "tp-btns tpg-row2" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
+        key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
+          !isAutoTag(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null) : null)].filter(Boolean);
+    if (desc) descBox.addEventListener("dblclick", () => key && editDesc());
+    return parts;
+  }
   const parts = [head,
     el("div", { class: "tp-p-meta" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}` + (ys.length ? " · " + yearsText(ys) : "") + " · last added " + fmtTs(t.last)),
     descBox,

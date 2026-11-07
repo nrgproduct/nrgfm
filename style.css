@@ -1445,3 +1445,27 @@ body.side-open .tag-panel { visibility: hidden; }
   .tg-card { padding: 10px; }
   .tg-name { font-size: 15px; }
 }
+
+/* Index: the letters line bigger, on one line; the search gets shorter when there's no room */
+.tg-head { flex-wrap: nowrap; }
+.tg-jumps { flex-wrap: nowrap; gap: 0 1px; font-size: 17px; overflow: hidden; flex: 0 0 auto; }
+.tg-jump { padding: 2px 3px; }
+.tg-head .tp-search { flex: 1 1 320px; min-width: 80px; max-width: 320px; }
+@media (max-width: 1180px) and (min-width: 641px) { .tg-jumps { font-size: 15px; } .tg-jump { padding: 2px 2px; } }
+/* a tag's page: name and count left, the years right; order and Add description / Rename under; tracks as plain rows */
+.tpg-row1 { display: flex; align-items: center; gap: 24px; }
+.tpg-row1 .tp-p-head { justify-content: flex-start; align-items: baseline; gap: 14px; }
+.tp-page-n { color: var(--muted); font-size: 14px; }
+.tpg-years { margin-left: auto; width: 240px; flex: none; }
+.tpg-years .tp-range-labels { font-size: 12px; }
+.tpg-row2 { align-items: baseline; }
+.tpg-edit { margin-left: auto; display: inline-flex; gap: 14px; }
+.tp-page-head { max-width: none; }
+.tagpage-thread { border-bottom: 0; }
+@media (max-width: 640px) {
+  .tg-head { display: grid; }
+  .tg-jumps { font-size: 15px; overflow-x: auto; scrollbar-width: none; }
+  .tg-head .tp-search { max-width: none; }
+  .tpg-row1 { flex-wrap: wrap; gap: 6px 16px; }
+  .tpg-years { width: 100%; }
+}
