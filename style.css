@@ -1373,7 +1373,7 @@ html.tp-own-bar::-webkit-scrollbar { display: none; }
 
 /* Tags and Activity: like History, no gap between the header and the sticky line, and it doesn't move on the first scroll */
 .view-tags, .view-activity { top: calc(var(--top-h, 60px) - 1px); box-shadow: 0 -2px 0 var(--bg); }
-body[data-view="tags"] .view-tags, body[data-view="activity"] .view-activity { margin-top: -9px; }
+body[data-view="tags"] .view-tags, body[data-view="tagsrows"] .view-tags, body[data-view="activity"] .view-activity, body[data-view="tag"] .view-tagpage { margin-top: -9px; }
 .view-tags { padding-top: 14px; }
 
 /* Tags page: the search field between the sort and − + */
@@ -1417,3 +1417,11 @@ body.side-open .tag-panel { visibility: hidden; }
 .tagged-thread .track { grid-template-columns: 112px 1fr auto; }
 .tagged-thread .track .chip { width: 112px; height: 63px; }
 @media (max-width: 640px) { .tagged-thread .track { grid-template-columns: 112px 1fr; } }
+
+/* a tag's own page: the panel's controls at the top, the tracks as one thread below */
+.view-tagpage { background: var(--bg);
+  border-bottom: 1px dotted var(--dots, var(--line-strong)); padding: 14px 0 12px; }
+.tp-page-head { display: grid; gap: 8px; max-width: 560px; }
+.tp-page-title { margin: 0; font-size: 26px; font-weight: 500; color: var(--jade); }
+.tp-title-link { all: unset; cursor: pointer; color: var(--jade); font-size: 19px; font-weight: 500; text-decoration: underline dotted; text-underline-offset: 4px; text-decoration-color: var(--dots, var(--line-strong)); }
+.tp-title-link:hover { text-decoration-color: var(--jade); }
