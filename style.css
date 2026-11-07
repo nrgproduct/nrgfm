@@ -1469,5 +1469,9 @@ body.side-open .tag-panel { visibility: hidden; }
   .tpg-years { width: 100%; }
 }
 
-.tp-back { all: unset; cursor: pointer; color: var(--muted); font-size: 22px; line-height: 1; padding: 0 4px 0 0; align-self: center; }
-.tp-back:hover { color: var(--jade); }
+/* a tag's page opened from Tags: hovering its name shows a back arrow over the start of it */
+.tp-back-title { position: relative; cursor: pointer; }
+.tp-back-ov { position: absolute; left: -2px; top: 0; bottom: 0; width: 64px; display: flex; align-items: center; pointer-events: none;
+  background: linear-gradient(90deg, var(--bg) 0%, var(--bg) 35%, transparent 100%); opacity: 0; transition: opacity .15s; }
+.tp-back-ov span { margin-left: 2px; font-size: 30px; font-weight: 700; line-height: 1; color: var(--text); padding-bottom: 3px; }
+.tp-back-title:hover .tp-back-ov { opacity: 1; }

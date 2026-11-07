@@ -2994,7 +2994,12 @@ function drawTagPanel(show, page) {
   if (page) { // a tag's page: the name and how many tracks, the years on the right; the order and Add description / Rename under
     const n = t.tracks.length;
     head.append(el("span", { class: "tp-page-n" }, `${n} ${n === 1 ? "track" : "tracks"}`));
-    if (tp.returnTo) head.prepend(el("button", { class: "tp-back", "aria-label": "Back to Tags", onclick: () => setView("tags") }, "←")); // (back to the Index, where you were)
+    if (tp.returnTo) { // opened from Tags: hovering the name shows ‹ over its start (the letters fade under it); a click goes back there
+      const title = head.querySelector(".tp-page-title");
+      title.classList.add("tp-back-title"); title.setAttribute("role", "link"); title.setAttribute("aria-label", "Back to Tags");
+      title.append(el("span", { class: "tp-back-ov", "aria-hidden": "true" }, el("span", {}, "‹")));
+      title.addEventListener("click", () => setView("tags"));
+    }
     const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
       el("div", { class: "tp-btns tpg-row2" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
         key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
