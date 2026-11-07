@@ -1705,3 +1705,4 @@
 {"action": "edit", "thread": "p1265385810144807", "id": "t1265385826811472_0", "title": "Jackie Trent with The Tony Hatch Orchestra - The Shadow of Your Smile (Jazz) (1969)", "url": "https://www.youtube.com/watch?v=64m56WkP1yg", "tags": ["easy listening", "jazz"], "ts": 1794072425}
 {"action": "tag", "ids": ["t1269296976420357_0"], "add": ["minimalism"], "remove": [], "ts": 1794072449}
 {"action": "edit", "thread": "p1265385810144807", "id": "t1269296976420357_0", "title": "Ichiko Hashimoto - Le Beau Paysage (1984)", "url": "https://www.youtube.com/watch?v=nkgUslUJ4Y8", "tags": ["minimalism"], "ts": 1794072458}
+{"action": "tag", "ids": ["t1268270396523015_0"], "add": ["indie"], "remove": [], "ts": 1794072528}
