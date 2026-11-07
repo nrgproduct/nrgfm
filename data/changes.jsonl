@@ -1671,3 +1671,4 @@
 {"action": "tag", "ids": ["t1543700245646694_0"], "add": ["jazz", "minimalism"], "remove": [], "ts": 1794070103}
 {"action": "edit", "thread": "xt1543700245646694_0", "id": "t1543700245646694_0", "title": "Wolfgang Lackerschmid and Chet Baker - Blue Bassa", "url": "https://www.youtube.com/watch?v=9kDOM6kNT_I", "tags": ["jazz", "minimalism"], "ts": 1794070155}
 {"action": "edit", "thread": "xt1543700245646694_0", "id": "t1543700245646694_0", "title": "Wolfgang Lackerschmid and Chet Baker - Blue Bassa (1979)", "url": "https://www.youtube.com/watch?v=9kDOM6kNT_I", "tags": ["jazz", "minimalism"], "ts": 1794070258}
+{"action": "move", "thread": "p1543700245646694", "id": "t1576267565723295_0", "to": "xt1543700245646694_0", "ts": 1794070287}
