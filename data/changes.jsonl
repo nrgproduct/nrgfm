@@ -1603,3 +1603,4 @@
 {"action": "delete", "thread": "xt1123029067713816_0", "id": "t1129757570374299_0", "ts": 1794064795}
 {"action": "tag", "ids": ["t1129849030365153_0"], "add": ["italo"], "remove": [], "ts": 1794064811}
 {"action": "tag", "ids": ["t1129849030365153_0"], "add": ["new wave"], "remove": [], "ts": 1794064828}
+{"action": "edit", "thread": "xt1123029067713816_0", "id": "t1129849030365153_0", "title": "Ago - For You (1982)", "url": "https://www.youtube.com/watch?v=Ao3wbAxpWmE", "tags": ["italo", "new wave"], "ts": 1794064925, "notes": "https://www.youtube.com/watch?v=Ao3wbAxpWmE", "alt": "https://www.youtube.com/watch?v=YTJYXwhBH2M"}
