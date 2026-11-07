@@ -2632,7 +2632,7 @@ document.addEventListener("keydown", (e) => {
   lastEsc = twice ? 0 : now;
   if (twice) { showPlaying(); return; }
   document.querySelectorAll(".add-form").forEach((f) => closeAddForm(f));
-  if ($("#q").value) { $("#q").value = ""; syncClear(); runSearch(); }
+  if ($("#q").value) { $("#q").value = ""; syncClear(); endSearch(); }
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
 });
 /* a button clicked with the mouse doesn't keep the focus: no ring after the next key, and Enter doesn't press it again */
@@ -3386,8 +3386,15 @@ document.addEventListener("keydown", (e) => {
 /* ---------- boot ---------- */
 let timer;
 function syncClear() { $("#clearQ").hidden = !$("#q").value; }
-$("#q").addEventListener("input", () => { if (!$("#menu").hidden) toggleMenu(false); syncClear(); clearTimeout(timer); timer = setTimeout(runSearch, 70); });
-$("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); runSearch(); if (phone()) $("#q").blur(); else $("#q").focus(); };
+/* leaving a search while the address points at a post (#t/…): back at that post, not at the newest one */
+function endSearch() {
+  const m = view === "threads" && location.hash.match(/^#t\/(.+)$/);
+  let id = m && m[1]; try { id = id && decodeURIComponent(id); } catch {}
+  const t = id && threads.find((x) => x.id === id && x.kind !== "tag");
+  if (t) goToThread(t); else runSearch();
+}
+$("#q").addEventListener("input", () => { if (!$("#menu").hidden) toggleMenu(false); syncClear(); clearTimeout(timer); timer = setTimeout(() => ($("#q").value.trim() ? runSearch() : endSearch()), 70); });
+$("#clearQ").onclick = () => { $("#q").value = ""; syncClear(); endSearch(); if (phone()) $("#q").blur(); else $("#q").focus(); };
 // phones: Enter, or touching anywhere outside the search field, puts the keyboard away
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); clearTimeout(timer); runSearch(); $("#q").blur(); } });
 document.addEventListener("touchstart", (e) => { if (document.activeElement === $("#q") && !e.target.closest(".search")) $("#q").blur(); }, { passive: true });
