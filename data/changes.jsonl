@@ -1679,3 +1679,4 @@
 {"action": "tag", "ids": ["t1576323669051018_0"], "add": ["minimalism"], "remove": [], "ts": 1794070397}
 {"action": "edit", "thread": "p1543700245646694", "id": "t1611373162212735_0", "title": "Guy Boyer & Guy Pedersen - Atlantide", "url": "https://www.youtube.com/watch?v=kjzJUaCN8q8", "tags": [], "ts": 1794070543}
 {"action": "edit", "thread": "p1543700245646694", "id": "t1614868461863205_0", "title": "Gábor Szabó - Theme For Gabor (1976)", "url": "https://www.youtube.com/watch?v=zZCIstRwU1k", "tags": ["score"], "ts": 1794070692}
+{"action": "move", "thread": "p1543700245646694", "id": "t1614873611862690_0", "to": "xt1543700245646694_0", "ts": 1794070782}
