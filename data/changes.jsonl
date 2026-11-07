@@ -1708,3 +1708,4 @@
 {"action": "tag", "ids": ["t1268270396523015_0"], "add": ["indie"], "remove": [], "ts": 1794072528}
 {"action": "edit", "thread": "p1268270396523015", "id": "t1268270396523015_0", "title": "Unknown Mortal Orchestra - Multi-Love (Official Music Video)", "url": "https://www.youtube.com/watch?v=ByYvTra8zWw", "tags": ["indie"], "ts": 1794072606}
 {"action": "edit", "thread": "p1288495181167203", "id": "t1288495327833855_0", "title": "Zoo - Jeg Robot (1980)", "url": "https://www.youtube.com/watch?v=hXzJQQ2mjFI", "tags": ["norway", "funk"], "ts": 1794072694}
+{"action": "tag", "ids": ["t1288500311166690_0"], "add": ["minimalism", "new age"], "remove": [], "ts": 1794072721}
