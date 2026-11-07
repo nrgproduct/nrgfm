@@ -1606,3 +1606,4 @@
 {"action": "edit", "thread": "xt1123029067713816_0", "id": "t1129849030365153_0", "title": "Ago - For You (1982)", "url": "https://www.youtube.com/watch?v=Ao3wbAxpWmE", "tags": ["italo", "new wave"], "ts": 1794064925, "notes": "https://www.youtube.com/watch?v=Ao3wbAxpWmE", "alt": "https://www.youtube.com/watch?v=YTJYXwhBH2M"}
 {"action": "edit", "thread": "xt1123029067713816_0", "id": "t1130764723606917_0", "title": "Gary Low - You are a danger (Maxi single - 1982)", "url": "https://www.youtube.com/watch?v=AIpTTowLMVM", "tags": [], "ts": 1794065418, "alt": "https://www.youtube.com/watch?v=ayAH9uSd5lI"}
 {"action": "tag", "ids": ["t1130764723606917_0"], "add": ["italo"], "remove": [], "ts": 1794065425}
+{"action": "tag", "ids": ["t1136466486370074_0"], "add": ["italo"], "remove": [], "ts": 1794065443}
