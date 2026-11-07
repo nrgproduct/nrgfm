@@ -824,6 +824,24 @@ document.addEventListener("click", (e) => {
   if (e.metaKey || e.ctrlKey) { e.preventDefault(); e.stopPropagation(); openThreadTab(b.dataset.thread); return; }
   setTimeout(() => markThread(b.dataset.thread), 0); // (after the page has gone there)
 }, true);
+/* on a Mac, Ctrl+click is a right-click (no "click" event), and the middle button is an "auxclick": both open the thread in a new tab too */
+function threadOf(target) {
+  if (!target.closest) return null;
+  const b = target.closest("[data-thread]");
+  if (b) return b.dataset.thread;
+  if (target.closest("#sourceBtn") && playing) { const home = homeOf(playing.thread.tracks[playing.index]); return home ? home.id : null; }
+  return null;
+}
+document.addEventListener("contextmenu", (e) => {
+  if (!e.ctrlKey) return;
+  const id = threadOf(e.target);
+  if (id) { e.preventDefault(); openThreadTab(id); }
+}, true);
+document.addEventListener("auxclick", (e) => {
+  if (e.button !== 1) return;
+  const id = threadOf(e.target);
+  if (id) { e.preventDefault(); openThreadTab(id); }
+}, true);
 function searchFor(text) { $("#q").value = text; syncClear(); runSearch(); pageScrollTo(0); }
 const fmtDay = (d) => { const [y, mo, da] = (d || "").split("-"); return y ? `${+da} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1]} ${y}` : ""; };
 const RECOVERED = "title recovered from Internet Archive";
