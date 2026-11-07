@@ -1608,3 +1608,4 @@
 {"action": "tag", "ids": ["t1130764723606917_0"], "add": ["italo"], "remove": [], "ts": 1794065425}
 {"action": "tag", "ids": ["t1136466486370074_0"], "add": ["italo"], "remove": [], "ts": 1794065443}
 {"action": "edit", "thread": "xt1123029067713816_0", "id": "t1136466486370074_0", "title": "Flavia Fortunato — Rincontrarsi (1983)", "url": "https://www.youtube.com/watch?v=Po2jcgcu7LA", "tags": ["italo"], "ts": 1794065498}
+{"action": "edit", "thread": "xt1123029067713816_0", "id": "t1136466486370074_0", "title": "Flavia Fortunato — Rincontrarsi (1983)", "url": "https://www.youtube.com/watch?v=Po2jcgcu7LA", "tags": ["italo", "prog"], "ts": 1794065577}
