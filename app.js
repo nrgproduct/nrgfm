@@ -2647,11 +2647,21 @@ addEventListener("keydown", (e) => {
     $("#vol").value = v; $("#vol").dispatchEvent(new Event("input"));
   }
 }, true);
-/* Ctrl+I (Cmd+I): the Edit card of the playing track, on the row on screen, or in its thread */
+/* Ctrl+I (Cmd+I): the Edit card of the playing track, on the row on screen, or in its thread.
+   Again: the card's more info (▾), again: its Meta, again: the card closes */
 addEventListener("keydown", (e) => {
   if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "i" || !playing) return;
-  if (e.target.closest && e.target.closest(".add-form, textarea, [contenteditable]")) return; // (a search field is fine)
+  const card = [...document.querySelectorAll(".edit-wrap")].find((w) => w.offsetParent && w.previousElementSibling && w.previousElementSibling.classList.contains("playing"));
+  const inCard = card && e.target.closest && card.contains(e.target);
+  if (!inCard && e.target.closest && e.target.closest(".add-form, textarea, [contenteditable]")) return; // (a search field is fine)
   e.preventDefault(); e.stopPropagation();
+  if (card) {
+    const form = card.querySelector(".add-form"), more = form.querySelector(".af-more"), meta = form.querySelector(".af-meta");
+    if (more && more.hidden) form.querySelector(".more-info-btn").click();
+    else if (meta && meta.hidden) { form.querySelector(".af-meta-line .thread-btn").click(); meta.scrollIntoView({ block: "nearest" }); }
+    else closeAddForm(form);
+    return;
+  }
   if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   if (!getToken()) { openSetup(); return; }
   const edit = (row) => { const b = row && row.querySelector(".edit-btn"); if (!b) return false; b.click(); const w = row.nextElementSibling; (w && w.classList.contains("edit-wrap") ? w : row).scrollIntoView({ block: "center" }); return true; };
