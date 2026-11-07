@@ -1909,10 +1909,10 @@ function addForm(thread, edit, row) {
       else if (open) revealWhole(form);
     } }, "▾");
   const form = el("form", { class: "add-form" + (edit ? " edit-form" : ""), autocomplete: "off" },
-    el("div", { class: "af-field" },
-      el("input", { name: "title", type: "text", "aria-label": "Title", placeholder: "Artist – Track (optional, filled in automatically)" })),
-    el("div", { class: "af-field" },
-      el("input", { name: "url", type: "url", "aria-label": "Link", placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link (or leave it empty)" })),
+    el("div", { class: "af-field" }, inBtn(edit && "Google", "https://www.google.com/search?q=",
+      el("input", { name: "title", type: "text", "aria-label": "Title", placeholder: "Artist – Track (optional, filled in automatically)" }))),
+    el("div", { class: "af-field" }, inBtn(edit && "YouTube", "https://www.youtube.com/results?search_query=",
+      el("input", { name: "url", type: "url", "aria-label": "Link", placeholder: "YouTube, SoundCloud, Bandcamp or Vimeo link (or leave it empty)" }))),
     el("div", { class: "af-actions" },
       tags.box,
       el("span", { class: "af-gap" }),
@@ -2034,6 +2034,16 @@ function moreInfo(tr, edit, tags) {
   return box;
 }
 const mixTags = (form) => form.tags.get(); // ("mix" is an ordinary tag: the Mixes page shows tracks tagged "mix")
+/* Edit card: a small button inside the field (right), searching the web for the title in the title field, in a new tab */
+function inBtn(label, search, input) {
+  if (!label) return input;
+  return el("span", { class: "af-alt-box" }, input,
+    el("button", { type: "button", class: "af-alt-copy", onclick: (e) => {
+      e.preventDefault();
+      const q = e.currentTarget.closest("form").title.value.trim();
+      if (q) open(search + encodeURIComponent(q), "_blank", "noopener");
+    } }, label));
+}
 function closeAddForm(form, opts = {}) {
   if (!form) return;
   if (form.tags) form.tags.restore();
