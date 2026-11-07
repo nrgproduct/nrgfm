@@ -1798,3 +1798,4 @@
 {"url": "https://www.youtube.com/watch?v=SvCjPIXA5eE", "title": "I Gres - Restless (1974)", "thread": "p1505692909447428", "tags": ["funk"], "ts": 1794080680}
 {"action": "edit", "thread": "p1532724536744265", "id": "t1604658406217544_0", "title": "So Inagawa - Logo Queen (2013)", "url": "https://www.youtube.com/watch?v=AoiEtZSQoMc", "tags": ["deep house", "mainzerstr"], "ts": 1794080785}
 {"url": "https://www.youtube.com/watch?v=PCAYWHgilOM", "title": "Doc Scott - Surgery (Midday Mix)", "thread": "p1532724536744265", "tags": [], "ts": 1794080947}
+{"action": "tag", "ids": ["t1608508939165824_0"], "add": ["downtempo"], "remove": [], "ts": 1794080983}
