@@ -2633,6 +2633,23 @@ addEventListener("keydown", (e) => {
     $("#vol").value = v; $("#vol").dispatchEvent(new Event("input"));
   }
 }, true);
+/* Ctrl+I (Cmd+I): the Edit card of the playing track, on the row on screen, or in its thread */
+addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "i" || !playing) return;
+  if (e.target.closest && e.target.closest(".add-form, textarea, [contenteditable]")) return; // (a search field is fine)
+  e.preventDefault(); e.stopPropagation();
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  if (!getToken()) { openSetup(); return; }
+  const edit = (row) => { const b = row && row.querySelector(".edit-btn"); if (!b) return false; b.click(); const w = row.nextElementSibling; (w && w.classList.contains("edit-wrap") ? w : row).scrollIntoView({ block: "center" }); return true; };
+  if (edit([...document.querySelectorAll(".playing")].find((r) => r.offsetParent && r.querySelector(".edit-btn")))) return;
+  const tr = playing.thread.tracks[playing.index], home = homeOf(tr);
+  if (!home) return;
+  goToThread(home);
+  setTimeout(() => {
+    const node = document.getElementById("th-" + home.id), k = `${home.id}:${home.tracks.indexOf(tr)}`;
+    edit(node && [...node.querySelectorAll(`[data-k="${k}"]`)].find((r) => r.offsetParent));
+  }, 60);
+}, true);
 /* Esc twice quickly: bring the playing track to the middle of the screen (when it is on the page) */
 let lastEsc = 0;
 function showPlaying() {

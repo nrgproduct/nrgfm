@@ -8,7 +8,6 @@
                            Macau or Singapore (titles with only Han characters are mostly Japanese in this archive)
   korean characters        the title has Hangul (a title can get more than one of these)
   <script> characters      the title has letters of another writing system: georgian, cyrillic, greek, arabic, hebrew, thai…
-  foreign characters       any writing system other than Latin (Japanese, Korean and Chinese too)
   backup link              the main link has been gone for more than a day and the track plays from its alternative link
 
 Usage: python3 scripts/auto_tags.py"""
@@ -24,7 +23,7 @@ HANGUL = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")               
 SCRIPTS = {"ARABIC", "ARMENIAN", "BENGALI", "CHEROKEE", "CYRILLIC", "DEVANAGARI", "ETHIOPIC", "GEORGIAN", "GREEK", "GUJARATI",
            "GURMUKHI", "HEBREW", "JAVANESE", "KANNADA", "KHMER", "LAO", "MALAYALAM", "MONGOLIAN", "MYANMAR", "NKO", "ORIYA",
            "SINHALA", "SYRIAC", "TAMIL", "TELUGU", "THAANA", "THAI", "TIBETAN", "TIFINAGH", "BALINESE", "OL", "VAI"}
-SCRIPT_TAGS = {s.lower() + " characters" for s in SCRIPTS} | {"japanese characters", "chinese characters", "korean characters", "foreign characters"}
+SCRIPT_TAGS = {s.lower() + " characters" for s in SCRIPTS} | {"japanese characters", "chinese characters", "korean characters", "foreign characters"}  # ("foreign characters" is no longer given: listed so it comes off)
 
 
 def scripts_in(title):
@@ -109,8 +108,6 @@ def main():
         if hangul:
             want.add("korean characters")
         want |= scripts_in(title)
-        if want & SCRIPT_TAGS:  # any writing system other than Latin
-            want.add("foreign characters")
         mm = meta.get(tr["url"], {})
         if tr.get("alt") and (mm.get("dead") or mm.get("status") == 401) and not meta.get(tr["alt"], {}).get("dead"):
             since = down.setdefault(tr["url"], now)  # first seen gone; the tag only after a day
