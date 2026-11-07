@@ -1775,3 +1775,4 @@
 {"action": "edit", "thread": "xt1094339830582740_0", "id": "t1094339830582740_0", "title": "Simple Minds - Promised You a Miracle (1982)", "url": "https://www.youtube.com/watch?v=kH43LyGyHXQ", "tags": ["new wave"], "ts": 1794079292}
 {"action": "tag", "ids": ["t1373926079290779_0"], "add": ["mainzerstr"], "remove": [], "ts": 1794079475}
 {"action": "edit", "thread": "p1373926079290779", "id": "t1373926129290774_0", "title": "ANIKA - I GO TO SLEEP (2013)", "url": "https://www.youtube.com/watch?v=h7DWX6AYbyE", "tags": ["indie"], "ts": 1794079599}
+{"action": "tag", "ids": ["t1373926129290774_0"], "add": ["post punk"], "remove": [], "ts": 1794079618}
