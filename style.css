@@ -1338,7 +1338,6 @@ body:not(.can-add) .owner-only { display: none; }
 .tp-rename-row { display: flex; gap: 10px; align-items: center; width: 100%; }
 .tp-btns { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; }
 .tp-edit { margin-left: auto; }
-.tp-p-list { overscroll-behavior: contain; }
 .tp-btns .hint { font-size: 12.5px; }
 .tp-range { padding: 2px 2px 0; }
 .tp-range-track { position: relative; height: 20px; }
@@ -1469,3 +1468,6 @@ body.side-open .tag-panel { visibility: hidden; }
   .tpg-row1 { flex-wrap: wrap; gap: 6px 16px; }
   .tpg-years { width: 100%; }
 }
+
+.tp-back { all: unset; cursor: pointer; color: var(--muted); font-size: 22px; line-height: 1; padding: 0 4px 0 0; align-self: center; }
+.tp-back:hover { color: var(--jade); }

@@ -334,7 +334,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Index", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Tagged", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Index", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Library", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -665,6 +665,14 @@ function drawViewHead() {
   head.hidden = false;
 }
 /* History: the year and month you are looking at light up while you scroll */
+function watchIndex() { scroller().addEventListener("scroll", () => {
+  if (view !== "tags") return;
+  const head = $("#viewHead"), top = head.getBoundingClientRect().bottom + 12;
+  const all = [...document.querySelectorAll("#threads .tg-letter")];
+  const cur = all.filter((h) => h.getBoundingClientRect().top <= top + 20).pop() || all[0];
+  const k = cur ? cur.id.slice(3) : "";
+  head.querySelectorAll(".tg-jump").forEach((b) => b.classList.toggle("on", b.textContent === k));
+}, { passive: true }); }
 function watchHistory() { scroller().addEventListener("scroll", () => {
   if (view !== "history" || $("#q").value.trim()) return;
   const head = $("#viewHead"), top = head.getBoundingClientRect().bottom + 4;
@@ -708,14 +716,21 @@ function setView(v, keepHash) {
     const menuH = $("#menu").hidden ? 0 : $("#menu").getBoundingClientRect().height; // the open menu covers the top
     const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22 + menuH); return;
   }
+  const from = view;
   view = VIEW_NAMES[v] ? v : "threads";
   setTimeout(updateTitle, 0);
+  if (view === "tags" && from !== "tags") { // Index: a fresh start, unless coming back from a tag's page opened from it
+    const back = from === "tag" && tp.returnTo;
+    tp.terms = back ? back.terms : []; tp.q = back ? back.q : "";
+    tp.restoreY = back ? back.y : null;
+  }
   if (!tagsView()) hideTagPanel();
   tp.focused = false; // (opening Tags puts the cursor in its search field)
   if (!keepHash) history.replaceState(null, "", view === "threads" ? location.pathname : view === "tag" ? "#/tag/" + encodeURIComponent(tagPageName) : "#/" + view);
   document.querySelectorAll("#menu [data-view]").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === view)));
   $("#q").value = ""; syncClear();
   runSearch(); pageScrollTo(0);
+  if (view === "tags" && tp.restoreY != null) { const y = tp.restoreY; tp.restoreY = null; requestAnimationFrame(() => pageScrollTo(y)); }
 }
 function toggleMenu(open = $("#menu").hidden) {
   if (open && !$("#addPanel").hidden) closeAddForm($("#addPanel").querySelector("form"));
@@ -2730,6 +2745,7 @@ let tagPageName = null;
 function openTagPage(name, e) {
   const href = location.pathname + "#/tag/" + encodeURIComponent(name);
   if (e && (e.metaKey || e.ctrlKey)) { open(href, "_blank"); return; }
+  tp.returnTo = view === "tags" ? { terms: tp.terms.slice(), q: tp.q, y: scroller() === window ? scrollY : document.body.scrollTop } : null;
   tagPageName = name;
   history.pushState(null, "", href); // (Back returns to where you were)
   setView("tag", true);
@@ -2978,6 +2994,7 @@ function drawTagPanel(show, page) {
   if (page) { // a tag's page: the name and how many tracks, the years on the right; the order and Add description / Rename under
     const n = t.tracks.length;
     head.append(el("span", { class: "tp-page-n" }, `${n} ${n === 1 ? "track" : "tracks"}`));
+    if (tp.returnTo) head.prepend(el("button", { class: "tp-back", "aria-label": "Back to Index", onclick: () => setView("tags") }, "←")); // (back to the Index, where you were)
     const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
       el("div", { class: "tp-btns tpg-row2" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
         key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
@@ -3636,6 +3653,6 @@ document.addEventListener("click", (e) => {
   if (!phone()) idleDock(); // the empty player bar is there from the start on a computer
   runSearch();
   if (deepT) { goToThread(deepT); markThread(deepT.id); }
-  watchHistory();
+  watchHistory(); watchIndex();
   checkSetupHash();
 })();
