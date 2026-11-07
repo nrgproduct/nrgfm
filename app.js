@@ -2042,7 +2042,7 @@ function closeAddForm(form, opts = {}) {
     if (wrap._ro) wrap._ro.disconnect();
     if (row) row.classList.remove("editing");
     wrap.remove(); fitList(th);
-    if (row && !opts.quiet) focusRow(row, true, "top", "top"); // back to the track that was edited, at the top
+    // (the page stays where it is)
     return;
   }
   if (form.parentElement && form.parentElement.id === "addPanel") { $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded", "false"); }
