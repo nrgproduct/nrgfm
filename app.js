@@ -3439,12 +3439,7 @@ const side = (() => {
     box.style.maxHeight = Math.max(120, bottom - top) + "px";
   }
   addEventListener("resize", () => { if (!fits()) box.hidden = true; place(); });
-  // while it is open the page stands still and the wheel scrolls the box, wherever the pointer is
-  addEventListener("wheel", (e) => {
-    if (box.hidden || e.target.closest && e.target.closest(".move-pop")) return;
-    e.preventDefault();
-    list.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? list.clientHeight : 1);
-  }, { passive: false, capture: true });
+  // (the page scrolls as usual while it is open; the wheel scrolls the box only with the pointer over it)
   return {
     fits,
     show(title, items) {
