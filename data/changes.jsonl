@@ -1573,3 +1573,4 @@
 {"action": "tag", "ids": ["t28881316844791665_0"], "add": ["#after party"], "remove": [], "ts": 1794059890}
 {"action": "tagrename", "from": "xavi", "to": "#xavi", "ts": 1794060514}
 {"url": "https://www.youtube.com/watch?v=RsfdB4oK-KU", "title": "Spicelab - Feathers (Humate's Flying High Mix)", "thread": "p28881316844791665", "tags": [], "ts": 1794060919}
+{"action": "tagrename", "from": "ipod", "to": "#ipod", "ts": 1794061004}
