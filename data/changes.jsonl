@@ -1761,3 +1761,5 @@
 {"action": "tag", "ids": ["t1303959109620810_0"], "add": ["indie pop"], "remove": [], "ts": 1794078028}
 {"action": "tag", "ids": ["t1303956202954434_0"], "add": ["indie"], "remove": [], "ts": 1794078092}
 {"url": "https://www.youtube.com/watch?v=ziA8_2oLbic", "title": "Lata Ramasar – The Greatest Name That Lives 1980", "thread": "p1542754665741252", "tags": ["curio"], "ts": 1794078382}
+{"url": "https://www.youtube.com/watch?v=ziA8_2oLbic", "title": "Lata Ramasar – The Greatest Name That Lives (1980)", "thread": "p1542754665741252", "tags": ["curio"], "ts": 1794078556, "notes": "indian"}
+{"action": "edit", "thread": "p1542754665741252", "id": "t1573452326004819_0", "title": "Gábor Szabó - The Lady In The Moon", "url": "https://www.youtube.com/watch?v=yP5gxLWJHec", "tags": ["score", "jazz"], "ts": 1794078663, "alt": "https://www.youtube.com/watch?v=QnNMO_6Mg5c"}
