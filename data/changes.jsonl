@@ -1757,3 +1757,4 @@
 {"action": "edit", "thread": "p1298747790141942", "id": "t1324765224206865_0", "title": "Downtown - Petula Clark (1964)", "url": "https://www.youtube.com/watch?v=fllN8bUJ77c", "tags": [], "ts": 1794077789}
 {"action": "edit", "thread": "p1298747790141942", "id": "t1304706869546034_0", "title": "Vashti Bunyan - I'd Like To Walk Around In Your Mind (1970)", "url": "https://www.youtube.com/watch?v=82xcICYq11Y", "tags": ["folk"], "ts": 1794077871}
 {"action": "edit", "thread": "p1298747790141942", "id": "t1304706869546034_0", "title": "Vashti Bunyan - I'd Like To Walk Around In Your Mind (1970)", "url": "https://www.youtube.com/watch?v=gW30H_SgsGA", "tags": ["folk"], "ts": 1794077958, "alt": "https://www.youtube.com/watch?v=82xcICYq11Y"}
+{"action": "tag", "ids": ["t1303959109620810_0"], "add": ["indie"], "remove": [], "ts": 1794078002}
