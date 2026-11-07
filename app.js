@@ -2994,10 +2994,10 @@ function drawTagPanel(show, page) {
   if (page) { // a tag's page: the name and how many tracks, the years on the right; the order and Add description / Rename under
     const n = t.tracks.length;
     head.append(el("span", { class: "tp-page-n" }, `${n} ${n === 1 ? "track" : "tracks"}`));
-    if (tp.returnTo) { // opened from Tags: hovering the name shows ‹ over its start (the letters fade under it); a click goes back there
+    if (tp.returnTo) { // opened from Tags: ‹ before the name; the arrow and the name both go back there
       const title = head.querySelector(".tp-page-title");
       title.classList.add("tp-back-title"); title.setAttribute("role", "link"); title.setAttribute("aria-label", "Back to Tags");
-      title.append(el("span", { class: "tp-back-ov", "aria-hidden": "true" }, el("span", {}, "‹")));
+      title.prepend(el("span", { class: "tp-back-arrow", "aria-hidden": "true" }, "‹"));
       title.addEventListener("click", () => setView("tags"));
     }
     const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
@@ -3322,17 +3322,18 @@ $("#home").onclick = (e) => {
    logo only opens it. */
 const HOVER_MENU = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 if (HOVER_MENU) {
-  let tClose;
-  $("#home").addEventListener("mouseenter", () => { clearTimeout(tClose); if ($("#menu").hidden) toggleMenu(true); });
+  let tClose, tOpen;
+  $("#home").addEventListener("mouseenter", () => { clearTimeout(tClose); clearTimeout(tOpen); if ($("#menu").hidden) tOpen = setTimeout(() => { if ($("#menu").hidden) toggleMenu(true); }, 40); }); // (half the Tags hover wait)
+  $("#home").addEventListener("mouseleave", () => clearTimeout(tOpen));
   // it stays open while the pointer is anywhere in the header or the menu's row (also on the way from a menu
-  // item to the search bar); it closes ~0.4 s after the pointer goes down into the page or leaves the window
+  // item to the search bar); it closes ~0.2 s after the pointer goes down into the page or leaves the window
   addEventListener("mousemove", (e) => {
     if ($("#menu").hidden) return;
     const bottom = Math.max($(".top").getBoundingClientRect().bottom, $("#menu").getBoundingClientRect().bottom) + 12;
     if (e.clientY <= bottom) { clearTimeout(tClose); tClose = null; }
-    else if (!tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 400);
+    else if (!tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 200);
   }, { passive: true });
-  document.documentElement.addEventListener("mouseleave", () => { if (!$("#menu").hidden && !tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 400); });
+  document.documentElement.addEventListener("mouseleave", () => { if (!$("#menu").hidden && !tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 200); });
 }
 $("#q").addEventListener("mousedown", () => { if (!$("#menu").hidden) toggleMenu(false); }); // clicking in the search closes the menu
 $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
