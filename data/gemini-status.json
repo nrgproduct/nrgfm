@@ -1,6 +1,7 @@
 {
- "date": "2026-11-07 03:01",
- "asked": 0,
- "done": 3101,
- "state": "error: HTTP 404 This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started)."
+ "date": "2026-11-07 09:01",
+ "asked": 3,
+ "done": 3104,
+ "state": "error: HTTP 404 This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started).",
+ "model": "gemini-3.8-flash"
 }
