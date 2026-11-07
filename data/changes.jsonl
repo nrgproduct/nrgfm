@@ -1745,3 +1745,10 @@
 {"action": "edit", "thread": "p1508941569122562", "id": "t1509012522448800_0", "title": "Akis - Space Time and Beyond", "url": "https://www.youtube.com/watch?v=_2emHlT9UAQ", "tags": ["minimalism", "new age", "vaporwave"], "ts": 1794077000}
 {"action": "edit", "thread": "p1508941569122562", "id": "t1510016809015038_0", "title": "Clearance Part I - Dimitris Petsetakis", "url": "https://www.youtube.com/watch?v=2eZ_DyRCxoU", "tags": ["minimalism"], "ts": 1794077088}
 {"action": "tag", "ids": ["t1519154898101229_0"], "add": ["ambient hits", "downtempo"], "remove": [], "ts": 1794077104}
+{"action": "tag", "ids": ["t1521536234529762_0"], "add": ["leftfield"], "remove": [], "ts": 1794077128}
+{"action": "tag", "ids": ["t1521536234529762_0"], "add": ["steamy"], "remove": [], "ts": 1794077136}
+{"action": "edit", "thread": "p1508941569122562", "id": "t1521536234529762_0", "title": "Stephen Brown - First Snow (1996)", "url": "https://www.youtube.com/watch?v=lyIaDkwnXbM", "tags": ["leftfield", "steamy"], "ts": 1794077146}
+{"action": "tag", "ids": ["t1521537314529654_0"], "add": ["ambient"], "remove": [], "ts": 1794077198}
+{"action": "edit", "thread": "p1508941569122562", "id": "t1521537314529654_0", "title": "Spooky - Orange Coloured Liquid (1993)", "url": "https://www.youtube.com/watch?v=ItpW4732cNg", "tags": ["ambient"], "ts": 1794077225}
+{"action": "edit", "thread": "p1508941569122562", "id": "t1521538697862849_0", "title": "Tura (Plaid) - Reishi (2000)", "url": "https://www.youtube.com/watch?v=RbViqweLeH8", "tags": [], "ts": 1794077313}
+{"action": "tag", "ids": ["t1521538697862849_0"], "add": ["leftfield"], "remove": [], "ts": 1794077330}
