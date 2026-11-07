@@ -1668,3 +1668,4 @@
 {"action": "tag", "ids": ["t1044475808902476_0"], "add": ["indie"], "remove": [], "ts": 1794069868}
 {"action": "tag", "ids": ["t1044475102235880_0"], "add": ["indie"], "remove": [], "ts": 1794069920}
 {"action": "edit", "thread": "p1044475005569223", "id": "t1044475068902550_0", "title": "Deerhoof - Exit Only [OFFICIAL AUDIO]", "url": "https://www.youtube.com/watch?v=u8WaAcu3SlY", "tags": ["alt rock"], "ts": 1794070063}
+{"action": "tag", "ids": ["t1543700245646694_0"], "add": ["jazz", "minimalism"], "remove": [], "ts": 1794070103}
