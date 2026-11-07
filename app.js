@@ -1337,8 +1337,19 @@ const fmtTime = (s) => {
 
 /* the tab: "nrgfm" (on a tag's page "nrgfm: tag"), with 🔊 and the speaker icon while something plays */
 let soundOn = false;
+/* the tab's name: "nrgfm: <tag>" on a tag's page, "nrgfm: <main track's title>" when the address points at a post (#t/…) */
+function postInAddress() {
+  const m = location.hash.match(/^#t\/(.+)$/);
+  if (!m || (view !== "threads" && view !== "tagged")) return null;
+  let id = m[1]; try { id = decodeURIComponent(id); } catch {}
+  const t = threads.find((x) => x.id === id && x.kind !== "tag");
+  return t && t.tracks[0] ? info(t.tracks[0]).title : null;
+}
+for (const f of ["replaceState", "pushState"]) { const orig = history[f].bind(history); history[f] = (...a) => { orig(...a); updateTitle(); }; }
+addEventListener("hashchange", () => updateTitle());
 function updateTitle() {
-  document.title = view === "tag" && tagPageName ? "nrgfm: " + tagPageName : "nrgfm"; // (playing: only the icon changes)
+  const post = typeof threads !== "undefined" && threads.length ? postInAddress() : null;
+  document.title = view === "tag" && tagPageName ? "nrgfm: " + tagPageName : post ? "nrgfm: " + post : "nrgfm"; // (playing: only the icon changes)
   for (const l of document.querySelectorAll('link[rel="icon"]')) {
     const base = l.getAttribute("href").replace("-playing", "");
     l.setAttribute("href", soundOn ? base.replace(/\.png$/, "-playing.png") : base);
