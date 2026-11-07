@@ -1624,3 +1624,4 @@
 {"url": "https://www.youtube.com/watch?v=sdIpMEgKfyg", "title": "Chemise - She Can't Love You (1982)", "thread": "xt1123029067713816_0", "tags": ["italo"], "ts": 1794066390}
 {"action": "tag", "ids": ["t1152218374794885_0"], "add": ["italo"], "remove": [], "ts": 1794066431}
 {"action": "move", "thread": "p1152211011462288", "id": "t1152218374794885_0", "to": "xt1123029067713816_0", "ts": 1794066460}
+{"action": "tag", "ids": ["t1157541467595909_0"], "add": ["soul"], "remove": [], "ts": 1794066536}
