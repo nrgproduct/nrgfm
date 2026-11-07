@@ -334,7 +334,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Library", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Archive", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -714,6 +714,7 @@ function setView(v, keepHash) {
   if (v === "random") { // a random thread, at the top of the page with the divider above it still in view
     const b = $('#menu [data-view="random"]'); b.classList.add("flash"); setTimeout(() => b.classList.remove("flash"), 350);
     const menuH = $("#menu").hidden ? 0 : $("#menu").getBoundingClientRect().height; // the open menu covers the top
+    if (view === "tagged") { randomTagged(22 + menuH); return; }
     const base = threads.filter(isBase); goToThread(base[Math.floor(Math.random() * base.length)], 22 + menuH); return;
   }
   const from = view;
@@ -1289,6 +1290,21 @@ function goToThread(t, gap = 22) { // a little under the header: the dividing li
   holdAt(node, () => headerBottom() + gap); // boxes above size themselves a moment later
 }
 
+/* Archive: Random goes to a random track there (one with a tag of its own; automatic tags don't count) */
+function randomTagged(gap = 22) {
+  const pool = [];
+  for (const t of threads) if (isBase(t)) t.tracks.forEach((tr, i) => { if (userTagged(tr)) pool.push([t, i]); });
+  if (!pool.length) return;
+  const [t, i] = pool[Math.floor(Math.random() * pool.length)];
+  if ($("#q").value) { $("#q").value = ""; syncClear(); }
+  $("#q").blur();
+  runSearch();
+  const at = shown.findIndex((x) => x.t === t);
+  if (at < 0) return;
+  while (rendered <= at && rendered < shown.length) renderMore();
+  const node = document.getElementById("th-" + t.id), row = node && node.querySelector(`[data-k="${t.id}:${i}"]`);
+  if (row) holdAt(row, () => headerBottom() + gap);
+}
 function markPlaying() {
   document.querySelectorAll(".playing").forEach((n) => n.classList.remove("playing"));
   if (playing) document.querySelectorAll(`[data-k="${playing.thread.id}:${playing.index}"]`).forEach((n) => n.classList.add("playing"));
@@ -3417,9 +3433,9 @@ if (HOVER_MENU) {
     if ($("#menu").hidden) return;
     const bottom = Math.max($(".top").getBoundingClientRect().bottom, $("#menu").getBoundingClientRect().bottom) + 12;
     if (e.clientY <= bottom) { clearTimeout(tClose); tClose = null; }
-    else if (!tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 200);
+    else if (!tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 100);
   }, { passive: true });
-  document.documentElement.addEventListener("mouseleave", () => { if (!$("#menu").hidden && !tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 200); });
+  document.documentElement.addEventListener("mouseleave", () => { if (!$("#menu").hidden && !tClose) tClose = setTimeout(() => { tClose = null; toggleMenu(false); }, 100); });
 }
 $("#q").addEventListener("mousedown", () => { if (!$("#menu").hidden) toggleMenu(false); }); // clicking in the search closes the menu
 $("#home").ondblclick = (e) => { e.preventDefault(); toggleMenu(false); setView("threads"); }; // back to Threads
