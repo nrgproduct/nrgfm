@@ -1718,3 +1718,4 @@
 {"action": "edit", "thread": "p1288495181167203", "id": "t1288500311166690_0", "title": "Suzanne Ciani: The Eighth Wave", "url": "https://www.youtube.com/watch?v=68BCsj6i0Ac", "tags": ["minimalism", "new age", "synth theme"], "ts": 1794073457}
 {"action": "edit", "thread": "p1364149756935078", "id": "t1364149913601729_0", "title": "Marcos Valle \" Estrelar \"", "url": "https://www.youtube.com/watch?v=j_Zx-a7aZB4", "tags": ["funk"], "ts": 1794073761}
 {"url": "https://www.youtube.com/watch?v=EHnX9AF8-fc", "title": "Chick Corea - Return To Forever (1972)", "thread": "p1364149756935078", "tags": [], "ts": 1794073811}
+{"action": "tag", "ids": ["t1365601120123275_0"], "add": ["80s"], "remove": [], "ts": 1794073901}
