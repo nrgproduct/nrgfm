@@ -334,7 +334,7 @@ function showWhy(row) {
 /* ---------- pages: Threads, Tags, Mixes, Genres, History (and Random) ----------
    The logo opens the menu. Search always looks through everything; clearing it returns to the page you were on. */
 let view = "threads";
-const VIEW_NAMES = { threads: "Threads", tags: "Index", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Library", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
+const VIEW_NAMES = { threads: "Threads", tags: "Tags", mixes: "Mixes", genres: "Genres", history: "History", activity: "Activity", tagged: "Library", genreboxes: "Genres (one box each)", tagsold: "Tags (Oct 2026)", tagsrows: "Tags (Nov 2026)", tag: "Tag", threadsold: "Threads (Oct 2026)" };
 const slug = (g) => fold(g).replace(/ /g, "-");
 const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
@@ -1320,7 +1320,7 @@ const fmtTime = (s) => {
 /* the tab: "nrgfm" (on a tag's page "nrgfm: tag"), with 🔊 and the speaker icon while something plays */
 let soundOn = false;
 function updateTitle() {
-  document.title = (view === "tag" && tagPageName ? "nrgfm: " + tagPageName : "nrgfm") + (soundOn ? " 🔊" : "");
+  document.title = view === "tag" && tagPageName ? "nrgfm: " + tagPageName : "nrgfm"; // (playing: only the icon changes)
   for (const l of document.querySelectorAll('link[rel="icon"]')) {
     const base = l.getAttribute("href").replace("-playing", "");
     l.setAttribute("href", soundOn ? base.replace(/\.png$/, "-playing.png") : base);
@@ -2994,7 +2994,7 @@ function drawTagPanel(show, page) {
   if (page) { // a tag's page: the name and how many tracks, the years on the right; the order and Add description / Rename under
     const n = t.tracks.length;
     head.append(el("span", { class: "tp-page-n" }, `${n} ${n === 1 ? "track" : "tracks"}`));
-    if (tp.returnTo) head.prepend(el("button", { class: "tp-back", "aria-label": "Back to Index", onclick: () => setView("tags") }, "←")); // (back to the Index, where you were)
+    if (tp.returnTo) head.prepend(el("button", { class: "tp-back", "aria-label": "Back to Tags", onclick: () => setView("tags") }, "←")); // (back to the Index, where you were)
     const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
       el("div", { class: "tp-btns tpg-row2" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
         key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
