@@ -1599,3 +1599,4 @@
 {"action": "tag", "ids": ["t1153797411303648_0"], "add": ["minimalism"], "remove": [], "ts": 1794064606}
 {"action": "delete", "thread": "xt1123029067713816_0", "id": "t1123029067713816_0", "ts": 1794064662}
 {"url": "https://www.youtube.com/watch?v=CVBKZ-c0uns", "title": "Firefly - Love Is Gonna Be On Your Side (12'' Version) 1981", "thread": "xt1123029067713816_0", "tags": ["disco", "italo"], "ts": 1794064715}
+{"action": "promote", "thread": "xt1123029067713816_0", "id": "t1794064715_0", "to": "main", "ts": 1794064721}
