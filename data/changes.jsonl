@@ -1735,3 +1735,7 @@
 {"action": "edit", "thread": "p1340482022635185", "id": "t1352027274813993_0", "title": "AB's - Deju Vu", "url": "https://www.youtube.com/watch?v=S9R5lmRK8Vg", "tags": [], "ts": 1794074481}
 {"action": "edit", "thread": "p1340482022635185", "id": "t1352027274813993_0", "title": "AB's - Deju Vu", "url": "https://www.youtube.com/watch?v=HRCGnX8uEHI", "tags": [], "ts": 1794074526}
 {"action": "tag", "ids": ["t1508941005789285_0"], "add": ["score"], "remove": [], "ts": 1794074664}
+{"action": "tag", "ids": ["t1522387177778001_0"], "add": ["soul"], "remove": [], "ts": 1794074761}
+{"action": "edit", "thread": "p1505692909447428", "id": "t1522389341111118_0", "title": "Bobby Caldwell - Coming Down From Love (1980)", "url": "https://www.youtube.com/watch?v=m1KcUdVZD3A", "tags": ["soul"], "ts": 1794074846}
+{"action": "tag", "ids": ["t1522389341111118_0"], "add": ["easy listening"], "remove": [], "ts": 1794074851}
+{"action": "tag", "ids": ["t1535720339778018_0"], "add": ["new wave", "french"], "remove": [], "ts": 1794074898}
