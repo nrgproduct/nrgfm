@@ -656,7 +656,7 @@ function drawViewHead() {
     head.className = "view-head view-tagpage"; head.replaceChildren(el("div", { class: "tp-page-head" }, drawTagPanel(true, true))); head.hidden = false; return;
   } else if (tagsView()) {
     head.className = "view-head view-tags";
-    head.replaceChildren(tagPageHead()); head.hidden = false;
+    head.replaceChildren(view === "tags" ? tagGridHead() : tagPageHead()); head.hidden = false;
     if (!phone() && !tp.focused) { tp.focused = true; requestAnimationFrame(() => { const a = document.activeElement; if (!a || !a.matches("input, textarea")) head.querySelector(".tp-search .tag-input")?.focus({ preventScroll: true }); }); }
     return;
   } else if (view === "tagsold") {
@@ -675,7 +675,7 @@ function watchHistory() { scroller().addEventListener("scroll", () => {
   if (!head.querySelector(`.hist-years .on`) || head.querySelector(".hist-years .on").textContent !== y) head._pickYear(y);
   head.querySelectorAll(".hist-months .when-link").forEach((b, k) => b.classList.toggle("on", k === +mo - 1));
 }, { passive: true }); }
-const contentTop = () => Math.max(headerBottom(), (view === "history" || view === "activity") && !$("#viewHead").hidden ? $("#viewHead").getBoundingClientRect().bottom : 0);
+const contentTop = () => Math.max(headerBottom(), (view === "history" || view === "activity" || view === "tags") && !$("#viewHead").hidden ? $("#viewHead").getBoundingClientRect().bottom : 0);
 /* bring a thread, playlist or month on this page to the top */
 function jumpTo(id) {
   const at = shown.findIndex((x) => x.t.id === id);
@@ -754,9 +754,9 @@ const img = (src, cls) => src
 
 /* tags under a title; clicking one searches for it */
 const HIDDEN_TAGS = new Set(); // (none now: "mix" is an ordinary tag again)
-const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g));
+const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g) && (!isAutoTag(g) || getToken())); // (the automatic tags only with the key)
 function tagLine(tr, extra, list) {
-  const tags = list || shownTags(tr);
+  const tags = (list || shownTags(tr)).filter((g) => !isPlaylist(g) && (!isAutoTag(g) || getToken())); // (playlists don't show under a track)
   return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 /* phone search: touching the page outside a result that scrolls makes it stop scrolling (the page scrolls again) */
@@ -1132,7 +1132,7 @@ function searchRows(t, hits) {
 const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, k) => a + k);
 
 /* a track with one of the group's own tags (the automatic ones don't count) */
-const userTagged = (tr) => shownTags(tr).some((g) => !AUTO_TAGS.has(g));
+const userTagged = (tr) => shownTags(tr).some((g) => !isAutoTag(g));
 /* Tagged: a thread as only its tagged tracks (bigger thumbnails) */
 function taggedNode(t) {
   const rows = [];
@@ -2642,6 +2642,8 @@ $("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[pl
    Computer: three ways to show a row's tracks (thumbnails / thumbnails with titles / a list), and the panel on
    the right with the tag's description, a year range, the order to play in, Rename. Phone: the rows open the panel
    full screen ("Shelves"), or open their tracks in place ("Lists"). ---------- */
+const isAutoTag = (g) => AUTO_TAGS.has(g) || / characters$/.test(g); // (every "<script> characters" tag is automatic)
+const isPlaylist = (g) => g.startsWith("#"); // a playlist: a tag starting with #, never shown under a track
 const AUTO_TAGS = new Set(["backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
 let tagInfo = { desc: {} };
 fetch("data/tags.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { tagInfo = { desc: {}, ...d }; if (tagsView()) renderTagsPage(); } }).catch(() => {});
@@ -2667,6 +2669,48 @@ function playTag(t, tr) {
   if (i < 0) { pl.tracks = t.tracks.slice(); i = pl.tracks.indexOf(tr); } // (a track outside the year range: the whole tag)
   play(pl, Math.max(0, i));
   if (tp.active === t.name) drawTagPanel();
+}
+
+/* ---------- Tags: every tag as a box under its first letter (A–Z, then numbers, playlists and, with the key, the
+   automatic tags); the line at the top jumps to a letter. Hover: its tracks in the panel; click: the tag's own page
+   (Cmd/Ctrl+click: a new tab). ---------- */
+const tagSection = (g) => {
+  if (isPlaylist(g)) return "Playlists";
+  if (isAutoTag(g)) return "Automatic";
+  const c = fold(g).charAt(0).toUpperCase();
+  return /[A-Z]/.test(c) ? c : "0–9";
+};
+const SECTION_ORDER = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0–9", "Playlists", "Automatic"];
+function tagGridHead() {
+  const have = new Set(threads.filter((t) => t.kind === "tag").map((t) => tagSection(t.name)));
+  const jumps = SECTION_ORDER.filter((k) => k !== "Automatic" || (getToken() && have.has(k))).map((k) => el("button", {
+    class: "when-link tg-jump" + (have.has(k) ? "" : " none"), disabled: !have.has(k) || null,
+    onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k));
+  return el("div", { class: "tp-head tg-head" }, el("div", { class: "tg-jumps" }, jumps), tagSearchField());
+}
+function renderTagsGrid() {
+  const list = $("#threads");
+  const words = [...tp.terms, ...(tp.q.trim() ? [tp.q.trim()] : [])];
+  const all = threads.filter((t) => t.kind === "tag" && (getToken() || !isAutoTag(t.name)) && (!words.length || words.some((w) => tagMatches(t.name, w.replace(/^#/, "")) || tagMatches(t.name, w))))
+    .sort((a, b) => a.name.replace(/^#/, "").localeCompare(b.name.replace(/^#/, "")));
+  if (!all.length) { list.replaceChildren(el("p", { class: "view-note tp-none" }, "No tags match.")); hideTagPanel(); return; }
+  const groups = new Map(SECTION_ORDER.map((k) => [k, []]));
+  for (const t of all) groups.get(tagSection(t.name)).push(t);
+  const card = (t) => {
+    const ys = tagYears(t);
+    const b = el("a", { class: "tg-card", href: "#/tag/" + encodeURIComponent(t.name), "data-tag": t.name,
+      onclick: (e) => { e.preventDefault(); openTagPage(t.name, e); } },
+      el("span", { class: "tg-name" }, t.name),
+      el("span", { class: "tg-meta" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}` + (ys.length ? " · " + yearsText(ys) : "")));
+    if (!phone()) b.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); tp.hoverT = setTimeout(() => openTagPanel(t.name, false), 80); });
+    return b;
+  };
+  const out = [];
+  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k), el("div", { class: "tg-grid" }, ts.map(card)));
+  list.replaceChildren(el("div", { class: "tg-page" }, out));
+  if (!phone() && (!tp.active || !all.some((t) => t.name === tp.active))) tp.active = all[0].name;
+  tp.pinned = false;
+  if (!phone()) drawTagPanel();
 }
 /* a tag's own page: #/tag/<name>, all its tracks as one thread (playing one turns autoplay on) */
 let tagPageName = null;
@@ -2738,7 +2782,7 @@ function tagSearchField() {
   const pick = (g) => { // a tag picked from the suggestions: kept as a search, highlighted and in the panel
     tp.terms = [...tp.terms.filter((x) => x !== g), g]; input.value = ""; tp.q = "";
     drawChips(); drop.hidden = true; renderTagsPage();
-    if (!phone()) { openTagPanel(g, true); const r = document.querySelector(`.tp-row[data-tag="${CSS.escape(g)}"]`); if (r) r.scrollIntoView({ block: "nearest" }); }
+    if (!phone()) { openTagPanel(g, true); const r = document.querySelector(`#threads [data-tag="${CSS.escape(g)}"]`); if (r) r.scrollIntoView({ block: "nearest" }); }
   };
   input.addEventListener("input", update);
   input.addEventListener("blur", () => setTimeout(() => (drop.hidden = true), 100));
@@ -2804,12 +2848,13 @@ function tagRow(t, mode) {
   return row;
 }
 function renderTagsPage() {
+  if (view === "tags") { renderTagsGrid(); return; } // (#/tagsrows: the page below, kept as it was)
   const list = $("#threads");
   const mode = tagMode();
   const words = [...tp.terms, ...(tp.q.trim() ? [tp.q.trim()] : [])];
   const all = threads.filter((t) => t.kind === "tag" && (!words.length || words.some((w) => tagMatches(t.name, w))))
     .sort({ az: (a, b) => a.name.localeCompare(b.name), count: (a, b) => b.tracks.length - a.tracks.length || b.last - a.last }[tagPref("sort", "az")] || ((a, b) => b.last - a.last));
-  const own = all.filter((t) => !AUTO_TAGS.has(t.name)), auto = all.filter((t) => AUTO_TAGS.has(t.name));
+  const own = all.filter((t) => !isAutoTag(t.name)), auto = all.filter((t) => isAutoTag(t.name));
   if (!all.length) { list.replaceChildren(el("p", { class: "view-note tp-none" }, "No tags match.")); return; }
   list.replaceChildren(el("div", { class: "tp-page tp-mode-" + mode },
     own.map((t) => tagRow(t, mode)),
@@ -2923,7 +2968,7 @@ function drawTagPanel(show, page) {
     slider,
     el("div", { class: "tp-btns" },
       ...(key && tp.editing
-        ? [el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"), !AUTO_TAGS.has(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null]
+        ? [el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"), !isAutoTag(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null]
         : [orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle")]),
       key ? el("button", { class: "when-link tp-edit" + (tp.editing ? " on" : ""), onclick: () => { tp.editing = !tp.editing; redraw(); } }, "Edit") : null),
     page ? null : list].filter(Boolean);

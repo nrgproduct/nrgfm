@@ -7,6 +7,8 @@
   chinese characters       the title has Han characters (hanzi), no kana, and the track's country is China, Taiwan, Hong Kong,
                            Macau or Singapore (titles with only Han characters are mostly Japanese in this archive)
   korean characters        the title has Hangul (a title can get more than one of these)
+  <script> characters      the title has letters of another writing system: georgian, cyrillic, greek, arabic, hebrew, thai…
+  foreign characters       any writing system other than Latin (Japanese, Korean and Chinese too)
   backup link              the main link has been gone for more than a day and the track plays from its alternative link
 
 Usage: python3 scripts/auto_tags.py"""
@@ -18,6 +20,26 @@ AUTO = ("backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese c
 KANA = re.compile(r"[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9f]")                      # hiragana, katakana (also half-width)
 HAN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0003134f]")  # Han characters (CJK unified ideographs)
 HANGUL = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]")                     # Hangul syllables and jamo
+# other writing systems, by the first word of a letter's Unicode name ("GEORGIAN LETTER AN" -> "georgian characters")
+SCRIPTS = {"ARABIC", "ARMENIAN", "BENGALI", "CHEROKEE", "CYRILLIC", "DEVANAGARI", "ETHIOPIC", "GEORGIAN", "GREEK", "GUJARATI",
+           "GURMUKHI", "HEBREW", "JAVANESE", "KANNADA", "KHMER", "LAO", "MALAYALAM", "MONGOLIAN", "MYANMAR", "NKO", "ORIYA",
+           "SINHALA", "SYRIAC", "TAMIL", "TELUGU", "THAANA", "THAI", "TIBETAN", "TIFINAGH", "BALINESE", "OL", "VAI"}
+SCRIPT_TAGS = {s.lower() + " characters" for s in SCRIPTS} | {"japanese characters", "chinese characters", "korean characters", "foreign characters"}
+
+
+def scripts_in(title):
+    """The writing systems other than Latin (and Chinese/Japanese/Korean, tagged above) a title uses."""
+    out = set()
+    for ch in set(title):
+        if ord(ch) < 0x370 or not ch.isalpha():
+            continue
+        try:
+            word = unicodedata.name(ch).split(" ")[0]
+        except ValueError:
+            continue
+        if word in SCRIPTS:
+            out.add(word.lower() + " characters")
+    return out
 NOISE = re.compile(r"[\(\[][^\)\]]*\b(official|lyric|lyrics|audio|video|hd|hq|4k|remaster(ed)?|visuali[sz]er|explicit|clip|music video|mv|full album|out now|premiere)\b[^\)\]]*[\)\]]", re.I)
 GENERIC = {"", "plays on youtube only", "unavailable", "untitled", "youtube track", "soundcloud track"}
 
@@ -86,6 +108,9 @@ def main():
             want.add("chinese characters")
         if hangul:
             want.add("korean characters")
+        want |= scripts_in(title)
+        if want & SCRIPT_TAGS:  # any writing system other than Latin
+            want.add("foreign characters")
         mm = meta.get(tr["url"], {})
         if tr.get("alt") and (mm.get("dead") or mm.get("status") == 401) and not meta.get(tr["alt"], {}).get("dead"):
             since = down.setdefault(tr["url"], now)  # first seen gone; the tag only after a day
@@ -94,7 +119,7 @@ def main():
         else:
             down.pop(tr["url"], None)
         tags = tr.get("tags") or {}
-        have = {g for g in AUTO if g in tags}
+        have = {g for g in tags if g in AUTO or g in SCRIPT_TAGS}
         if have == want:
             continue
         changed += 1
