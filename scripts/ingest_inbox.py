@@ -361,8 +361,15 @@ def apply_promote(data, by_id, item):
         return "promoted"
     if th is None or i == 0:
         return "promote: track not found (or it is already a main post)"
-    if item.get("to") == "main":  # the new main post of its thread; the old one becomes the first reply
-        th["tracks"].insert(0, th["tracks"].pop(i))
+    head = th["tracks"][0]
+    day = head.get("shown_date") or head.get("date")
+    if item.get("to") == "main":  # the new main post of its thread; the old one becomes the first reply. The thread keeps its date
+        tr = th["tracks"].pop(i)
+        if day and day != tr.get("date"):
+            tr["shown_date"] = day
+        else:
+            tr.pop("shown_date", None)
+        th["tracks"].insert(0, tr)
         fix_main(th)
         return "promoted"
     tr = th["tracks"].pop(i)
@@ -373,6 +380,11 @@ def apply_promote(data, by_id, item):
         day = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%Y-%m-%d")
         tr["shown_date"] = day
         nt["pos_ts"] = ts
+        nt["pos_set"] = ts
+    elif tr.get("added"):  # added on the site, so its own date is the day it was added: date it like the thread it came from, just above it
+        if day and day != tr.get("date"):
+            tr["shown_date"] = day
+        nt["pos_ts"] = (th.get("pos_ts") or th.get("ts") or tr["ts"]) + 1
         nt["pos_set"] = ts
     data["threads"].append(nt)
     by_id[nt["id"]] = nt

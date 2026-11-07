@@ -1998,7 +1998,9 @@ function moreInfo(tr, edit, tags) {
     } }, "Description");
     const metaBox = el("div", { class: "af-meta", hidden: true },
       edit ? el("label", { class: "af-field af-alt" }, el("span", { class: "af-label" }, "Alternative link"),
-        Object.assign(el("input", { name: "alt", type: "url", inputmode: "url", autocomplete: "off", spellcheck: "false", placeholder: "Plays if the main link stops working" }), { value: (tr && tr.alt) || "" })) : null,
+        el("span", { class: "af-alt-box" },
+          Object.assign(el("input", { name: "alt", type: "url", inputmode: "url", autocomplete: "off", spellcheck: "false", placeholder: "Plays if the main link stops working" }), { value: (tr && tr.alt) || "" }),
+          el("button", { type: "button", class: "af-alt-copy", onclick: (e) => { e.preventDefault(); const f = e.currentTarget.closest("form"), u = f.url.value.trim(); if (!u) return; f.alt.value = u; f.alt.setCustomValidity(""); f.url.value = ""; f.url.focus(); } }, "Copy link"))) : null,
       el("div", {}, el("span", { class: "af-label" }, "Uploader"), x.by || el("span", { class: "hint" }, "unknown")),
       el("div", {}, el("span", { class: "af-label" }, "Uploaded"), x.up ? fmtDay(x.up) : el("span", { class: "hint" }, "unknown")),
       el("div", {}, descBtn), descBox);
@@ -2439,8 +2441,10 @@ async function promoteTrack(form, { t, i }, to) {
     if (node && k > -1) { node.before(threadNode({ t: nt, hits: null })); shown.splice(k, 0, { t: nt, hits: null }); rendered++; }
     refreshTags(); refreshHistory(); return;
   }
-  if (to === "main") { // the main post of its thread; the old one becomes the first reply
+  if (to === "main") { // the main post of its thread; the old one becomes the first reply. The thread keeps its date
+    const day = postDate(t);
     t.tracks.unshift(t.tracks.splice(i, 1)[0]);
+    if (day && day !== tr.date) tr.shown_date = day; else delete tr.shown_date;
     t.tracks.forEach((x, k) => { if (k === 0) x.main = true; else delete x.main; });
     closeAddForm(form, { quiet: true }); rerenderThread(t, 0); refreshHistory(); return;
   }
@@ -2449,6 +2453,11 @@ async function promoteTrack(form, { t, i }, to) {
   tr.main = true;
   const nt = { id: "x" + tr.id, kind: "thread", tracks: [tr], date: tr.date, ts: tr.ts };
   if (to === "top") { tr.shown_date = new Date(ts * 1000).toISOString().slice(0, 10); nt.pos_ts = ts; nt.pos_set = ts; }
+  else if (tr.added) { // added here, so its own date is the day it was added: date it like the thread it came from, just above it
+    const day = postDate(t);
+    if (day && day !== tr.date) tr.shown_date = day;
+    nt.pos_ts = (t.pos_ts || t.ts) + 1; nt.pos_set = ts;
+  }
   threads.push(nt); sortThreads();
   closeAddForm(form, { quiet: true });
   rerenderThread(t, null);
