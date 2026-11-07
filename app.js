@@ -1900,7 +1900,7 @@ function addForm(thread, edit, row) {
     });
     tags.restore = () => { for (const [sp, parent, next] of gone.reverse()) if (parent && parent.isConnected) parent.insertBefore(sp, next && next.parentNode === parent ? next : null); };
   }
-  const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false", title: "More info: notes, date, suggestions",
+  const arrow = el("button", { type: "button", class: "btn ghost more-info-btn", "aria-expanded": "false",
     "aria-label": "More info", onclick: (e) => {
       const open = more.hidden; more.hidden = !open; e.currentTarget.setAttribute("aria-expanded", String(open));
       if (open) more.querySelector("textarea").focus({ preventScroll: true });
@@ -2105,7 +2105,7 @@ function toggleEditForm(t, i, row) {
     grow();
     wrap._ro = new ResizeObserver(grow); wrap._ro.observe(wrap);
   }
-  focusRow(row, true, "top", "top"); // the track goes to the top, the card under it
+  // the page stays where it is (the ▾ in the card brings the track to the top)
 }
 
 async function writeInbox(item, kind) {
