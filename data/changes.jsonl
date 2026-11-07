@@ -1651,3 +1651,4 @@
 {"action": "tag", "ids": ["t1043571102326280_0"], "add": ["ebm"], "remove": [], "ts": 1794068436}
 {"action": "tag", "ids": ["t1043571102326280_0"], "add": ["italo"], "remove": [], "ts": 1794068452}
 {"url": "https://www.youtube.com/watch?v=c5QUGSXVADQ", "title": "Arthur Russell - Love is Overtaking Me", "thread": "p1152718791411510", "tags": [], "ts": 1794068593}
+{"action": "edit", "thread": "p1152718791411510", "id": "t1794068593_0", "title": "Arthur Russell - Love is Overtaking Me (1985)", "url": "https://www.youtube.com/watch?v=c5QUGSXVADQ", "tags": ["art pop"], "ts": 1794068673}
