@@ -1731,3 +1731,4 @@
 {"action": "tag", "ids": ["t1352021434814577_0"], "add": ["#xavi"], "remove": [], "ts": 1794074334}
 {"action": "edit", "thread": "p1340482022635185", "id": "t1352024301480957_0", "title": "AB'S  Girl", "url": "https://www.youtube.com/watch?v=mBhhz0ZEOWA", "tags": [], "ts": 1794074373, "alt": "https://www.youtube.com/watch?v=SRq98O16CB0"}
 {"action": "edit", "thread": "p1340482022635185", "id": "t1352024301480957_0", "title": "AB'S - Girl (1983)", "url": "https://www.youtube.com/watch?v=mBhhz0ZEOWA", "tags": [], "ts": 1794074382}
+{"action": "tag", "ids": ["t1352024301480957_0"], "add": ["city pop"], "remove": [], "ts": 1794074454}
