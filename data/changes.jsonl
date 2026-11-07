@@ -1587,3 +1587,5 @@
 {"action": "promote", "thread": "xt1176752205674835_0", "id": "t1176939778989411_0", "to": "original", "ts": 1794063636}
 {"action": "edit", "thread": "xt1176939778989411_0", "id": "t1176939778989411_0", "title": "Navario Sauro - Avalanche Control [World Rallying EP (SCAN006)] 1997", "url": "https://www.youtube.com/watch?v=LTsLGPR2BvA", "tags": ["old school techno"], "ts": 1794063817}
 {"action": "tag", "ids": ["t1176939778989411_0"], "add": ["leftfield"], "remove": ["old school techno"], "ts": 1794063822}
+{"action": "move", "thread": "p1176939778989411", "id": "t1180097595340296_0", "to": "xt1176939778989411_0", "ts": 1794063852}
+{"action": "move", "thread": "p1176939778989411", "id": "t1180103952006327_0", "to": "xt1176939778989411_0", "ts": 1794063867}
