@@ -1571,3 +1571,4 @@
 {"action": "tag", "ids": ["t27393996013523763_0"], "add": ["2000s pop"], "remove": [], "ts": 1794058854}
 {"url": "https://www.youtube.com/watch?v=Gl9ecIboNcs", "title": "I Can See The Lights · Ghos", "thread": "p28881316844791665", "tags": [], "ts": 1794059792}
 {"action": "tag", "ids": ["t28881316844791665_0"], "add": ["#after party"], "remove": [], "ts": 1794059890}
+{"action": "tagrename", "from": "xavi", "to": "#xavi", "ts": 1794060514}
