@@ -1639,3 +1639,6 @@
 {"action": "edit", "thread": "p1141805015836221", "id": "t1143699532313436_0", "title": "Reload - Peschi (Original Mix)", "url": "https://www.youtube.com/watch?v=JSbce2KkRGk", "tags": ["leftfield"], "ts": 1794067807}
 {"url": "https://www.youtube.com/watch?v=vPQ6FlfkFRM", "title": "Reload - Le Soleil et la Mer [1993]", "thread": "p1141805015836221", "tags": [], "ts": 1794067901}
 {"action": "tag", "ids": ["t1157541630929226_0"], "add": ["eclectic 80s", "new wave", "japanese"], "remove": [], "ts": 1794068024}
+{"action": "tag", "ids": ["t1157541630929226_0"], "add": ["new age"], "remove": [], "ts": 1794068096}
+{"action": "edit", "thread": "xt1139376739412382_0", "id": "t1157541630929226_0", "title": "Haruomi Hosono 細野晴臣 / PLEOCENE（プリオシーヌ) 1989", "url": "https://www.youtube.com/watch?v=PxvjXDAfPhk", "tags": ["japanese characters", "foreign characters", "eclectic 80s", "new wave", "japanese", "new age"], "ts": 1794068150}
+{"action": "delete", "thread": "p1147650911918298", "id": "t1147650911918298_0", "ts": 1794068193}
