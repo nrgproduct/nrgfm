@@ -774,8 +774,8 @@ const HIDDEN_TAGS = new Set(); // (none now: "mix" is an ordinary tag again)
 const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g) && (!isAutoTag(g) || getToken())); // (the automatic tags only with the key)
 function tagLine(tr, extra, list) {
   const all = list || shownTags(tr), tags = all.filter((g) => !isPlaylist(g) && (!isAutoTag(g) || getToken()));
-  const pl = !list && all.some(isPlaylist); // in a playlist: only a "#" under the track (the names show in the Edit card)
-  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g)), pl ? el("span", { class: "tag tag-pl" }, "#") : null), extra ? el("span", { class: "sub-note" }, extra) : null];
+  const pl = !list && all.some(isPlaylist); // in a playlist: only PL_MARK under the track (the names show in the Edit card)
+  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g)), pl ? el("span", { class: "tag tag-pl" }, PL_MARK) : null), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 /* phone search: touching the page outside a result that scrolls makes it stop scrolling (the page scrolls again) */
 document.addEventListener("touchmove", (e) => {
@@ -1366,7 +1366,7 @@ for (const f of ["replaceState", "pushState"]) { const orig = history[f].bind(hi
 addEventListener("hashchange", () => updateTitle());
 function updateTitle() {
   const post = typeof threads !== "undefined" && threads.length ? postInAddress() : null;
-  document.title = view === "tag" && tagPageName ? "nrgfm: " + tagPageName : post ? "nrgfm: " + post : "nrgfm"; // (playing: only the icon changes)
+  document.title = view === "tag" && tagPageName ? "nrgfm: " + showTag(tagPageName) : post ? "nrgfm: " + post : "nrgfm"; // (playing: only the icon changes)
   for (const l of document.querySelectorAll('link[rel="icon"]')) {
     const base = l.getAttribute("href").replace("-playing", "");
     l.setAttribute("href", soundOn ? base.replace(/\.png$/, "-playing.png") : base);
@@ -2766,7 +2766,9 @@ $("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[pl
    the right with the tag's description, a year range, the order to play in, Rename. Phone: the rows open the panel
    full screen ("Shelves"), or open their tracks in place ("Lists"). ---------- */
 const isAutoTag = (g) => AUTO_TAGS.has(g) || / characters$/.test(g); // (every "<script> characters" tag is automatic)
-const isPlaylist = (g) => g.startsWith("#"); // a playlist: a tag starting with #; under a track only as a "#"
+const isPlaylist = (g) => g.startsWith("#"); // a playlist: a tag starting with #; under a track only as PL_MARK
+const PL_MARK = "#"; // how the site shows the # of a playlist (one place to change it; the Edit card keeps the real #)
+const showTag = (g) => (isPlaylist(g) ? PL_MARK + g.slice(1) : g);
 const AUTO_TAGS = new Set(["backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
 let tagInfo = { desc: {} };
 fetch("data/tags.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { tagInfo = { desc: {}, ...d }; if (tagsView()) renderTagsPage(); } }).catch(() => {});
@@ -2808,7 +2810,7 @@ function tagGridHead() {
   const have = new Set(threads.filter((t) => t.kind === "tag").map((t) => tagSection(t.name)));
   const jumps = SECTION_ORDER.filter((k) => k !== "Automatic").map((k) => el("button", {
     class: "when-link tg-jump" + (have.has(k) ? "" : " none"), disabled: !have.has(k) || null,
-    onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k));
+    onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k === "#" ? PL_MARK : k));
   return el("div", { class: "tp-head tg-head" }, el("div", { class: "tg-jumps" }, jumps), tagSearchField());
 }
 function renderTagsGrid() {
@@ -2823,13 +2825,13 @@ function renderTagsGrid() {
     const ys = tagYears(t);
     const b = el("a", { class: "tg-card", href: "#/tag/" + encodeURIComponent(t.name), "data-tag": t.name,
       onclick: (e) => { e.preventDefault(); openTagPage(t.name, e); } },
-      el("span", { class: "tg-name" }, t.name),
+      el("span", { class: "tg-name" }, showTag(t.name)),
       el("span", { class: "tg-meta" }, `${t.tracks.length} ${t.tracks.length === 1 ? "track" : "tracks"}` + (ys.length ? " · " + yearsText(ys) : "")));
     if (!phone()) b.addEventListener("mouseenter", () => { clearTimeout(tp.hoverT); tp.hoverT = setTimeout(() => openTagPanel(t.name, false), 80); });
     return b;
   };
   const out = [];
-  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k === "#" ? "# Playlists" : k === "Automatic" ? "Automatic tags" : k), el("div", { class: "tg-grid" }, ts.map(card)));
+  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k === "#" ? PL_MARK + " Playlists" : k === "Automatic" ? "Automatic tags" : k), el("div", { class: "tg-grid" }, ts.map(card)));
   list.replaceChildren(el("div", { class: "tg-page" }, out));
   const first = [...groups.values()].flat()[0]; // (the first box on the page: A, not an automatic tag)
   if (!phone() && (!tp.active || !all.some((t) => t.name === tp.active))) tp.active = first.name;
@@ -3051,8 +3053,8 @@ function drawTagPanel(show, page) {
     input.focus(); input.select();
   };
   const head = el("div", { class: "tp-p-head" },
-    page ? el("h2", { class: "tp-p-title tp-page-title" }, g)
-      : el("button", { class: "tp-p-title tp-title-link", onclick: (e) => openTagPage(g, e) }, g), // (the tag's own page; Cmd+click: a new tab)
+    page ? el("h2", { class: "tp-p-title tp-page-title" }, showTag(g))
+      : el("button", { class: "tp-p-title tp-title-link", onclick: (e) => openTagPage(g, e) }, showTag(g)), // (the tag's own page; Cmd+click: a new tab)
     phone() ? el("button", { class: "when-link tp-close", onclick: hideTagPanel }, "Close") : null);
   // year range: two handles on one line
   let slider = null;
