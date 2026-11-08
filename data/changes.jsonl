@@ -1922,3 +1922,4 @@
 {"url": "https://www.youtube.com/watch?v=gOEwPC9mR5c", "title": "Cold - Strobe Light Network (1995)", "thread": "p1581043831912335", "tags": [], "ts": 1794144410}
 {"action": "edit", "thread": "p1581043831912335", "id": "t1794144410_0", "title": "Cold - Strobe Light Network (1995)", "url": "https://www.youtube.com/watch?v=gOEwPC9mR5c", "tags": [], "ts": 1794144421, "alt": "https://www.youtube.com/watch?v=ux0kdx--Gq0"}
 {"action": "edit", "thread": "p1491053547578031", "id": "t1492883194061733_0", "title": "CHRIS AND COSEY - HAZEY DAZE", "url": "https://www.youtube.com/watch?v=VeYgQSXsNM0", "tags": [], "ts": 1794144483}
+{"action": "tag", "ids": ["t1492883194061733_0"], "add": ["post punk"], "remove": [], "ts": 1794144500}
