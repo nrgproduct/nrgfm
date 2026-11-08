@@ -1990,3 +1990,4 @@
 {"action": "tag", "ids": ["t1438536032829783_0"], "add": ["fusion", "funk"], "remove": [], "ts": 1794149215}
 {"url": "https://www.youtube.com/watch?v=ObJJnsUZt7o", "title": "ELO - Mister Kingdom (1974)", "thread": "p1380476945302359", "tags": [], "ts": 1794149262}
 {"action": "edit", "thread": "p1380476945302359", "id": "t1794149262_0", "title": "ELO - Mister Kingdom (1974)", "url": "https://www.youtube.com/watch?v=ObJJnsUZt7o", "tags": ["prog", "art rock"], "ts": 1794149357, "notes": "james bond. jimmy hendrix."}
+{"url": "https://www.youtube.com/watch?v=D63A33tACN0", "title": "ELO - Laredo Tornado (1974)", "thread": "p1380476945302359", "tags": [], "ts": 1794149401}
