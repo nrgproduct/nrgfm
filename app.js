@@ -853,7 +853,7 @@ function trackRow(t, tr, i, hits) {
   return el("li", { class: ["track", x.dead && "dead", hits && hits.has(i) && "hit"].filter(Boolean).join(" "), "data-k": `${t.id}:${i}` },
     img(x.thumb, "chip"),
     el("button", { class: "play", onclick: () => play(t, i), "aria-label": `Play ${x.title}` },
-      el("span", { class: "tr-title" }, x.title),
+      el("span", { class: "tr-title" }, x.title, view === "tag" && lenOf(tr) ? el("span", { class: "tr-len" }, fmtTime(lenOf(tr))) : null),
       el("span", { class: "tr-sub" }, tagLine(tr, x.recovered ? RECOVERED : null, t.mix ? genresOf(tr) : null))),
     rowLinks(t, i, x));
 }
@@ -2777,9 +2777,8 @@ const setTagPref = (k, v) => { try { localStorage.setItem("nrgfm-tags-" + k, v);
 const tp = { active: null, pinned: false, editing: false, order: {}, years: {}, lens: {}, open: new Set(), hoverT: 0, terms: [], q: "" };
 const yearOf = (tr) => (extra[tr.url] || {}).y || null;
 const lenOf = (tr) => (extra[tr.url] || {}).d || null; // seconds
-/* the steps of the length slider (seconds): every minute up to 10, then wider */
-const LEN_STEPS = [0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 720, 900, 1200, 1800, 2700, 3600, 5400, 7200, 10800, 1e9];
-const lenText = (s) => (s >= 1e9 ? "longer" : s >= 3600 ? (s / 3600) + " h" : s / 60 + " min");
+/* a tag's page: "+30 min" (30 min up to an hour) and "+1 hour" can be left out of its list */
+const LONG = { "+30 min": (d) => d >= 1800 && d < 3600, "+1 hour": (d) => d >= 3600 };
 function tagYears(t) { const ys = t.tracks.map(yearOf).filter(Boolean).sort((a, b) => a - b); return ys; }
 function yearsText(ys) { return !ys.length ? "" : ys[0] === ys[ys.length - 1] ? String(ys[0]) : ys[0] + "–" + ys[ys.length - 1]; }
 /* the tracks of a tag as they will play: in the year range picked, in the order picked */
@@ -2787,8 +2786,8 @@ function tagPlaylist(t) {
   const [lo, hi] = tp.years[t.name] || [];
   let list = t.tracks.slice(); // most recently tagged first
   if (lo) list = list.filter((tr) => { const y = yearOf(tr); return y && y >= lo && y <= hi; });
-  const len = tp.lens[t.name];
-  if (len) list = list.filter((tr) => { const d = lenOf(tr); return d && d >= len[0] && d <= len[1]; });
+  const off = tp.lens[t.name]; // (the long ones left out)
+  if (off && off.size) list = list.filter((tr) => { const d = lenOf(tr); return !d || ![...off].some((k) => LONG[k](d)); });
   const order = tp.order[t.name] || "newest";
   if (order === "oldest") list.reverse();
   if (order === "shuffle") { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } }
@@ -3084,35 +3083,11 @@ function drawTagPanel(show, page) {
     slider = el("div", { class: "tp-range" }, el("div", { class: "tp-range-track" }, fill, a, b), labels);
     sync(false);
   }
-  // length range (on a tag's page): two handles, in steps (LEN_STEPS)
-  let lenSlider = null;
-  const ds = t.tracks.map(lenOf).filter(Boolean);
-  if (page && ds.length > 1) {
-    const mn = Math.min(...ds), mx = Math.max(...ds);
-    let i0 = 0; while (LEN_STEPS[i0 + 1] <= mn) i0++;
-    let i1 = LEN_STEPS.length - 1; while (i1 > 0 && LEN_STEPS[i1 - 1] >= mx) i1--;
-    if (i1 - i0 > 1) {
-      const cur = tp.lens[g];
-      const at = (v, d) => { const k = LEN_STEPS.indexOf(v); return k >= i0 && k <= i1 ? k : d; };
-      const a = el("input", { type: "range", min: i0, max: i1, value: cur ? at(cur[0], i0) : i0, step: 1, "aria-label": "Shortest" });
-      const b = el("input", { type: "range", min: i0, max: i1, value: cur ? at(cur[1], i1) : i1, step: 1, "aria-label": "Longest" });
-      const fill = el("span", { class: "tp-range-fill" });
-      const labels = el("div", { class: "tp-range-labels" });
-      const sync = (final) => {
-        let x = +a.value, y = +b.value; if (x > y) [x, y] = [y, x];
-        const pct = (v) => ((v - i0) / (i1 - i0)) * 100;
-        fill.style.left = pct(x) + "%"; fill.style.right = 100 - pct(y) + "%";
-        const all = x === i0 && y === i1, lo = LEN_STEPS[x], hi = LEN_STEPS[y];
-        const n = t.tracks.filter((tr) => { const d = lenOf(tr); return d && d >= lo && d <= hi; }).length;
-        labels.replaceChildren(el("span", {}, x === i0 ? "0 min" : lenText(lo)), el("span", {}, all ? "all lengths" : `${n} ${n === 1 ? "track" : "tracks"}`), el("span", {}, lenText(hi)));
-        if (final) { if (all) delete tp.lens[g]; else tp.lens[g] = [lo, hi]; runSearch(); }
-      };
-      a.addEventListener("input", () => sync(false)); b.addEventListener("input", () => sync(false));
-      a.addEventListener("change", () => sync(true)); b.addEventListener("change", () => sync(true));
-      lenSlider = el("div", { class: "tp-range" }, el("div", { class: "tp-range-track" }, fill, a, b), labels);
-      sync(false);
-    }
-  }
+  // a tag's page: a toggle for each kind of long track it has (struck through = left out)
+  const off = tp.lens[g] || new Set();
+  const longBtns = page ? Object.keys(LONG).reverse().filter((k) => t.tracks.some((tr) => { const d = lenOf(tr); return d && LONG[k](d); }))
+    .map((k) => el("button", { class: "when-link tpg-len" + (off.has(k) ? " off" : " on"), "aria-pressed": String(!off.has(k)),
+      onclick: () => { const o = tp.lens[g] || (tp.lens[g] = new Set()); o.has(k) ? o.delete(k) : o.add(k); runSearch(); } }, k)) : [];
   const order = tp.order[g] || "newest";
   const orderBtn = (k, name) => el("button", { class: "when-link" + (order === k ? " on" : ""), onclick: () => { tp.order[g] = k; redraw(); } }, name);
   const list = el("div", { class: "tp-p-list" });
@@ -3133,8 +3108,9 @@ function drawTagPanel(show, page) {
       title.prepend(el("span", { class: "tp-back-arrow", "aria-hidden": "true" }, "‹"));
       title.addEventListener("click", () => setView("tags"));
     }
-    const parts = [el("div", { class: "tpg-row1" }, head, lenSlider ? el("div", { class: "tpg-years tpg-lens" }, lenSlider) : null, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
+    const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
       el("div", { class: "tp-btns tpg-row2" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
+        longBtns.length ? el("span", { class: "tpg-long" }, longBtns) : null,
         key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
           !isAutoTag(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null) : null)].filter(Boolean);
     if (desc) descBox.addEventListener("dblclick", () => key && editDesc());
