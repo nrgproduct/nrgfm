@@ -1422,8 +1422,7 @@ body.side-open .tag-panel { visibility: hidden; }
   border-bottom: 1px dotted var(--dots, var(--line-strong)); padding: 14px 0 12px; }
 .tp-page-head { display: grid; gap: 8px; max-width: 560px; }
 .tp-page-title { margin: 0; font-size: 26px; font-weight: 500; color: var(--jade); }
-.tp-title-link { all: unset; cursor: pointer; color: var(--jade); font-size: 19px; font-weight: 500; text-decoration: underline dotted; text-underline-offset: 4px; text-decoration-color: var(--dots, var(--line-strong)); }
-.tp-title-link:hover { text-decoration-color: var(--jade); }
+.tp-title-link { all: unset; cursor: pointer; color: var(--jade); font-size: 19px; font-weight: 500; text-decoration: none; }
 
 /* Tags: boxes under letters, the letters line at the top */
 .tg-head { display: flex; align-items: center; gap: 16px; }
