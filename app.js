@@ -874,7 +874,7 @@ function rowLinks(t, i, x) {
    (Expand shows all of them). */
 const TAG_PREVIEW = 5;
 const SEARCH_AROUND = 5;       // in search results: 5 replies, the hit in the middle
-const threadLimit = () => (phone() ? 20 : 30); // tracks shown before Expand appears
+const threadLimit = () => Infinity; // a thread always shows all its tracks (no Expand; it used to come after 30, or 20 on a phone)
 const expanded = new Set();    // threads opened with Expand
 const scrollOn = new Set();    // search results whose list was switched to scrolling
 const fixedRows = new Map();   // phone: the window kept after playing from a scrolled result
