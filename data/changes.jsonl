@@ -2007,3 +2007,5 @@
 {"url": "https://www.youtube.com/watch?v=fQlJ8zY8PCQ", "title": "John Keating - Never Gonna Give You Up (1972)", "thread": "p1392226040794116", "tags": [], "ts": 1794150987}
 {"url": "https://www.youtube.com/watch?v=Nb5_7C-KfVQ", "title": "Enlightment - Faith Is The Key (1984)", "thread": "p1392226040794116", "tags": ["disco"], "ts": 1794151037}
 {"action": "tag", "ids": ["t1794151037_0"], "add": ["funk"], "remove": [], "ts": 1794151061}
+{"url": "https://www.youtube.com/watch?v=Da-gDFdKxpg", "title": "Linda Williams - Our Song (1979)", "thread": "p1392226040794116", "tags": ["funk"], "ts": 1794151161}
+{"action": "edit", "thread": "p1392226040794116", "id": "t1794151161_0", "title": "Linda Williams - Our Song (1979)", "url": "https://www.youtube.com/watch?v=Da-gDFdKxpg", "tags": ["funk"], "ts": 1794151168}
