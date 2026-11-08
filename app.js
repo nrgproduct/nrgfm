@@ -1394,6 +1394,12 @@ function playable(tr) { const x = info(tr); return !x.dead && !x.noEmbed && !x.n
 function autoNext() {
   if (!autoplay || !playing) return;
   const { thread: t, index: i } = playing;
+  if (view === "tagged") { // Archive: the next track with a tag of its own, down the Archive's list (across posts)
+    const seq = [];
+    for (const x of shown) if (x.t && isBase(x.t)) x.t.tracks.forEach((tr, k) => { if (userTagged(tr) || (x.t === t && k === i)) seq.push([x.t, k]); });
+    const at = seq.findIndex(([u, k]) => u === t && k === i);
+    if (at > -1) { for (const [u, k] of seq.slice(at + 1)) if (playable(u.tracks[k])) { play(u, k); return; } return; }
+  }
   for (let k = i + 1; k < t.tracks.length; k++) if (playable(t.tracks[k])) { play(t, k); return; }
 }
 function onEnded() { setPlayState(false); autoNext(); }
