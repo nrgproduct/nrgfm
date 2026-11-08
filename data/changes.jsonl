@@ -1911,3 +1911,4 @@
 {"action": "edit", "thread": "p1581043831912335", "id": "t1607643232585728_0", "title": "Suzanne Kraft - 07:30:00 (In Pads) (from Missum album) 2014", "url": "https://www.youtube.com/watch?v=Wlc13fw9Mes", "tags": ["minimalism"], "ts": 1794143830}
 {"action": "edit", "thread": "p1581043831912335", "id": "t1607643365919048_0", "title": "Diego Herrera – Two Chord Wake (2015)", "url": "https://www.youtube.com/watch?v=0hirczLhZ3o", "tags": ["synth theme"], "ts": 1794143903}
 {"action": "tag", "ids": ["t1607643952585656_0"], "add": ["synth theme"], "remove": [], "ts": 1794143923}
+{"action": "tag", "ids": ["t1610548222295229_0"], "add": ["ambient hits"], "remove": [], "ts": 1794143992}
