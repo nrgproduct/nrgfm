@@ -1948,3 +1948,5 @@
 {"url": "https://www.youtube.com/watch?v=oQRcWRzq6Mw", "title": "Grimes - World Princess Part II", "thread": "p1401848279831892", "tags": ["art pop"], "ts": 1794146456}
 {"url": "https://www.youtube.com/watch?v=6zfPUHl6uKM", "title": "Kite – True Colours (2015)", "thread": "p1401848279831892", "tags": ["art pop"], "ts": 1794146588}
 {"action": "tag", "ids": ["t1794146588_0"], "add": ["#ipod"], "remove": [], "ts": 1794146592}
+{"action": "tag", "ids": ["t1794146588_0"], "add": ["gothic"], "remove": [], "ts": 1794146691}
+{"url": "https://www.youtube.com/watch?v=uIXkpzKSXwo", "title": "Thee Oh Sees - The Axis (2016)", "thread": "p1401848279831892", "tags": [], "ts": 1794146694}
