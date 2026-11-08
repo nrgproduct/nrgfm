@@ -773,8 +773,9 @@ const img = (src, cls) => src
 const HIDDEN_TAGS = new Set(); // (none now: "mix" is an ordinary tag again)
 const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g) && (!isAutoTag(g) || getToken())); // (the automatic tags only with the key)
 function tagLine(tr, extra, list) {
-  const tags = (list || shownTags(tr)).filter((g) => !isPlaylist(g) && (!isAutoTag(g) || getToken())); // (playlists don't show under a track)
-  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g))), extra ? el("span", { class: "sub-note" }, extra) : null];
+  const all = list || shownTags(tr), tags = all.filter((g) => !isPlaylist(g) && (!isAutoTag(g) || getToken()));
+  const pl = !list && all.some(isPlaylist); // in a playlist: only a "#" under the track (the names show in the Edit card)
+  return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g)), pl ? el("span", { class: "tag tag-pl" }, "#") : null), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
 /* phone search: touching the page outside a result that scrolls makes it stop scrolling (the page scrolls again) */
 document.addEventListener("touchmove", (e) => {
@@ -2765,7 +2766,7 @@ $("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[pl
    the right with the tag's description, a year range, the order to play in, Rename. Phone: the rows open the panel
    full screen ("Shelves"), or open their tracks in place ("Lists"). ---------- */
 const isAutoTag = (g) => AUTO_TAGS.has(g) || / characters$/.test(g); // (every "<script> characters" tag is automatic)
-const isPlaylist = (g) => g.startsWith("#"); // a playlist: a tag starting with #, never shown under a track
+const isPlaylist = (g) => g.startsWith("#"); // a playlist: a tag starting with #; under a track only as a "#"
 const AUTO_TAGS = new Set(["backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
 let tagInfo = { desc: {} };
 fetch("data/tags.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) { tagInfo = { desc: {}, ...d }; if (tagsView()) renderTagsPage(); } }).catch(() => {});
