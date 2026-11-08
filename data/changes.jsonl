@@ -1925,3 +1925,5 @@
 {"action": "tag", "ids": ["t1492883194061733_0"], "add": ["post punk"], "remove": [], "ts": 1794144500}
 {"action": "edit", "thread": "p1491053547578031", "id": "t1492883844061668_0", "title": "Chris & Cosey: Stolen Kisses- Techno Primitiv (1985)", "url": "https://www.youtube.com/watch?v=nS6PlN2P0aE", "tags": [], "ts": 1794144533}
 {"action": "edit", "thread": "p1491053547578031", "id": "t1532722550077797_0", "title": "Christian Poulet - de zéro a l 'infini", "url": "https://www.youtube.com/watch?v=FUqXhEo2ALE", "tags": ["minimalism", "score"], "ts": 1794144638}
+{"action": "tag", "ids": ["t1532722550077797_0"], "add": ["new age"], "remove": [], "ts": 1794144667}
+{"action": "tag", "ids": ["t1532722550077797_0"], "add": [], "remove": ["minimalism"], "ts": 1794144670}
