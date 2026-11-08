@@ -3133,12 +3133,10 @@ function drawTagPanel(show, page) {
       title.prepend(el("span", { class: "tp-back-arrow", "aria-hidden": "true" }, "‹"));
       title.addEventListener("click", () => setView("tags"));
     }
-    const parts = [el("div", { class: "tpg-row1" }, head, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
+    const parts = [el("div", { class: "tpg-row1" }, head, lenSlider ? el("div", { class: "tpg-years tpg-lens" }, lenSlider) : null, slider ? el("div", { class: "tpg-years" }, slider) : null), descBox,
       el("div", { class: "tp-btns tpg-row2" }, orderBtn("newest", "Newest added"), orderBtn("oldest", "Oldest added"), orderBtn("shuffle", "Shuffle"),
-        el("span", { class: "tpg-right" },
-          key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
-            !isAutoTag(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null) : null,
-          lenSlider ? el("div", { class: "tpg-years tpg-lens" }, lenSlider) : null))].filter(Boolean);
+        key ? el("span", { class: "tpg-edit" }, el("button", { class: "when-link", onclick: editDesc }, desc ? "Edit description" : "Add description"),
+          !isAutoTag(g) ? el("button", { class: "when-link", onclick: rename }, "Rename") : null) : null)].filter(Boolean);
     if (desc) descBox.addEventListener("dblclick", () => key && editDesc());
     return parts;
   }

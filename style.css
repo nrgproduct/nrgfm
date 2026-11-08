@@ -1457,9 +1457,8 @@ body.side-open .tag-panel { visibility: hidden; }
 .tpg-years { margin-left: auto; width: 240px; flex: none; }
 .tpg-years .tp-range-labels { font-size: 12px; }
 .tpg-row2 { align-items: baseline; }
-.tpg-edit { display: inline-flex; gap: 14px; }
-.tpg-right { margin-left: auto; display: flex; align-items: center; gap: 24px; } /* Add description / Rename, then the length slider (under the years) */
-.tpg-row2:has(.tpg-lens) { align-items: center; }
+.tpg-edit { margin-left: auto; display: inline-flex; gap: 14px; }
+.tpg-lens + .tpg-years { margin-left: 0; } /* the lengths left of the years */
 .tp-page-head { max-width: none; }
 .tagpage-thread { border-bottom: 0; }
 @media (max-width: 640px) {
@@ -1468,8 +1467,6 @@ body.side-open .tag-panel { visibility: hidden; }
   .tg-head .tp-search { max-width: none; }
   .tpg-row1 { flex-wrap: wrap; gap: 6px 16px; }
   .tpg-years { width: 100%; }
-  .tpg-row2 { flex-wrap: wrap; }
-  .tpg-right { width: 100%; flex-wrap: wrap; gap: 6px 16px; }
 }
 
 /* a tag's page opened from Tags: ‹ before its name; hovering either lights both up, clicking goes back */
