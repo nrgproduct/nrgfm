@@ -2809,7 +2809,7 @@ const SECTION_ORDER = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0–9", "#", "Automatic
 function tagGridHead() {
   const have = new Set(threads.filter((t) => t.kind === "tag").map((t) => tagSection(t.name)));
   const jumps = SECTION_ORDER.filter((k) => k !== "Automatic").map((k) => el("button", {
-    class: "when-link tg-jump" + (have.has(k) ? "" : " none"), disabled: !have.has(k) || null,
+    class: "when-link tg-jump" + (k === "#" ? " tg-jump-pl" : "") + (have.has(k) ? "" : " none"), disabled: !have.has(k) || null,
     onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k));
   return el("div", { class: "tp-head tg-head" }, el("div", { class: "tg-jumps" }, jumps), tagSearchField());
 }
