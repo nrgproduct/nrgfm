@@ -1941,3 +1941,4 @@
 {"url": "https://www.youtube.com/watch?v=XHRR4dtEBmI", "title": "Teddy Lasry - Automation (1981)", "thread": "p1491053547578031", "tags": [], "ts": 1794145877}
 {"url": "https://www.youtube.com/watch?v=EmhqVPXOKo4", "title": "Kourosh Yaghmaei - Gole Yakh (Winter Sweet)", "thread": "p1491053547578031", "tags": ["outsider"], "ts": 1794145982}
 {"action": "tag", "ids": ["t1532729483410437_0"], "add": ["new age", "fusion", "euphoric", "score"], "remove": [], "ts": 1794146049}
+{"action": "edit", "thread": "p1491053547578031", "id": "t1532729483410437_0", "title": "Jean-Philippe Rykiel - Fair Light (1982)", "url": "https://www.youtube.com/watch?v=7Gt2o-Ezr88", "tags": ["new age", "fusion", "euphoric", "score"], "ts": 1794146104, "alt": "https://www.youtube.com/watch?v=ZjHhGiKAnX0"}
