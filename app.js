@@ -1849,7 +1849,7 @@ function tagEditor(initial, suggested = []) {
   const remove = (g) => { chosen.splice(chosen.indexOf(g), 1); drawChips(); drawDrop(); input.focus(); };
   const drawChips = () => {
     chips.replaceChildren(...chosen.map((g) => el("button", { type: "button", class: "tag-chip in", title: "Remove tag",
-      onmousedown: (e) => e.preventDefault(), onclick: () => remove(g) }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+      onmousedown: (e) => e.preventDefault(), onclick: () => remove(g) }, showTag(g), el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
     input.placeholder = chosen.length ? "" : "Add tag";
     field.scrollLeft = field.scrollWidth;
   };
@@ -1861,12 +1861,12 @@ function tagEditor(initial, suggested = []) {
     active = 0;
     const parts = [];
     if (sug.length) parts.push(el("div", { class: "drop-sug" }, sug.map((g) => el("button", { type: "button", class: "tag-chip suggest", title: "Use this tag",
-      onmousedown: (e) => { e.preventDefault(); add(g); } }, "+ " + g))));
+      onmousedown: (e) => { e.preventDefault(); add(g); } }, "+ " + showTag(g)))));
     if (opts.length) { // like the quick tag field: name left, how many tracks have it right; the pointer highlights
       const n = tagCounts();
       parts.push(el("ul", { class: "drop-list" }, opts.map((g, k) => el("li", { class: k === active ? "on" : "",
         onmouseenter: (e) => { active = k; [...e.currentTarget.parentNode.children].forEach((li, j) => li.classList.toggle("on", j === k)); showTagSide(g); },
-        onmousedown: (e) => { e.preventDefault(); add(g); } }, g, el("span", { class: "gi-n" }, n.get(g) || 0)))));
+        onmousedown: (e) => { e.preventDefault(); add(g); } }, showTag(g), el("span", { class: "gi-n" }, n.get(g) || 0)))));
     }
     drop.replaceChildren(...parts);
     drop.hidden = !parts.length || document.activeElement !== input;
@@ -1916,7 +1916,7 @@ function addForm(thread, edit, row) {
     const gone = [], dec = decadeOf((extra[tr.url] || {}).y);
     row.querySelectorAll(".tag-wrap .tag").forEach((sp) => {
       const g = sp.textContent.trim();
-      if (!g || g === dec) return; // the decade comes from the year
+      if (!g || g === dec || sp.classList.contains("tag-pl")) return; // the decade comes from the year; the ⌗ isn't one tag
       sp.classList.add("tag-rm");
       sp.addEventListener("click", (e) => {
         if (!(row.nextElementSibling && row.nextElementSibling.classList.contains("edit-wrap"))) return; // only while its card is open
@@ -2810,7 +2810,7 @@ function tagGridHead() {
   const have = new Set(threads.filter((t) => t.kind === "tag").map((t) => tagSection(t.name)));
   const jumps = SECTION_ORDER.filter((k) => k !== "Automatic").map((k) => el("button", {
     class: "when-link tg-jump" + (have.has(k) ? "" : " none"), disabled: !have.has(k) || null,
-    onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k === "#" ? PL_MARK : k));
+    onclick: () => { const h = document.getElementById("tl-" + k); if (h) pageScrollTo(Math.max(0, (scroller() === window ? scrollY : document.body.scrollTop) + h.getBoundingClientRect().top - contentTop() - 8)); } }, k));
   return el("div", { class: "tp-head tg-head" }, el("div", { class: "tg-jumps" }, jumps), tagSearchField());
 }
 function renderTagsGrid() {
@@ -2831,7 +2831,7 @@ function renderTagsGrid() {
     return b;
   };
   const out = [];
-  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k === "#" ? PL_MARK + " Playlists" : k === "Automatic" ? "Automatic tags" : k), el("div", { class: "tg-grid" }, ts.map(card)));
+  for (const [k, ts] of groups) if (ts.length) out.push(el("h2", { class: "tg-letter", id: "tl-" + k }, k === "#" ? "# Playlists" : k === "Automatic" ? "Automatic tags" : k), el("div", { class: "tg-grid" }, ts.map(card)));
   list.replaceChildren(el("div", { class: "tg-page" }, out));
   const first = [...groups.values()].flat()[0]; // (the first box on the page: A, not an automatic tag)
   if (!phone() && (!tp.active || !all.some((t) => t.name === tp.active))) tp.active = first.name;
@@ -2893,7 +2893,7 @@ function tagSearchField() {
   let opts = [], active = -1;
   const drawChips = () => {
     chips.replaceChildren(...tp.terms.map((g) => el("button", { type: "button", class: "tag-chip in", onmousedown: (e) => e.preventDefault(),
-      onclick: () => { tp.terms = tp.terms.filter((x) => x !== g); update(); } }, g, el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
+      onclick: () => { tp.terms = tp.terms.filter((x) => x !== g); update(); } }, showTag(g), el("span", { class: "x", "aria-hidden": "true" }, " ×"))));
     input.placeholder = tp.terms.length ? "" : "Search tags";
     clear.hidden = !tp.terms.length && !input.value;
   };
@@ -3530,8 +3530,8 @@ function closeQuick() {
   const q = quick; quick = null;
   q.box.remove(); side.hide(); if (q.cleanup) q.cleanup();
   if (q.wrap) { // the tags line under the title, as it is now
-    const list = q.row.closest(".genre-mix") ? genresOf(q.tr) : shownTags(q.tr);
-    q.wrap.replaceChildren(...list.map((g) => el("span", { class: "tag" }, g)));
+    const fresh = tagLine(q.tr, null, q.row.closest(".genre-mix") ? genresOf(q.tr) : null)[0]; // (playlists as the ⌗ again)
+    q.wrap.replaceChildren(...fresh.childNodes);
     q.wrap.style.visibility = "";
   }
   if (q.changed) refreshTags(); // the tag playlists follow (after the field is gone, so nothing jumps under it)
@@ -3564,7 +3564,7 @@ function openQuick(row, at) {
   const drawChips = () => {
     chips.replaceChildren(...draft.map((g, k) => el("button", { type: "button", class: "quick-chip" + (k === mark ? " marked" : ""), tabindex: "-1",
       onmousedown: (e) => e.preventDefault(), onclick: () => { draft.splice(k, 1); mark = -1; drawChips(); showTagSide(null); input.focus(); } },
-      g, el("span", { class: "x", "aria-hidden": "true" }, "×"))));
+      showTag(g), el("span", { class: "x", "aria-hidden": "true" }, "×"))));
     box.classList.toggle("dirty", dirty());
   };
   const markAt = (k) => { mark = k; drawChips(); showTagSide(k > -1 ? draft[k] : opts[active] || null); };
@@ -3578,7 +3578,7 @@ function openQuick(row, at) {
     opts = q ? [...tagCount.keys()].filter((g) => !draft.includes(g) && fold(g).includes(q))
       .sort((a, b) => fold(b).startsWith(q) - fold(a).startsWith(q) || tagCount.get(b) - tagCount.get(a)).slice(0, 8) : [];
     drop.replaceChildren(...opts.map((g, j) => el("li", { onmouseenter: () => highlight(j),
-      onmousedown: (e) => { e.preventDefault(); pick(g); } }, g, el("span", { class: "gi-n" }, tagCount.get(g)))));
+      onmousedown: (e) => { e.preventDefault(); pick(g); } }, showTag(g), el("span", { class: "gi-n" }, tagCount.get(g)))));
     drop.hidden = !opts.length;
     placeDrop();
     highlight(opts.length ? 0 : -1); // typing: the first suggestion is highlighted and its tracks show
