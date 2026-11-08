@@ -1855,3 +1855,4 @@
 {"action": "tag", "ids": ["t3396346877048679_0"], "add": ["hyper"], "remove": [], "ts": 1794140115}
 {"action": "tag", "ids": ["t1521762527840466_0"], "add": ["japanese", "eclectic 80s"], "remove": [], "ts": 1794140543}
 {"action": "edit", "thread": "p1521657671184285", "id": "t1529334607083258_0", "title": "Roujin Z Ending Run, Bicycle Run", "url": "https://www.youtube.com/watch?v=Oki0JqTEaqw", "tags": ["eclectic 80s", "japanese"], "ts": 1794140624}
+{"action": "edit", "thread": "p1521657671184285", "id": "t1529334607083258_0", "title": "Roujin Z Ending Run, Bicycle Run", "url": "https://www.youtube.com/watch?v=EeQUl7QDbC4", "tags": ["eclectic 80s", "japanese"], "ts": 1794140640, "alt": "https://www.youtube.com/watch?v=Oki0JqTEaqw"}
