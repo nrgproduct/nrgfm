@@ -2015,3 +2015,4 @@
 {"action": "edit", "thread": "p3322285607788140", "id": "t3322815001068534_0", "title": "Tony Drake - To Touch You (1999)", "url": "https://www.youtube.com/watch?v=DjAyIgmTVIk", "tags": ["ambient hits"], "ts": 1794151322}
 {"action": "tag", "ids": ["t1385646428118744_0"], "add": ["vaporwave", "abstract"], "remove": [], "ts": 1794151400}
 {"action": "edit", "thread": "xt1385646428118744_0", "id": "t1385646428118744_0", "title": "Disconscious - Midnight Specimen (2013)", "url": "https://www.youtube.com/watch?v=6KULzvrfE7A", "tags": ["vaporwave", "abstract"], "ts": 1794151408}
+{"action": "tag", "ids": ["t3362272557122778_0"], "add": ["vgm", "synth theme"], "remove": [], "ts": 1794151475}
