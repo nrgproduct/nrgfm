@@ -1844,3 +1844,6 @@
 {"url": "https://www.youtube.com/watch?v=sySlY1XKlhM", "title": "B.J. Thomas - Raindrops Keep Falling on my Head", "thread": "p29389900680599943", "tags": ["#elena"], "ts": 1794126393}
 {"action": "delete", "thread": "p6372652196084784", "id": "t6532683566748312_0", "ts": 1794126676}
 {"action": "tag", "ids": ["t510580912291971_0"], "add": ["mainzerstr"], "remove": [], "ts": 1794126682}
+{"action": "tag", "ids": ["t510580912291971_0"], "add": [], "remove": ["duplicate"], "ts": 1794126686}
+{"action": "tag", "ids": ["t510604258956303_0"], "add": ["mainzerstr"], "remove": [], "ts": 1794126692}
+{"action": "tag", "ids": ["t585492924800769_0"], "add": ["mainzerstr"], "remove": [], "ts": 1794126699}
