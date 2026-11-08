@@ -2767,7 +2767,7 @@ $("#flagBtn").onclick = () => { if (playing) toggleFlag(playing.thread.tracks[pl
    full screen ("Shelves"), or open their tracks in place ("Lists"). ---------- */
 const isAutoTag = (g) => AUTO_TAGS.has(g) || / characters$/.test(g); // (every "<script> characters" tag is automatic)
 const isPlaylist = (g) => g.startsWith("#"); // a playlist: a tag starting with #; under a track only as PL_MARK
-const PL_MARK = "#"; // how the site shows the # of a playlist (one place to change it; the Edit card keeps the real #)
+const PL_MARK = "⌗"; // how the site shows the # of a playlist (one place to change it; the Edit card keeps the real #)
 const showTag = (g) => (isPlaylist(g) ? PL_MARK + g.slice(1) : g);
 const AUTO_TAGS = new Set(["backup link", "duplicate", "+10 min", "+30 min", "+1 hour", "japanese characters", "chinese characters", "korean characters", "broken link", "plays on youtube only", "flagged"]);
 let tagInfo = { desc: {} };
