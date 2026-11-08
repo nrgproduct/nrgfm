@@ -2011,3 +2011,4 @@
 {"action": "edit", "thread": "p1392226040794116", "id": "t1794151161_0", "title": "Linda Williams - Our Song (1979)", "url": "https://www.youtube.com/watch?v=Da-gDFdKxpg", "tags": ["funk"], "ts": 1794151168}
 {"url": "https://www.youtube.com/watch?v=x_x4THh-tJk", "title": "Donkey Kong Country 2 - Forest Interlude [Restored] Extended", "thread": "p1392226040794116", "tags": ["video game", "synth theme"], "ts": 1794151229}
 {"action": "tagrename", "from": "video game", "to": "vgm", "ts": 1794151268}
+{"action": "tag", "ids": ["t3322815001068534_0"], "add": ["ambient hits"], "remove": [], "ts": 1794151313}
