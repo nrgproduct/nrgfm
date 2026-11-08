@@ -3244,6 +3244,13 @@ async function renderActivity() {
   if (!getToken()) { act.head.replaceChildren(); list.replaceChildren(el("p", { class: "view-note" }, "Activity is only shown on a device with the key.")); return; }
   if (!ACT_URL) { act.head.replaceChildren(); list.replaceChildren(el("p", { class: "view-note" }, "The Activity server isn't set up yet.")); return; }
   list.replaceChildren(el("p", { class: "view-note" }, "Loading…"));
+  if (act.mode === "logs" && phone()) act.mode = "plays";
+  if (act.mode === "logs") { // Logs: everything changed on the site (data/changes.jsonl), laptop only
+    try { await loadLogs(); } catch { if (token === act.token) list.replaceChildren(el("p", { class: "view-note" }, "The log couldn't be loaded.")); return; }
+    if (token !== act.token) return;
+    if (!act.logDays.some((d) => d.day === act.day)) act.day = act.logDays.length ? act.logDays[0].day : null;
+    drawActHead(); drawLogList(); return;
+  }
   try {
     const q = "?min=" + (act.full ? 15 : 0) + (act.who ? "&who=" + encodeURIComponent(act.who) : "");
     if (act.mode === "top") [act.periods, act.devices] = await Promise.all([actApi("/periods" + q + "&group=month"), actApi("/devices")]);
@@ -3281,21 +3288,24 @@ async function drawTopList(token) {
 }
 function drawActHead() {
   const go = (fn) => () => { fn(); renderActivity(); };
-  const top = act.mode === "top";
-  const dayRow = el("div", { class: "hist-years act-days" }, top
+  const top = act.mode === "top", logs = act.mode === "logs";
+  const dayRow = el("div", { class: "hist-years act-days" }, logs
+    ? act.logDays.map((d) => el("button", { class: "when-link" + (d.day === act.day ? " on" : ""), onclick: go(() => { act.day = d.day; }) }, actDayName(d.day), el("span", { class: "gi-n" }, d.n)))
+    : top
     ? act.periods.map((d) => el("button", { class: "when-link" + (d.p === act.period ? " on" : ""), onclick: go(() => { act.period = d.p; }) }, actPeriodName(d.p), el("span", { class: "gi-n" }, d.n)))
     : act.days.map((d) => el("button", { class: "when-link" + (!act.flagged && d.day === act.day ? " on" : ""),
       onclick: go(() => { act.day = d.day; act.flagged = false; }) }, actDayName(d.day), el("span", { class: "gi-n" }, d.n))));
   const setMode = (m) => { act.mode = m; try { localStorage.setItem("nrgfm-act-mode", m); } catch {} };
   const views = el("div", { class: "act-views" },
-    el("button", { class: "when-link" + (!top ? " on" : ""), onclick: go(() => setMode("plays")) }, "Plays"),
+    el("button", { class: "when-link" + (!top && !logs ? " on" : ""), onclick: go(() => setMode("plays")) }, "Plays"),
     el("button", { class: "when-link" + (top ? " on" : ""), onclick: go(() => setMode("top")) }, "Most played"));
   const edgeFade = () => { dayRow.classList.toggle("fade-l", dayRow.scrollLeft > 2); dayRow.classList.toggle("fade-r", dayRow.scrollLeft + dayRow.clientWidth < dayRow.scrollWidth - 2); };
   dayRow.addEventListener("scroll", edgeFade, { passive: true }); requestAnimationFrame(edgeFade);
   dayRow.addEventListener("wheel", (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && dayRow.scrollWidth > dayRow.clientWidth) { e.preventDefault(); dayRow.scrollLeft += e.deltaY; } }, { passive: false });
   const owners = act.devices.filter((d) => d.owner && d.n);
   const cur = act.who && act.devices.find((d) => d.who === act.who);
-  const chips = el("div", { class: "hist-months act-filters" },
+  const logsBtn = phone() ? null : el("button", { class: "when-link act-logs" + (logs ? " on" : ""), onclick: go(() => setMode(logs ? "plays" : "logs")) }, "Logs");
+  const chips = logs ? el("div", { class: "hist-months act-filters" }) : el("div", { class: "hist-months act-filters" },
     el("button", { class: "when-link" + (!act.who ? " on" : ""), onclick: go(() => { act.who = null; }) }, "All devices"),
     owners.map((d) => el("button", { class: "when-link" + (act.who === d.who ? " on" : ""), onclick: go(() => { act.who = d.who; }) }, deviceLabel(d))),
     cur && !cur.owner ? el("button", { class: "when-link on", onclick: go(() => { act.who = null; }) }, deviceLabel(cur) + " ×") : null,
@@ -3318,7 +3328,7 @@ function drawActHead() {
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } });
     naming = el("span", { class: "act-naming" }, input, el("button", { type: "button", class: "when-link", onclick: save }, "Save"));
   }
-  act.head.replaceChildren(el("div", { class: "act-row1" }, dayRow, views), el("div", { class: "hist-months-row act-row2" }, chips, naming));
+  act.head.replaceChildren(el("div", { class: "act-row1" }, dayRow, views), el("div", { class: "hist-months-row act-row2" }, chips, naming, logsBtn));
   const head = $("#viewHead");
   if (view === "activity" && !$("#q").value.trim()) { head.className = "view-head view-history view-activity"; head.replaceChildren(act.head); head.hidden = false; }
 }
@@ -3361,6 +3371,54 @@ async function drawActList(token) {
       flagBtn));
   }
   list.replaceChildren(el("ul", { class: "act-list" }, out));
+}
+/* Logs: every change made on the site, newest first (the same list the data is rebuilt from) */
+async function loadLogs() {
+  const text = await fetch("data/changes.jsonl?v=" + Date.now(), { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; return r.text(); });
+  act.logs = text.split("\n").map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((c) => c && c.ts).sort((a, b) => b.ts - a.ts);
+  const n = new Map();
+  for (const c of act.logs) { const d = new Date(c.ts * 1000).toLocaleDateString("sv-SE"); n.set(d, (n.get(d) || 0) + 1); }
+  act.logDays = [...n].map(([day, k]) => ({ day, n: k }));
+}
+function drawLogList() {
+  const list = $("#threads");
+  act.index = null;
+  const titles = new Map(); // track id: a title from the log itself (for tracks deleted since)
+  for (const c of act.logs) if (c.id && c.title && !titles.has(c.id)) titles.set(c.id, c.title);
+  const byId = (id) => { trackByPlay({}); const at = act.index.get(id); return at ? { at, tr: at.t.tracks[at.i] } : null; };
+  const byUrl = (u) => { trackByPlay({}); const at = u && act.index.get(u); return at ? { at, tr: at.t.tracks[at.i] } : null; };
+  const threadOf = (id) => threads.find((t) => t.id === id && isBase(t));
+  const trackBtn = (f, fallback) => f
+    ? el("button", { class: "play month-play", onclick: () => play(f.at.t, f.at.i) }, img(info(f.tr).thumb, "mini"), el("span", { class: "act-text" }, el("span", { class: "tr-title" }, info(f.tr).title)))
+    : el("span", { class: "act-text act-gone" }, el("span", { class: "tr-title" }, fallback || "A track no longer on the site"));
+  const postLink = (id, label) => { const t = threadOf(id); return t ? el("button", { class: "when-link", "data-thread": t.id, onclick: () => goToThread(t) }, label) : null; };
+  const tagList = (a) => (a || []).map(showTag).join(", ");
+  const PROMOTE = { main: "Made the main track of its post", top: "Moved to its own post (new)", original: "Moved to its own post (dated)", isolate: "Moved to its own post" };
+  const row = (c) => {
+    const a = c.action || "add", f = c.id ? byId(c.id) : byUrl(c.url);
+    let what = a, track = null, more = [];
+    if (a === "add") { what = "Added"; track = trackBtn(byUrl(c.url) || f, c.title || c.url); more.push(c.thread ? postLink(c.thread, "in a post") : "as a new post"); if (c.tags && c.tags.length) more.push("· " + tagList(c.tags)); }
+    else if (a === "edit") { what = "Edited"; track = trackBtn(f, c.title || titles.get(c.id)); }
+    else if (a === "delete") { what = "Deleted"; track = trackBtn(null, titles.get(c.id)); more.push(postLink(c.thread, "from a post")); }
+    else if (a === "move") { what = "Moved"; track = trackBtn(f, titles.get(c.id)); more.push(postLink(c.to, "to another post")); }
+    else if (a === "reorder") { what = "Moved"; track = trackBtn(f, titles.get(c.id)); more.push("within its post"); }
+    else if (a === "promote") { what = PROMOTE[c.to] || "Moved"; track = trackBtn(f, titles.get(c.id)); }
+    else if (a === "tag") {
+      what = "Tags"; const ids = c.ids || [];
+      track = ids.length === 1 ? trackBtn(byId(ids[0]), titles.get(ids[0])) : el("span", { class: "act-text" }, el("span", { class: "tr-title" }, ids.length + " tracks"));
+      if (c.add && c.add.length) more.push("+ " + tagList(c.add)); if (c.remove && c.remove.length) more.push("− " + tagList(c.remove));
+    }
+    else if (a === "tagrename") { what = "Renamed a tag"; track = el("span", { class: "act-text" }, el("span", { class: "tr-title" }, showTag(c.from) + " → " + showTag(c.to))); }
+    else if (a === "split") { what = "Split a post"; track = el("span", { class: "act-text" }, el("span", { class: "tr-title" }, (c.groups || []).length + " parts")); }
+    else if (a === "regroup") { what = "Regrouped posts"; track = el("span", { class: "act-text" }, el("span", { class: "tr-title" }, (c.threads || []).length + " posts")); }
+    else if (a === "recheck") { what = "Checked links"; track = el("span", { class: "act-text" }, el("span", { class: "tr-title" }, Object.keys(c.meta_set || {}).length + " changed")); }
+    else track = el("span", { class: "act-text" }, el("span", { class: "tr-title" }, ""));
+    const time = new Date(c.ts * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return el("li", { class: "act-line act-log" }, el("span", { class: "act-time" }, time), el("span", { class: "act-what" }, what), track,
+      el("span", { class: "act-more" }, more.filter(Boolean).flatMap((m, k) => (k ? [" ", m] : [m]))));
+  };
+  const day = act.logs.filter((c) => new Date(c.ts * 1000).toLocaleDateString("sv-SE") === act.day);
+  list.replaceChildren(day.length ? el("ul", { class: "act-list" }, day.map(row)) : el("p", { class: "view-note" }, "Nothing changed that day."));
 }
 /* "edit" in the player: the playing track's edit card */
 $("#editBtn").onclick = () => editPlaying(false);
