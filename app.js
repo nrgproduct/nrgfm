@@ -3085,7 +3085,7 @@ function drawTagPanel(show, page) {
   }
   // a tag's page: a toggle for each kind of long track it has (struck through = left out)
   const off = tp.lens[g] || new Set();
-  const longBtns = page ? Object.keys(LONG).reverse().filter((k) => t.tracks.some((tr) => { const d = lenOf(tr); return d && LONG[k](d); }))
+  const longBtns = page ? Object.keys(LONG).filter((k) => t.tracks.some((tr) => { const d = lenOf(tr); return d && LONG[k](d); }))
     .map((k) => el("button", { class: "when-link tpg-len" + (off.has(k) ? " off" : " on"), "aria-pressed": String(!off.has(k)),
       onclick: () => { const o = tp.lens[g] || (tp.lens[g] = new Set()); o.has(k) ? o.delete(k) : o.add(k); runSearch(); } }, k)) : [];
   const order = tp.order[g] || "newest";

@@ -1458,12 +1458,14 @@ body.side-open .tag-panel { visibility: hidden; }
 .tpg-years .tp-range-labels { font-size: 12px; }
 .tpg-row2 { align-items: baseline; }
 .tpg-edit { margin-left: auto; display: inline-flex; gap: 14px; }
-/* the +1 hour / +30 min toggles: halfway between Shuffle and Add description */
-.tpg-long { flex: 1; display: flex; justify-content: center; gap: 14px; }
+/* the +30 min / +1 hour toggles: in the space between Shuffle and Add description, twice as far from Shuffle as from Add description */
+.tpg-long { flex: 1; display: flex; gap: 14px; }
+.tpg-long::before { content: ""; flex: 2; margin-right: 28px; } /* (28px: the gaps on each side even out) */
+.tpg-long::after { content: ""; flex: 1; }
 .tpg-long + .tpg-edit { margin-left: 0; }
 .tpg-len { white-space: nowrap; }
 .tpg-len.off { text-decoration-line: line-through; color: var(--muted); opacity: .7; }
-.tr-len { color: var(--muted); font-size: .85em; margin-left: 10px; } /* a tag's page: the track's length after its title */
+.tr-len { color: var(--muted); font-size: .78em; opacity: .75; margin-left: 10px; vertical-align: .16em; } /* a tag's page: the track's length after its title */
 .tp-page-head { max-width: none; }
 .tagpage-thread { border-bottom: 0; }
 @media (max-width: 640px) {
@@ -1473,6 +1475,7 @@ body.side-open .tag-panel { visibility: hidden; }
   .tpg-row1 { flex-wrap: wrap; gap: 6px 16px; }
   .tpg-years { width: 100%; }
   .tpg-long { flex: none; }
+  .tpg-long::before, .tpg-long::after { content: none; }
 }
 
 /* a tag's page opened from Tags: ‹ before its name; hovering either lights both up, clicking goes back */
