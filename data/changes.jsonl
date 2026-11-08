@@ -2033,3 +2033,4 @@
 {"url": "https://www.youtube.com/watch?v=dnLjhGlHAMI", "title": "飯島真理 = Mari Iijima - 遥かな微笑み 〜黄土高原〜 = Harukana Hohoemi (1986)", "thread": "xt1448776011805785_0", "tags": ["japanese", "eclectic 80s"], "ts": 1794152726}
 {"url": "https://www.youtube.com/watch?v=oUcR4TQ9Zd0", "title": "(Ryuichi Sakamoto) 坂本龍 - TIBETAN DANCE", "thread": "xt1448776011805785_0", "tags": [], "ts": 1794152889}
 {"action": "tag", "ids": ["t1794152889_0"], "add": ["city pop"], "remove": [], "ts": 1794152930}
+{"action": "tag", "ids": ["t1794152889_0"], "add": ["eclectic 80s"], "remove": [], "ts": 1794152945}
