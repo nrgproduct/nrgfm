@@ -1458,14 +1458,14 @@ body.side-open .tag-panel { visibility: hidden; }
 .tpg-years .tp-range-labels { font-size: 12px; }
 .tpg-row2 { align-items: baseline; }
 .tpg-edit { margin-left: auto; display: inline-flex; gap: 14px; }
-/* the +30 min / +1 hour toggles: in the space between Shuffle and Add description, twice as far from Shuffle as from Add description */
-.tpg-long { flex: 1; display: flex; gap: 14px; }
-.tpg-long::before { content: ""; flex: 2; margin-right: 28px; } /* (28px: the gaps on each side even out) */
-.tpg-long::after { content: ""; flex: 1; }
-.tpg-long + .tpg-edit { margin-left: 0; }
-.tpg-len { white-space: nowrap; }
-.tpg-len.off { text-decoration-line: line-through; color: var(--muted); opacity: .7; }
-.tr-len { color: var(--muted); font-size: .78em; opacity: .75; margin-left: 10px; vertical-align: .16em; } /* a tag's page: the track's length after its title */
+/* the +30 min / +1 hour toggles: as the search's field filters (Titles, Releases…), as far from Shuffle as those are from "5 results" (108px, with the row's 14px gap) */
+.tpg-long { margin-left: 94px; display: flex; gap: 6px 18px; }
+.tpg-len { all: unset; cursor: pointer; white-space: nowrap; font-size: 14px; color: var(--jade); }
+.tpg-len .gi-n { margin-left: 4px; font-size: 12px; color: inherit; opacity: .75; }
+.tpg-len:hover { text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.tpg-len.off { color: var(--muted); opacity: .45; }
+.tpg-len.off:hover { opacity: .7; }
+.tr-len { color: var(--muted); font-size: .78em; opacity: .75; margin-left: 10px; } /* (on the title's own line, like its small letters) */ /* a tag's page: the track's length after its title */
 .tp-page-head { max-width: none; }
 .tagpage-thread { border-bottom: 0; }
 @media (max-width: 640px) {
@@ -1474,8 +1474,7 @@ body.side-open .tag-panel { visibility: hidden; }
   .tg-head .tp-search { max-width: none; }
   .tpg-row1 { flex-wrap: wrap; gap: 6px 16px; }
   .tpg-years { width: 100%; }
-  .tpg-long { flex: none; }
-  .tpg-long::before, .tpg-long::after { content: none; }
+  .tpg-long { margin-left: 0; }
 }
 
 /* a tag's page opened from Tags: ‹ before its name; hovering either lights both up, clicking goes back */
