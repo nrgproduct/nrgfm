@@ -1992,3 +1992,4 @@
 {"action": "edit", "thread": "p1380476945302359", "id": "t1794149262_0", "title": "ELO - Mister Kingdom (1974)", "url": "https://www.youtube.com/watch?v=ObJJnsUZt7o", "tags": ["prog", "art rock"], "ts": 1794149357, "notes": "james bond. jimmy hendrix."}
 {"url": "https://www.youtube.com/watch?v=D63A33tACN0", "title": "ELO - Laredo Tornado (1974)", "thread": "p1380476945302359", "tags": [], "ts": 1794149401}
 {"url": "https://www.youtube.com/watch?v=CQ2_lAMJBnA", "title": "Jean Luc Ponty - Demagomania (1980)", "thread": "p1380476945302359", "tags": [], "ts": 1794149461}
+{"action": "tag", "ids": ["t1794149461_0"], "add": ["fusion"], "remove": [], "ts": 1794149470}
