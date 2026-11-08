@@ -1866,3 +1866,4 @@
 {"action": "edit", "thread": "p1521657671184285", "id": "t1532780416738677_0", "title": "八神純子／黄昏のBAY CITY（プロモーション用DISCOバージョン）", "url": "https://www.youtube.com/watch?v=Wey2yM_dNfc", "tags": ["japanese characters"], "ts": 1794140948}
 {"action": "tag", "ids": ["t1532780416738677_0"], "add": ["city pop"], "remove": [], "ts": 1794140960}
 {"action": "edit", "thread": "p1335978933085494", "id": "t1335978933085494_0", "title": "Ex-Terrestrial - Blue Smoke (2016)", "url": "https://www.youtube.com/watch?v=vWClQpzmeOk", "tags": ["downtempo"], "ts": 1794141139}
+{"action": "tag", "ids": ["t1335978933085494_0"], "add": ["chillout room"], "remove": [], "ts": 1794141167}
