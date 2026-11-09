@@ -1495,7 +1495,7 @@ body.side-open .tag-panel { visibility: hidden; }
 @font-face { font-family: "nrgfm hash"; font-weight: 800 1000; unicode-range: U+0023, U+2317; src: url(data:font/woff2;base64,d09GMgABAAAAAAIgAA8AAAAABBgAAAHJAAEZmgAAAAAAAAAAAAAAAAAAAAAAAAAAGyAcKgZgP1NUQVREADwRCAqBNIEoATYCJAMMCwgABCAFfAcgDAcbAgMgrgZsYzjaGIZaNUpZh84YQ2yMK59l6bGn8fD92u/cJ/s/Er2ZNrzi0y1kixahZLxEIomhJEgMiUheEGFM03bAJCdR7YCKgO2lmL7l7Sloin3oJlYpkIkmVLEwo0rVDjbgACSRyALChW4esVp7aaYOb7njJ7y239paShE9RP38tyiNMbAw4DDQFAKD9IZZSg5RaC77AnoVlMjO7PIaHg7QAoASaOnQsdDF8dsDGeJ/QKm5XFTU5TKJe4A4tBAAgAAAW1tr8E6Tk6z2n54P2YMAZaMOjDFCeCgMUJiiN5dXbwJOL4/vxI1wiBAQjf0hExoeQAAJMgwwAgMcOtBwEKo+yQDa2n6/5A0I0kIYggEN9MIc7AMUIHFw1Fx+4ylHjT0RcT+Orx6/x49d+9UffP0Gv/2A+mq1OUcPhc991olZ7yT1VP7h09oIcVNONO3gLnIkS8g/OA7uBMTofbeLm4fh0b82D+CrRyH4dX+BpsA1FIpHaLNAuA4BAMgF1DXFxmsTyCIcQAAAQDVmpHhRIYyRQL8Qu/DJsZuAxr4Hn64V5y69u3PsxaZz1y5deTNet1O3FoKO6RorHt3XB6ZS7aJH/VugTkoDAA==) format("woff2"); }
 .tg-jumps { font-family: "Schibsted Grotesk", system-ui, sans-serif; } /* the letter bar: the font's own # (not the straight one) */
 /* Activity → Logs (laptop only): right end of the filters' line; a line per change */
-.act-logs { margin-left: auto; }
+.act-logs { margin-left: auto; font-size: 14px; } /* (as All devices) */
 .act-log { grid-template-columns: 48px 150px minmax(0, 1fr) minmax(0, auto); }
 .act-what { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .act-more { color: var(--muted); font-size: 13px; text-align: right; }
