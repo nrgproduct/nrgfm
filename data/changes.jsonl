@@ -2042,3 +2042,4 @@
 {"action": "tag", "ids": ["t1292036354146419_0"], "add": ["downtempo"], "remove": [], "ts": 1794154470}
 {"action": "tag", "ids": ["t1298639290152792_0"], "add": ["downtempo"], "remove": [], "ts": 1794154671}
 {"url": "https://www.youtube.com/watch?v=3NYbcxCbv_w", "title": "Alva Noto - Haliod Xerrox Copy 1", "thread": "p1793868326", "tags": [], "ts": 1794183712}
+{"action": "recheck", "ts": 1794202610, "meta_set": {"https://www.youtube.com/watch?v=edsrDr3gIXU": {"dead": true, "status": 404}, "https://www.youtube.com/watch?v=IRcwnUfg5Hc": {"dead": true, "status": 403}}, "meta_clear": [], "tag": [{"ids": ["t1793049129_0", "t25432356299687754_0"], "add": ["broken link"]}, {"ids": [], "add": ["plays on youtube only"]}, {"ids": [], "remove": ["broken link", "plays on youtube only"]}]}
