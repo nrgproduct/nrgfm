@@ -340,7 +340,7 @@ const newestFirst = (a, b) => b.ts - a.ts;
 function viewItems() {
   if (view === "tagsold") return threads.filter((t) => t.kind === "tag").sort((a, b) => b.last - a.last); // (#/tagsold: the Tags page as it was in Oct 2026, kept as a backup)
   if (tagsView()) return []; // drawn by renderTagsPage
-  if (view === "tag") { const t = tagThreadOf(tagPageName); if (t) expanded.add(t.id); return t ? [tagPlaylist(t)] : []; } // (opened out: all its tracks)
+  if (view === "tag") { const t = !getToken() && isAutoTag(tagPageName || "") ? null : tagThreadOf(tagPageName); /* (an automatic tag's page: only with the key) */ if (t) expanded.add(t.id); return t ? [tagPlaylist(t)] : []; } // (opened out: all its tracks)
   if (view === "mixes") return mixThreads();
   if (view === "genres") return gSel.length ? [genreMix()] : []; // no playlist until a genre is picked
   if (view === "genreboxes") return genreThreads(); // the earlier Genres page (#/genreboxes), kept as a backup
@@ -773,7 +773,7 @@ const img = (src, cls) => src
 const HIDDEN_TAGS = new Set(); // (none now: "mix" is an ordinary tag again)
 const shownTags = (tr) => Object.keys(tr.tags || {}).filter((g) => !HIDDEN_TAGS.has(g) && (!isAutoTag(g) || getToken())); // (the automatic tags only with the key)
 function tagLine(tr, extra, list) {
-  const all = list || shownTags(tr), tags = all.filter((g) => !isPlaylist(g) && (!isAutoTag(g) || getToken()));
+  const all = list || shownTags(tr), tags = all.filter((g) => !isPlaylist(g) && !/ characters$/.test(g) && (!isAutoTag(g) || getToken())); // (the "… characters" tags: only on the Tags page, with the key)
   const pl = !list && all.some(isPlaylist); // in a playlist: only PL_MARK under the track (the names show in the Edit card)
   return [el("span", { class: "tag-wrap" }, tags.map((g) => el("span", { class: g === "duplicate" ? "tag tag-dup" : "tag" }, g)), pl ? el("span", { class: "tag tag-pl" }, PL_MARK) : null), extra ? el("span", { class: "sub-note" }, extra) : null];
 }
